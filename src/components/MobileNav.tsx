@@ -1,0 +1,86 @@
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { HomeIcon, ImageIcon, FileTextIcon, MenuIcon, XIcon, SparklesIcon, FilmIcon } from 'lucide-react';
+
+export default function MobileNav() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const isHome = location.pathname === '/';
+  const searchParams = new URLSearchParams(location.search);
+  const currentCategory = searchParams.get('category');
+
+  const tabs = [
+    { icon: HomeIcon, label: '首页', path: '/', active: isHome && !currentCategory },
+    { icon: ImageIcon, label: '图片', path: '/?category=image', active: currentCategory === 'image' },
+    { icon: FileTextIcon, label: '文字', path: '/?category=text', active: currentCategory === 'text' },
+    { icon: MenuIcon, label: '更多', path: '', active: false },
+  ];
+
+  return (
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="bg-card/90 backdrop-blur-xl border-t border-white/5">
+          <div className="flex items-center justify-around h-14">
+            {tabs.map((tab) => (
+              <button
+                key={tab.label}
+                onClick={() => {
+                  if (tab.label === '更多') {
+                    setSheetOpen(true);
+                  } else {
+                    navigate(tab.path);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+                  tab.active ? 'text-accent' : 'text-gray-500'
+                }`}
+                aria-label={tab.label}
+              >
+                <tab.icon className="w-5 h-5" />
+                <span className="text-[10px]">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {sheetOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setSheetOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="absolute bottom-14 left-0 right-0 bg-card border-t border-white/10 rounded-t-2xl p-4 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-medium">全部分类</h3>
+              <button onClick={() => setSheetOpen(false)} className="p-1 text-gray-400">
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'everyday', name: '日常必备', icon: SparklesIcon, color: 'text-emerald-400' },
+                { id: 'image', name: '图片工具', icon: ImageIcon, color: 'text-blue-400' },
+                { id: 'text', name: '文字处理', icon: FileTextIcon, color: 'text-purple-400' },
+                { id: 'media', name: '影音工具', icon: FilmIcon, color: 'text-orange-400' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    navigate(`/?category=${cat.id}`);
+                    setSheetOpen(false);
+                  }}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-surface hover:bg-white/5 transition-colors"
+                >
+                  <cat.icon className={`w-5 h-5 ${cat.color}`} />
+                  <span className="text-gray-300 text-sm">{cat.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

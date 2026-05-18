@@ -1,0 +1,125 @@
+import { useState } from 'react';
+import { CopyIcon, CheckIcon, DownloadIcon, AlertCircleIcon } from 'lucide-react';
+import type { ToolOutput } from '@/types';
+
+interface OutputPanelProps {
+  output: ToolOutput | null;
+}
+
+export default function OutputPanel({ output }: OutputPanelProps) {
+  const [copied, setCopied] = useState(false);
+
+  if (!output) return null;
+
+  const handleCopy = () => {
+    const text = typeof output.data === 'string'
+      ? output.data
+      : JSON.stringify(output.data, null, 2);
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    if (output.downloadUrl) {
+      const a = document.createElement('a');
+      a.href = output.downloadUrl;
+      a.download = output.filename || 'download';
+      a.click();
+    }
+  };
+
+  if (!output.success) {
+    return (
+      <div className="animate-error-shake bg-red-500/10 border border-red-500/20 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertCircleIcon className="w-5 h-5 text-red-400" />
+          <h3 className="text-red-400 font-medium">执行失败</h3>
+        </div>
+        <p className="text-red-300/80 text-sm">{output.error}</p>
+      </div>
+    );
+  }
+
+  const isImageData = typeof output.data === 'string' && output.data.startsWith('data:image');
+  const isHtmlData = typeof output.data === 'string' && output.data.includes('<') && output.data.includes('>');
+  const isTextData = typeof output.data === 'string';
+  const isImageOutput = !!output.downloadUrl && (output.filename?.endsWith('.png') || output.filename?.endsWith('.jpg') || output.filename?.endsWith('.jpeg') || output.filename?.endsWith('.webp'));
+
+  return (
+    <div className="animate-success-pulse animate-fade-in bg-card border border-white/5 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
+        <h3 className="text-white font-medium text-sm">执行结果</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            className="p-2 rounded-lg text-gray-400 hover:text-accent hover:bg-accent/10 transition-all"
+            title="复制"
+          >
+            {copied ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
+          </button>
+          {output.downloadUrl && (
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/20 text-accent text-xs font-medium hover:bg-accent/30 transition-all"
+            >
+              <DownloadIcon className="w-3.5 h-3.5" />
+              下载图片
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="p-5">
+        {isImageData ? (
+          <div className="flex justify-center">
+            <img
+              src={output.data as string}
+              alt="输出图片"
+              className="max-w-full max-h-96 rounded-xl border border-white/10"
+            />
+          </div>
+        ) : isImageOutput ? (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <img
+                src={output.downloadUrl!}
+                alt="处理后的图片"
+                className="max-w-full max-h-96 rounded-xl border border-white/10"
+              />
+            </div>
+            {output.data && typeof output.data === 'object' && (
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(output.data as Record<string, unknown>).map(([key, value]) => (
+                  <div key={key} className="bg-surface rounded-lg px-3 py-2">
+                    <span className="text-gray-400 text-xs">{key}</span>
+                    <p className="text-gray-300 text-sm">{String(value)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : isHtmlData ? (
+          <div
+            className="prose prose-invert max-w-none text-gray-300 text-sm"
+            dangerouslySetInnerHTML={{ __html: output.data as string }}
+          />
+        ) : isTextData ? (
+          <pre className="bg-surface rounded-xl p-4 text-sm text-gray-300 whitespace-pre-wrap break-all max-h-96 overflow-y-auto font-mono">
+            {output.data as string}
+          </pre>
+        ) : (
+          <pre className="bg-surface rounded-xl p-4 text-sm text-gray-300 whitespace-pre-wrap break-all max-h-96 overflow-y-auto font-mono">
+            {JSON.stringify(output.data, null, 2)}
+          </pre>
+        )}
+        {output.提示 && (
+          <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+            <AlertCircleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-amber-300/80 text-sm">{output.提示}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
