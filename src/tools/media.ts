@@ -19,20 +19,4 @@ export const mediaTools: ToolRecord[] = [
     outputFormat: 'blob',
     tips: '建议GIF宽度不超过640px，时长1-10秒效果最佳',
   },
-  {
-    id: 'file-compress',
-    name: '文件压缩解压',
-    description: '压缩文件为ZIP或解压ZIP文件',
-    icon: 'ArchiveIcon',
-    category: 'media',
-    version: '1.0.0',
-    source: 'builtin' as const,
-    permissions: [],
-    inputSchema: [
-      { key: 'mode', label: '操作模式', type: 'select', options: [{ label: '压缩为ZIP', value: 'compress' }, { label: '解压ZIP文件', value: 'decompress' }], defaultValue: 'compress' },
-      { key: 'files', label: '选择文件(可多选)', type: 'file', accept: '*/*', required: true, multiple: true },
-    ],
-    outputFormat: 'blob',
-    tips: '支持多文件压缩为ZIP和ZIP文件解压',
-  },
 ];
