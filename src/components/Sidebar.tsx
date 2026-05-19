@@ -10,6 +10,7 @@ import {
   ChevronRightIcon,
   WrenchIcon,
   ShieldCheckIcon,
+  MessageCircleIcon,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
@@ -30,6 +31,14 @@ export default function Sidebar() {
   const isHome = location.pathname === '/';
   const isMarket = location.pathname === '/market';
   const isDev = location.pathname === '/developer';
+  const isCommunity = location.pathname === '/community';
+
+  const msgCount = (() => {
+    try {
+      const msgs = JSON.parse(localStorage.getItem('toolbox_community_messages') || '[]');
+      return Array.isArray(msgs) ? msgs.length : 0;
+    } catch { return 0; }
+  })();
 
   return (
     <aside className="w-16 hover:w-56 transition-all duration-300 bg-card border-r border-white/5 flex flex-col h-full overflow-hidden group/sidebar">
@@ -102,6 +111,27 @@ export default function Sidebar() {
           <StoreIcon className="w-5 h-5 flex-shrink-0" />
           <span className="whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
             工具市场
+          </span>
+        </button>
+        <button
+          onClick={() => navigate('/community')}
+          aria-label="社区留言"
+          className={`min-h-[44px] min-w-[44px] w-full flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200 ${
+            isCommunity
+              ? 'text-accent bg-accent/10 border-r-2 border-accent'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <div className="relative flex-shrink-0 w-5 h-5 flex items-center justify-center">
+            <MessageCircleIcon className="w-5 h-5" />
+            {msgCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white">
+                {msgCount > 99 ? '99+' : msgCount}
+              </span>
+            )}
+          </div>
+          <span className="whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
+            社区留言
           </span>
         </button>
         <button

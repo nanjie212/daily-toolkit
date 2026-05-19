@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { HomeIcon, ImageIcon, FileTextIcon, MenuIcon, XIcon, SparklesIcon, FilmIcon } from 'lucide-react';
+import { HomeIcon, ImageIcon, MenuIcon, XIcon, SparklesIcon, MessageCircleIcon, StoreIcon, HeartIcon, DollarSignIcon, Gamepad2Icon } from 'lucide-react';
 
 export default function MobileNav() {
   const navigate = useNavigate();
@@ -9,11 +9,19 @@ export default function MobileNav() {
   const isHome = location.pathname === '/';
   const searchParams = new URLSearchParams(location.search);
   const currentCategory = searchParams.get('category');
+  const isCommunity = location.pathname === '/community';
+
+  const msgCount = (() => {
+    try {
+      const msgs = JSON.parse(localStorage.getItem('toolbox_community_messages') || '[]');
+      return Array.isArray(msgs) ? msgs.length : 0;
+    } catch { return 0; }
+  })();
 
   const tabs = [
     { icon: HomeIcon, label: '首页', path: '/', active: isHome && !currentCategory },
     { icon: ImageIcon, label: '图片', path: '/?category=image', active: currentCategory === 'image' },
-    { icon: FileTextIcon, label: '文字', path: '/?category=text', active: currentCategory === 'text' },
+    { icon: StoreIcon, label: '市场', path: '/market', active: location.pathname === '/market' },
     { icon: MenuIcon, label: '更多', path: '', active: false },
   ];
 
@@ -60,21 +68,29 @@ export default function MobileNav() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { id: 'everyday', name: '日常必备', icon: SparklesIcon, color: 'text-emerald-400' },
-                { id: 'image', name: '图片工具', icon: ImageIcon, color: 'text-blue-400' },
-                { id: 'text', name: '文字处理', icon: FileTextIcon, color: 'text-purple-400' },
-                { id: 'media', name: '影音工具', icon: FilmIcon, color: 'text-orange-400' },
+                { id: 'community', name: '社区留言', icon: MessageCircleIcon, color: 'text-pink-400', path: '/community', badge: msgCount },
+                { id: 'everyday', name: '日常必备', icon: SparklesIcon, color: 'text-emerald-400', path: '/?category=everyday' },
+                { id: 'image', name: '图片工具', icon: ImageIcon, color: 'text-blue-400', path: '/?category=image' },
+                { id: 'health', name: '健康生活', icon: HeartIcon, color: 'text-red-400', path: '/?category=health' },
+                { id: 'finance', name: '理财计算', icon: DollarSignIcon, color: 'text-amber-400', path: '/?category=finance' },
+                { id: 'fun', name: '趣味娱乐', icon: Gamepad2Icon, color: 'text-purple-400', path: '/?category=fun' },
+                { id: 'market', name: '工具市场', icon: StoreIcon, color: 'text-cyan-400', path: '/market' },
               ].map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => {
-                    navigate(`/?category=${cat.id}`);
+                    navigate(cat.path);
                     setSheetOpen(false);
                   }}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-surface hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-surface hover:bg-white/5 transition-colors relative"
                 >
                   <cat.icon className={`w-5 h-5 ${cat.color}`} />
                   <span className="text-gray-300 text-sm">{cat.name}</span>
+                  {cat.badge && cat.badge > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white">
+                      {cat.badge > 99 ? '99+' : cat.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

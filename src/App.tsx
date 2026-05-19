@@ -7,6 +7,7 @@ import ToolWorkspace from '@/pages/ToolWorkspace';
 
 const Market = React.lazy(() => import('@/pages/Market'));
 const Developer = React.lazy(() => import('@/pages/Developer'));
+const Community = React.lazy(() => import('@/pages/Community'));
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
             <Route path="/tool/:id" element={<ToolWorkspace />} />
             <Route path="/market" element={<Suspense><Market /></Suspense>} />
             <Route path="/developer" element={<Suspense><Developer /></Suspense>} />
+            <Route path="/community" element={<Suspense><Community /></Suspense>} />
           </Route>
         </Routes>
       </ErrorBoundary>
