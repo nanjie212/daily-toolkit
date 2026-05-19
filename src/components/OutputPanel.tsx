@@ -42,7 +42,6 @@ export default function OutputPanel({ output }: OutputPanelProps) {
   }
 
   const isImageData = typeof output.data === 'string' && output.data.startsWith('data:image');
-  const isHtmlData = typeof output.data === 'string' && output.data.includes('<') && output.data.includes('>');
   const isTextData = typeof output.data === 'string';
   const isImageOutput = !!output.downloadUrl && (output.filename?.endsWith('.png') || output.filename?.endsWith('.jpg') || output.filename?.endsWith('.jpeg') || output.filename?.endsWith('.webp'));
 
@@ -99,11 +98,6 @@ export default function OutputPanel({ output }: OutputPanelProps) {
               </div>
             )}
           </div>
-        ) : isHtmlData ? (
-          <div
-            className="prose prose-invert max-w-none text-gray-300 text-sm"
-            dangerouslySetInnerHTML={{ __html: output.data as string }}
-          />
         ) : isTextData ? (
           <pre className="bg-surface rounded-xl p-4 text-sm text-gray-300 whitespace-pre-wrap break-all max-h-96 overflow-y-auto font-mono">
             {output.data as string}

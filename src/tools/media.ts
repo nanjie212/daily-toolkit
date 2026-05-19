@@ -6,7 +6,7 @@ export const mediaTools: ToolRecord[] = [
     name: '视频转GIF',
     description: '将视频文件转换为GIF动图',
     icon: 'FilmIcon',
-    category: 'media',
+    category: 'fun',
     version: '1.0.0',
     source: 'builtin' as const,
     permissions: [],

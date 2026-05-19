@@ -76,6 +76,18 @@ import {
   ImagePlayIcon,
   DollarSignIcon,
   SmileIcon,
+  HomeIcon,
+  ReceiptIcon,
+  DicesIcon,
+  GlobeIcon,
+  CreditCardIcon,
+  CarTaxiFront,
+  UserIcon,
+  StampIcon,
+  EraserIcon,
+  RowsIcon,
+  ScanTextIcon,
+  TypeOutline,
 } from 'lucide-react';
 import type { ToolRecord } from '@/types';
 import { useStore } from '@/store';
@@ -154,6 +166,18 @@ const iconMap: Record<string, React.ElementType> = {
   ImagePlayIcon,
   DollarSignIcon,
   SmileIcon,
+  HomeIcon,
+  ReceiptIcon,
+  DicesIcon,
+  GlobeIcon,
+  CreditCardIcon,
+  CarTaxiFrontIcon: CarTaxiFront,
+  UserIcon,
+  StampIcon,
+  EraserIcon,
+  RowsIcon,
+  ScanTextIcon,
+  TypeOutlineIcon: TypeOutline,
 };
 
 const sourceLabels: Record<string, { label: string; color: string }> = {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { HomeIcon, ImageIcon, MenuIcon, XIcon, SparklesIcon, MessageCircleIcon, StoreIcon, HeartIcon, DollarSignIcon, Gamepad2Icon } from 'lucide-react';
+import { HomeIcon, ImageIcon, MenuIcon, XIcon, SparklesIcon, MessageCircleIcon, StoreIcon, HeartIcon, DollarSignIcon, Gamepad2Icon, PaintBucketIcon, CodeXmlIcon } from 'lucide-react';
 
 export default function MobileNav() {
   const navigate = useNavigate();
@@ -73,6 +73,8 @@ export default function MobileNav() {
                 { id: 'image', name: '图片工具', icon: ImageIcon, color: 'text-blue-400', path: '/?category=image' },
                 { id: 'health', name: '健康生活', icon: HeartIcon, color: 'text-red-400', path: '/?category=health' },
                 { id: 'finance', name: '理财计算', icon: DollarSignIcon, color: 'text-amber-400', path: '/?category=finance' },
+                { id: 'design', name: '设计配色', icon: PaintBucketIcon, color: 'text-purple-400', path: '/?category=design' },
+                { id: 'coding', name: '编码转换', icon: CodeXmlIcon, color: 'text-cyan-400', path: '/?category=coding' },
                 { id: 'fun', name: '趣味娱乐', icon: Gamepad2Icon, color: 'text-purple-400', path: '/?category=fun' },
                 { id: 'market', name: '工具市场', icon: StoreIcon, color: 'text-cyan-400', path: '/market' },
               ].map((cat) => (

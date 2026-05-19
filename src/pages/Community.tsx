@@ -246,7 +246,7 @@ export default function Community() {
             {sorted.map((msg) => {
               const liked = msg.likedBy.includes(uid);
               return (
-                <div key={msg.id} className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10">
+                <div key={msg.id} className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10 group">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div className={`w-7 h-7 rounded-full bg-surface flex items-center justify-center text-xs font-bold ${getNickColor(msg.nickname)}`}>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { SearchIcon, DownloadIcon, TrashIcon, TrendingUpIcon, SparklesIcon, ClockIcon } from 'lucide-react';
+import { SearchIcon, DownloadIcon, TrashIcon, TrendingUpIcon, SparklesIcon } from 'lucide-react';
 import { useStore } from '@/store';
 import { saveCustomTool, removeCustomTool } from '@/engine/ToolLoader';
 import type { ToolRecord } from '@/types';
@@ -106,10 +106,6 @@ export default function Market() {
     { key: 'installed', label: '已安装', icon: DownloadIcon },
     { key: 'hot', label: '热门排行', icon: TrendingUpIcon },
   ];
-
-  const iconMap: Record<string, React.ElementType> = {
-    SparklesIcon, DownloadIcon, TrendingUpIcon, ClockIcon, TrashIcon, SearchIcon,
-  };
 
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">

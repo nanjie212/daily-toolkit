@@ -54,8 +54,8 @@ export async function imageGrayscale(input: Record<string, unknown>): Promise<To
     }
     ctx.putImageData(imageData, 0, 0);
     URL.revokeObjectURL(url);
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), file.type || 'image/png', 0.92)
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('处理失败'))), file.type || 'image/png', 0.92)
     );
     const downloadUrl = URL.createObjectURL(blob);
     return {
@@ -98,8 +98,8 @@ export async function imageMirror(input: Record<string, unknown>): Promise<ToolO
     }
     ctx.drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), file.type || 'image/png', 0.92)
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('处理失败'))), file.type || 'image/png', 0.92)
     );
     const downloadUrl = URL.createObjectURL(blob);
     return {
@@ -149,8 +149,8 @@ export async function imageRoundedCorners(input: Record<string, unknown>): Promi
     ctx.clip();
     ctx.drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), 'image/png')
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('处理失败'))), 'image/png')
     );
     const downloadUrl = URL.createObjectURL(blob);
     return {
@@ -200,8 +200,8 @@ export async function imageBrightnessContrast(input: Record<string, unknown>): P
     }
     ctx.putImageData(imageData, 0, 0);
     URL.revokeObjectURL(url);
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), file.type || 'image/png', 0.92)
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('处理失败'))), file.type || 'image/png', 0.92)
     );
     const downloadUrl = URL.createObjectURL(blob);
     return {

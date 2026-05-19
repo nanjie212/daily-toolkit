@@ -94,10 +94,14 @@ export default function DynamicForm({ schema, onSubmit, loading }: DynamicFormPr
           {field.type === 'checkbox' && (
             <label className="flex items-center gap-3 cursor-pointer">
               <div
+                role="switch"
+                aria-checked={!!values[field.key]}
+                tabIndex={0}
                 className={`w-10 h-6 rounded-full transition-colors duration-200 relative ${
                   values[field.key] ? 'bg-accent' : 'bg-white/10'
                 }`}
                 onClick={() => handleChange(field.key, !values[field.key])}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleChange(field.key, !values[field.key]); } }}
               >
                 <div
                   className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${

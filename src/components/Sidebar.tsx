@@ -6,11 +6,15 @@ import {
   SparklesIcon,
   StoreIcon,
   TerminalIcon,
-  ChevronLeftIcon,
   ChevronRightIcon,
   WrenchIcon,
   ShieldCheckIcon,
   MessageCircleIcon,
+  DollarSignIcon,
+  HeartPulseIcon,
+  PaintBucketIcon,
+  CodeXmlIcon,
+  SmileIcon,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
@@ -21,6 +25,11 @@ const iconMap: Record<string, React.ElementType> = {
   FileTextIcon,
   FilmIcon,
   SparklesIcon,
+  DollarSignIcon,
+  HeartPulseIcon,
+  PaintBucketIcon,
+  CodeXmlIcon,
+  SmileIcon,
 };
 
 export default function Sidebar() {

@@ -14,6 +14,7 @@ const chineseIdioms: string[] = [
 ];
 
 const kinshipMap: Record<string, Record<string, string>> = {
+  '我': { '爸爸': '爸爸', '妈妈': '妈妈', '哥哥': '哥哥', '弟弟': '弟弟', '姐姐': '姐姐', '妹妹': '妹妹' },
   '爸爸': { '爸爸': '爷爷', '妈妈': '奶奶', '哥哥': '伯伯', '弟弟': '叔叔', '姐姐': '姑姑', '妹妹': '姑姑' },
   '妈妈': { '爸爸': '外公', '妈妈': '外婆', '哥哥': '舅舅', '弟弟': '舅舅', '姐姐': '阿姨', '妹妹': '阿姨' },
   '伯伯': { '儿子': '堂哥/堂弟', '女儿': '堂姐/堂妹' },
@@ -119,26 +120,19 @@ export async function kinshipCalculator(input: Record<string, unknown>): Promise
     const relation = (input.relation as string) || '';
     if (!relation) return { success: false, error: '请输入关系，如：爸爸的哥哥' };
     const parts = relation.split(/[的之]/);
-    let result = '你';
+    let current = '我';
     for (const part of parts) {
-      const found = kinshipMap[part];
-      if (found && kinshipMap[result]) {
-        const next = kinshipMap[result][part];
-        if (next) {
-          result = next;
-          continue;
-        }
+      const map = kinshipMap[current];
+      if (!map || !map[part]) {
+        return { success: false, error: `暂不支持"${relation}"的计算` };
       }
-      return {
-        success: false,
-        error: `暂不支持"${relation}"的计算，请描述为"某某的某某"格式`,
-      };
+      current = map[part];
     }
     return {
       success: true,
       data: {
         关系描述: relation,
-        你应该叫: result,
+        你应该叫: current,
         提示: '输入例如"爸爸的哥哥"，来算亲戚该怎么称呼。仅支持常见直系亲属关系。',
       },
     };

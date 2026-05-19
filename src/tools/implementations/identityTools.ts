@@ -121,7 +121,9 @@ export async function numberToChinese(input: Record<string, unknown>): Promise<T
     const numStr = Math.abs(parseInt(num)).toString();
     const cnum = mode === 'lower' ? cnumLower : cnumUpper;
     const unitArr = mode === 'lower' ? units : unitsUpper;
-    if (numStr === '0') return { success: true, data: { 原文: num, 结果: cnum[0] } };
+    const hasDecimal = num.includes('.');
+    const decimalPart = hasDecimal ? num.split('.')[1] : '';
+    if (numStr === '0' && !(hasDecimal && decimalPart.length > 0)) return { success: true, data: { 原文: num, 结果: cnum[0] } };
     let result = '';
     let zeroFlag = false;
     for (let i = 0; i < numStr.length; i++) {
@@ -133,11 +135,10 @@ export async function numberToChinese(input: Record<string, unknown>): Promise<T
     }
     if (result.startsWith('一十')) result = result.substring(1);
     if (parseFloat(num) < 0) result = '负' + result;
-    const hasDecimal = num.includes('.');
+    if (numStr === '0' && hasDecimal) result = cnum[0];
     if (hasDecimal) {
-      const decimal = num.split('.')[1];
       result += '点';
-      for (const d of decimal) result += cnum[parseInt(d)];
+      for (const d of decimalPart) result += cnum[parseInt(d)];
     }
     return { success: true, data: { 原文: num, 结果: result, 格式: mode === 'lower' ? '小写数字' : '大写金额' } };
   } catch (e) { return { success: false, error: `转换失败: ${(e as Error).message}` }; }

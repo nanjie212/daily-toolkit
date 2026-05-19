@@ -47,7 +47,8 @@ export async function paletteGenerator(input: Record<string, unknown>): Promise<
     const baseColor = (input.baseColor as string) || '#6366f1';
     const scheme = (input.scheme as string) || 'analogous';
     const hex = baseColor.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16), g = parseInt(hex.substring(2, 4), 16), b = parseInt(hex.substring(4, 6), 16);
+    const expandedHex = hex.length === 3 ? hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2] : hex;
+    const r = parseInt(expandedHex.substring(0, 2), 16), g = parseInt(expandedHex.substring(2, 4), 16), b = parseInt(expandedHex.substring(4, 6), 16);
     const toHex = (rr: number, gg: number, bb: number) => '#' + [rr, gg, bb].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
     const hslFromRgb = (rr: number, gg: number, bb: number) => {
       const rn = rr / 255, gn = gg / 255, bn = bb / 255;
@@ -70,12 +71,12 @@ export async function paletteGenerator(input: Record<string, unknown>): Promise<
         if (i === 0) continue;
         const nh = (h + i + 360) % 360;
         const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((nh / 60) % 2 - 1)), m = l - c / 2;
-        if (nh < 60) results.push(toHex(c + m, x + m, m));
-        else if (nh < 120) results.push(toHex(x + m, c + m, m));
-        else if (nh < 180) results.push(toHex(m, c + m, x + m));
-        else if (nh < 240) results.push(toHex(m, x + m, c + m));
-        else if (nh < 300) results.push(toHex(x + m, m, c + m));
-        else results.push(toHex(c + m, m, x + m));
+        if (nh < 60) results.push(toHex((c + m) * 255, (x + m) * 255, m * 255));
+        else if (nh < 120) results.push(toHex((x + m) * 255, (c + m) * 255, m * 255));
+        else if (nh < 180) results.push(toHex(m * 255, (c + m) * 255, (x + m) * 255));
+        else if (nh < 240) results.push(toHex(m * 255, (x + m) * 255, (c + m) * 255));
+        else if (nh < 300) results.push(toHex((x + m) * 255, m * 255, (c + m) * 255));
+        else results.push(toHex((c + m) * 255, m * 255, (x + m) * 255));
       }
     } else if (scheme === 'complementary') {
       const nh = (h + 180) % 360;
@@ -100,7 +101,8 @@ export async function colorFormatConvert(input: Record<string, unknown>): Promis
     let r = 0, g = 0, b = 0;
     if (from === 'hex') {
       const h = value.replace('#', '');
-      r = parseInt(h.substring(0, 2), 16); g = parseInt(h.substring(2, 4), 16); b = parseInt(h.substring(4, 6), 16);
+      const eh = h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h;
+      r = parseInt(eh.substring(0, 2), 16); g = parseInt(eh.substring(2, 4), 16); b = parseInt(eh.substring(4, 6), 16);
     } else if (from === 'rgb') {
       const m = value.match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
       if (!m) return { success: false, error: 'RGB格式无效，例: 255, 0, 0' };

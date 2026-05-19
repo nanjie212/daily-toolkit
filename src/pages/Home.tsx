@@ -1,7 +1,10 @@
 import {
   ImageIcon,
-  FileTextIcon,
-  FilmIcon,
+  DollarSignIcon,
+  HeartPulseIcon,
+  PaintBucketIcon,
+  CodeXmlIcon,
+  SmileIcon,
   ArrowRightIcon,
   ClockIcon,
   StarIcon,
@@ -17,9 +20,12 @@ import OnboardingModal from '@/components/OnboardingModal';
 
 const categoryIconMap: Record<string, React.ElementType> = {
   ImageIcon,
-  FileTextIcon,
-  FilmIcon,
   SparklesIcon,
+  DollarSignIcon,
+  HeartPulseIcon,
+  PaintBucketIcon,
+  CodeXmlIcon,
+  SmileIcon,
 };
 
 const categoryColors: Record<string, string> = {
@@ -27,6 +33,11 @@ const categoryColors: Record<string, string> = {
   image: 'from-blue-500/20 to-cyan-500/20 border-blue-500/20 hover:border-blue-500/40',
   text: 'from-emerald-500/20 to-green-500/20 border-emerald-500/20 hover:border-emerald-500/40',
   media: 'from-orange-500/20 to-amber-500/20 border-orange-500/20 hover:border-orange-500/40',
+  finance: 'from-amber-500/20 to-yellow-500/20 border-amber-500/20 hover:border-amber-500/40',
+  health: 'from-red-500/20 to-pink-500/20 border-red-500/20 hover:border-red-500/40',
+  design: 'from-purple-500/20 to-violet-500/20 border-purple-500/20 hover:border-purple-500/40',
+  coding: 'from-cyan-500/20 to-blue-500/20 border-cyan-500/20 hover:border-cyan-500/40',
+  fun: 'from-pink-500/20 to-rose-500/20 border-pink-500/20 hover:border-pink-500/40',
 };
 
 const categoryAccents: Record<string, string> = {
@@ -34,6 +45,11 @@ const categoryAccents: Record<string, string> = {
   image: 'text-blue-400',
   text: 'text-emerald-400',
   media: 'text-orange-400',
+  finance: 'text-amber-400',
+  health: 'text-red-400',
+  design: 'text-purple-400',
+  coding: 'text-cyan-400',
+  fun: 'text-pink-400',
 };
 
 export default function Home() {
