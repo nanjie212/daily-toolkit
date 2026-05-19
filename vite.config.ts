@@ -63,6 +63,12 @@ export default defineConfig({
         manualChunks: {
           'tesseract': ['tesseract.js'],
           'mathjs': ['mathjs'],
+          'lucide': ['lucide-react'],
+          'marked': ['marked'],
+          'opencc': ['opencc-js'],
+          'qrcode': ['qrcode'],
+          'jszip': ['jszip'],
+          'modern-gif': ['modern-gif'],
           'vendor': ['react', 'react-dom', 'react-router-dom', 'zustand'],
         },
       },

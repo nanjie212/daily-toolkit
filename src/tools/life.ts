@@ -26,6 +26,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'color', label: '前景色', type: 'color', defaultValue: '#000000' },
     ],
     outputFormat: 'image',
+    tips: '输入文本或网址即可生成可扫描的二维码',
   },
   {
     id: 'unit-converter',
@@ -93,6 +94,7 @@ export const lifeTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持长度、重量、温度等多种单位互转',
   },
   {
     id: 'mortgage-calculator',
@@ -119,6 +121,7 @@ export const lifeTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持等额本息和等额本金两种还款方式',
   },
   {
     id: 'tax-calculator',
@@ -136,6 +139,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'deductions', label: '专项附加扣除', type: 'number', placeholder: '专项附加扣除(元)', defaultValue: 0 },
     ],
     outputFormat: 'text',
+    tips: '输入税前月薪即可快速计算到手工资',
   },
   {
     id: 'bmi-calculator',
@@ -151,6 +155,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'height', label: '身高', type: 'number', placeholder: '身高(cm)', required: true },
     ],
     outputFormat: 'text',
+    tips: '输入体重和身高即可评估健康状态',
   },
   {
     id: 'date-calculator',
@@ -177,6 +182,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'date2', label: '日期2/天数', type: 'text', placeholder: '日期2/天数 (YYYY-MM-DD 或数字)', defaultValue: '' },
     ],
     outputFormat: 'text',
+    tips: '支持日期差计算、日期推算和倒计时三种模式',
   },
   {
     id: 'random-decision',
@@ -192,6 +198,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'count', label: '选择数量', type: 'number', placeholder: '选择几个结果', defaultValue: 1 },
     ],
     outputFormat: 'text',
+    tips: '每行输入一个选项，帮你快速做决定',
   },
   {
     id: 'lucky-draw',
@@ -208,6 +215,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'allowRepeat', label: '允许重复', type: 'checkbox', defaultValue: false },
     ],
     outputFormat: 'text',
+    tips: '适合团建抽奖分组，支持设置是否允许重复中奖',
   },
   {
     id: 'pomodoro-timer',
@@ -224,6 +232,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'rounds', label: '轮数', type: 'number', placeholder: '轮数', defaultValue: 4 },
     ],
     outputFormat: 'text',
+    tips: '默认25分钟工作+5分钟休息，可自定义时长',
   },
   {
     id: 'timezone-converter',
@@ -266,6 +275,7 @@ export const lifeTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持北京、东京、纽约、伦敦等6个主要时区互转',
   },
   {
     id: 'password-generator',
@@ -285,6 +295,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'includeSymbols', label: '包含符号', type: 'checkbox', defaultValue: true },
     ],
     outputFormat: 'text',
+    tips: '可自定义长度和字符类型，建议长度不低于12位',
   },
   {
     id: 'sensitive-mask',
@@ -300,6 +311,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'mode', label: '脱敏模式', type: 'select', options: [{ label: '手机号脱敏', value: 'phone' }, { label: '身份证脱敏', value: 'idcard' }, { label: '银行卡脱敏', value: 'bankcard' }, { label: '全部脱敏', value: 'all' }], defaultValue: 'all' },
     ],
     outputFormat: 'text',
+    tips: '一键脱敏手机号、身份证号、银行卡号等敏感信息',
   },
   {
     id: 'simple-calculator',
@@ -314,6 +326,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'expression', label: '计算表达式', type: 'text', placeholder: '例如: 100 + 200 * 3 / 4', required: true },
     ],
     outputFormat: 'text',
+    tips: '支持加减乘除运算，点击等号计算结果',
   },
   {
     id: 'stopwatch',
@@ -329,6 +342,7 @@ export const lifeTools: ToolRecord[] = [
       { key: 'laps', label: '已有计次(逗号分隔毫秒)', type: 'text', placeholder: '留空开始新计时', defaultValue: '' },
     ],
     outputFormat: 'text',
+    tips: '精确到毫秒的计时器，支持计次记录',
   },
   {
     id: 'countdown',
@@ -343,6 +357,63 @@ export const lifeTools: ToolRecord[] = [
       { key: 'targetDate', label: '目标日期', type: 'text', placeholder: 'YYYY-MM-DD', required: true },
       { key: 'targetTime', label: '目标时间', type: 'text', placeholder: 'HH:mm', defaultValue: '00:00' },
       { key: 'eventName', label: '事件名称', type: 'text', placeholder: '例如: 项目截止日', defaultValue: '' },
+    ],
+    outputFormat: 'text',
+    tips: '设置目标日期和事件名称，实时显示剩余时间',
+  },
+  {
+    id: 'exchange-rate',
+    name: '汇率换算',
+    description: '查询实时汇率，支持主流货币互相换算',
+    category: 'everyday',
+    icon: 'ArrowLeftRightIcon',
+    version: '1.0.0',
+    source: 'builtin' as const,
+    permissions: [],
+    inputSchema: [
+      { key: 'amount', label: '金额', type: 'number', required: true, defaultValue: 100 },
+      {
+        key: 'from',
+        label: '源货币',
+        type: 'select',
+        required: true,
+        defaultValue: 'USD',
+        options: [
+          { label: 'USD', value: 'USD' },
+          { label: 'CNY', value: 'CNY' },
+          { label: 'EUR', value: 'EUR' },
+          { label: 'GBP', value: 'GBP' },
+          { label: 'JPY', value: 'JPY' },
+          { label: 'KRW', value: 'KRW' },
+          { label: 'HKD', value: 'HKD' },
+          { label: 'TWD', value: 'TWD' },
+          { label: 'AUD', value: 'AUD' },
+          { label: 'CAD', value: 'CAD' },
+          { label: 'SGD', value: 'SGD' },
+          { label: 'THB', value: 'THB' },
+        ],
+      },
+      {
+        key: 'to',
+        label: '目标货币',
+        type: 'select',
+        required: true,
+        defaultValue: 'CNY',
+        options: [
+          { label: 'USD', value: 'USD' },
+          { label: 'CNY', value: 'CNY' },
+          { label: 'EUR', value: 'EUR' },
+          { label: 'GBP', value: 'GBP' },
+          { label: 'JPY', value: 'JPY' },
+          { label: 'KRW', value: 'KRW' },
+          { label: 'HKD', value: 'HKD' },
+          { label: 'TWD', value: 'TWD' },
+          { label: 'AUD', value: 'AUD' },
+          { label: 'CAD', value: 'CAD' },
+          { label: 'SGD', value: 'SGD' },
+          { label: 'THB', value: 'THB' },
+        ],
+      },
     ],
     outputFormat: 'text',
   },

@@ -14,6 +14,7 @@ export const documentTools: ToolRecord[] = [
       { key: 'text', label: '文本内容', type: 'textarea', placeholder: '在此输入需要统计的文本...', required: true },
     ],
     outputFormat: 'json',
+    tips: '自动统计字符数、词数、行数和段落数',
   },
   {
     id: 'traditional-simplified',
@@ -38,6 +39,7 @@ export const documentTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持繁体转简体和简体转繁体双向转换',
   },
   {
     id: 'case-converter',
@@ -65,6 +67,7 @@ export const documentTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持全部大写、全部小写、首字母大写等5种模式',
   },
   {
     id: 'text-dedup',
@@ -90,5 +93,6 @@ export const documentTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持去除重复行、空白行和排序去重三种模式',
   },
 ];

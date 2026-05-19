@@ -29,6 +29,10 @@ import {
   Volume2Icon,
   PenLineIcon,
   ArchiveIcon,
+  ArrowLeftRightIcon,
+  CropIcon,
+  FileStackIcon,
+  LightbulbIcon,
 } from 'lucide-react';
 import type { ToolRecord } from '@/types';
 import { useStore } from '@/store';
@@ -62,6 +66,10 @@ const iconMap: Record<string, React.ElementType> = {
   Volume2Icon,
   PenLineIcon,
   ArchiveIcon,
+  ArrowLeftRightIcon,
+  CropIcon,
+  FileStackIcon,
+  LightbulbIcon,
 };
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -125,6 +133,13 @@ export default function ToolCard({ tool, compact, index }: ToolCardProps) {
         <p className="text-gray-400 text-sm line-clamp-2 mb-3">
           {tool.description}
         </p>
+      )}
+
+      {tool.tips && !compact && (
+        <div className="flex items-start gap-1.5 mb-3">
+          <LightbulbIcon className="w-3.5 h-3.5 text-amber-400/60 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-gray-500 line-clamp-1">{tool.tips}</p>
+        </div>
       )}
 
       <div className="flex items-center gap-2">

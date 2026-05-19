@@ -892,3 +892,139 @@ export async function screenshotAnnotate(input: Record<string, unknown>): Promis
     return { success: false, error: (e as Error).message };
   }
 }
+
+export async function imageCrop(input: Record<string, unknown>): Promise<ToolOutput> {
+  try {
+    const file = input.image as File;
+    const cropWidth = Number(input.width) || 800;
+    const cropHeight = Number(input.height) || 600;
+    const startX = Number(input.x) || 0;
+    const startY = Number(input.y) || 0;
+
+    if (!file) return { success: false, error: '请上传图片' };
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('图片加载失败'));
+      img.src = url;
+    });
+
+    const actualWidth = Math.min(cropWidth, img.width - startX);
+    const actualHeight = Math.min(cropHeight, img.height - startY);
+
+    if (actualWidth <= 0 || actualHeight <= 0) {
+      URL.revokeObjectURL(url);
+      return { success: false, error: '裁剪区域超出图片范围' };
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = actualWidth;
+    canvas.height = actualHeight;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, startX, startY, actualWidth, actualHeight, 0, 0, actualWidth, actualHeight);
+
+    URL.revokeObjectURL(url);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('裁剪失败'))),
+        file.type || 'image/png',
+        0.92
+      );
+    });
+
+    const downloadUrl = URL.createObjectURL(blob);
+    return {
+      success: true,
+      data: {
+        原始尺寸: `${img.width} x ${img.height} px`,
+        裁剪尺寸: `${actualWidth} x ${actualHeight} px`,
+        裁剪位置: `(${startX}, ${startY})`,
+        文件大小: `${(blob.size / 1024).toFixed(1)} KB`,
+      },
+      downloadUrl,
+      filename: `cropped-${file.name}`,
+    };
+  } catch (e) {
+    return { success: false, error: `裁剪失败: ${(e as Error).message}` };
+  }
+}
+
+export async function pdfMerge(input: Record<string, unknown>): Promise<ToolOutput> {
+  try {
+    const rawFiles = input.files;
+    let files: File[] = [];
+
+    if (Array.isArray(rawFiles)) {
+      files = rawFiles as File[];
+    } else if (rawFiles instanceof File) {
+      files = [rawFiles];
+    }
+
+    if (files.length < 2) return { success: false, error: '请至少上传2个PDF文件' };
+
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+
+    for (const file of files) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        return { success: false, error: `${file.name} 不是PDF文件` };
+      }
+    }
+
+    const pdfBytes: Uint8Array[] = [];
+    for (const file of files) {
+      const buffer = await file.arrayBuffer();
+      pdfBytes.push(new Uint8Array(buffer));
+    }
+
+    const firstPdf = pdfBytes[0];
+    const mergedChunks: Uint8Array[] = [firstPdf];
+
+    for (let i = 1; i < pdfBytes.length; i++) {
+      const pdf = pdfBytes[i];
+      const eofMarker = new TextEncoder().encode('%%EOF');
+      let lastEofPos = -1;
+      for (let j = pdf.length - 10; j >= 0; j--) {
+        let match = true;
+        for (let k = 0; k < eofMarker.length; k++) {
+          if (pdf[j + k] !== eofMarker[k]) { match = false; break; }
+        }
+        if (match) { lastEofPos = j; break; }
+      }
+      if (lastEofPos >= 0) {
+        mergedChunks.push(pdf.slice(0, lastEofPos));
+      } else {
+        mergedChunks.push(pdf);
+      }
+    }
+
+    const totalLength = mergedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of mergedChunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const blob = new Blob([merged], { type: 'application/pdf' });
+    const downloadUrl = URL.createObjectURL(blob);
+
+    return {
+      success: true,
+      data: {
+        合并文件数: `${files.length} 个`,
+        文件列表: files.map(f => f.name).join('、'),
+        合并后大小: `${(blob.size / 1024 / 1024).toFixed(2)} MB`,
+        提示: 'PDF合并为简单拼接方式，复杂PDF建议使用专业工具',
+      },
+      downloadUrl,
+      filename: 'merged.pdf',
+    };
+  } catch (e) {
+    return { success: false, error: `合并失败: ${(e as Error).message}` };
+  }
+}

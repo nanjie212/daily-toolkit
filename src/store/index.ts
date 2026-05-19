@@ -15,10 +15,15 @@ interface ToolBoxState {
   detailOpen: boolean;
   theme: 'dark' | 'light';
 
+  toolLikes: Record<string, number>;
+  toolFeedbacks: Record<string, string[]>;
+
   addTool: (tool: ToolRecord) => void;
   removeTool: (id: string) => void;
   selectTool: (tool: ToolRecord | null) => void;
   toggleFavorite: (id: string) => void;
+  likeTool: (toolId: string) => void;
+  addFeedback: (toolId: string, feedback: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (category: string | null) => void;
   setDetailOpen: (open: boolean) => void;
@@ -30,6 +35,8 @@ interface ToolBoxState {
 
 const RECENT_KEY = 'toolbox_recent_tools';
 const FAVORITE_KEY = 'toolbox_favorite_tools';
+const LIKES_KEY = 'toolbox_tool_likes';
+const FEEDBACKS_KEY = 'toolbox_tool_feedbacks';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   return safeStorage.getJSON(key, fallback);
@@ -49,6 +56,8 @@ export const useStore = create<ToolBoxState>((set, get) => ({
   selectedTool: null,
   detailOpen: false,
   theme: safeStorage.getJSON('toolbox-theme', 'dark') as 'dark' | 'light',
+  toolLikes: loadFromStorage<Record<string, number>>(LIKES_KEY, {}),
+  toolFeedbacks: loadFromStorage<Record<string, string[]>>(FEEDBACKS_KEY, {}),
 
   addTool: (tool) =>
     set((state) => {
@@ -73,6 +82,20 @@ export const useStore = create<ToolBoxState>((set, get) => ({
       saveToStorage(FAVORITE_KEY, favorites);
       return { favoriteToolIds: favorites };
     }),
+
+  likeTool: (toolId) => {
+    const current = get().toolLikes[toolId] || 0;
+    const toolLikes = { ...get().toolLikes, [toolId]: current + 1 };
+    saveToStorage(LIKES_KEY, toolLikes);
+    set({ toolLikes });
+  },
+
+  addFeedback: (toolId, feedback) => {
+    const current = get().toolFeedbacks[toolId] || [];
+    const toolFeedbacks = { ...get().toolFeedbacks, [toolId]: [...current, feedback] };
+    saveToStorage(FEEDBACKS_KEY, toolFeedbacks);
+    set({ toolFeedbacks });
+  },
 
   setSearchQuery: (query) => set({ searchQuery: query }),
 

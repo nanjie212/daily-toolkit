@@ -26,6 +26,7 @@ export const imageTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'blob',
+    tips: '支持JPG/PNG/WebP格式，压缩率越高文件越小但画质越低',
   },
   {
     id: 'image-convert',
@@ -51,6 +52,7 @@ export const imageTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'blob',
+    tips: '支持PNG、JPEG、WebP三种格式互转',
   },
   {
     id: 'image-resize',
@@ -68,6 +70,7 @@ export const imageTools: ToolRecord[] = [
       { key: 'keepRatio', label: '保持宽高比', type: 'checkbox', defaultValue: true },
     ],
     outputFormat: 'blob',
+    tips: '可自定义宽高，默认保持宽高比避免变形',
   },
   {
     id: 'id-photo',
@@ -104,6 +107,7 @@ export const imageTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'blob',
+    tips: '支持蓝底、红底、白底，提供1寸和2寸标准尺寸',
   },
   {
     id: 'image-watermark',
@@ -135,6 +139,7 @@ export const imageTools: ToolRecord[] = [
       { key: 'color', label: '水印颜色', type: 'color', defaultValue: '#ffffff' },
     ],
     outputFormat: 'blob',
+    tips: '支持6种位置和全图平铺模式，可调节透明度',
   },
   {
     id: 'image-watermark-remove',
@@ -161,6 +166,7 @@ export const imageTools: ToolRecord[] = [
       { key: 'strength', label: '去除强度', type: 'number', defaultValue: 5, placeholder: '1-10强度' },
     ],
     outputFormat: 'blob',
+    tips: '自动检测浅色或深色水印，可调节去除强度',
   },
   {
     id: 'image-stitch',
@@ -186,6 +192,7 @@ export const imageTools: ToolRecord[] = [
       { key: 'gap', label: '图片间距', type: 'number', defaultValue: 0, placeholder: '图片间距(px)' },
     ],
     outputFormat: 'blob',
+    tips: '支持纵向和横向拼接，可设置图片间距',
   },
   {
     id: 'image-ocr',
@@ -211,6 +218,7 @@ export const imageTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'json',
+    tips: '支持中文、英文及中英混合识别',
   },
   {
     id: 'image-to-pdf',
@@ -227,6 +235,7 @@ export const imageTools: ToolRecord[] = [
       { key: 'pageSize', label: '页面大小', type: 'select', options: [{ label: 'A4', value: 'a4' }, { label: 'Letter', value: 'letter' }], defaultValue: 'a4' },
     ],
     outputFormat: 'blob',
+    tips: '多张图片可合并为一个PDF，支持A4和Letter页面',
   },
   {
     id: 'screenshot-annotate',
@@ -245,6 +254,38 @@ export const imageTools: ToolRecord[] = [
       { key: 'endX', label: '结束X(%)', type: 'number', defaultValue: 70, placeholder: '0-100' },
       { key: 'endY', label: '结束Y(%)', type: 'number', defaultValue: 60, placeholder: '0-100' },
       { key: 'text', label: '标注文字', type: 'text', placeholder: '输入标注文字...', defaultValue: '' },
+    ],
+    outputFormat: 'blob',
+  },
+  {
+    id: 'image-crop',
+    name: '图片裁剪',
+    description: '自由裁剪图片尺寸，支持按比例或自定义裁剪',
+    category: 'image',
+    icon: 'CropIcon',
+    version: '1.0.0',
+    source: 'builtin' as const,
+    permissions: [],
+    inputSchema: [
+      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
+      { key: 'width', label: '裁剪宽度(px)', type: 'number', required: true, defaultValue: 800 },
+      { key: 'height', label: '裁剪高度(px)', type: 'number', required: true, defaultValue: 600 },
+      { key: 'x', label: '起始X坐标', type: 'number', defaultValue: 0 },
+      { key: 'y', label: '起始Y坐标', type: 'number', defaultValue: 0 },
+    ],
+    outputFormat: 'blob',
+  },
+  {
+    id: 'pdf-merge',
+    name: 'PDF合并',
+    description: '将多个PDF文件合并为一个PDF文档',
+    category: 'image',
+    icon: 'FileStackIcon',
+    version: '1.0.0',
+    source: 'builtin' as const,
+    permissions: [],
+    inputSchema: [
+      { key: 'files', label: '上传PDF文件', type: 'file', accept: '.pdf', required: true, multiple: true },
     ],
     outputFormat: 'blob',
   },

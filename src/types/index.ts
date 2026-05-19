@@ -9,6 +9,7 @@ export interface ToolDefinition {
   permissions: string[];
   inputSchema: InputField[];
   outputFormat: string;
+  tips?: string;
 }
 
 export interface InputField {

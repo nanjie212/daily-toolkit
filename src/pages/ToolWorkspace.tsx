@@ -5,6 +5,7 @@ import { useStore } from '@/store';
 import { executeTool } from '@/engine/ToolExecutor';
 import DynamicForm from '@/components/DynamicForm';
 import OutputPanel from '@/components/OutputPanel';
+import ToolFeedback from '@/components/ToolFeedback';
 import CalculatorUI from '@/components/CalculatorUI';
 import PomodoroTimerUI from '@/components/PomodoroTimerUI';
 import StopwatchUI from '@/components/StopwatchUI';
@@ -186,6 +187,7 @@ export default function ToolWorkspace() {
               <p className="text-sm">填写参数并点击执行查看结果</p>
             </div>
           )}
+          <ToolFeedback toolId={tool.id} />
         </div>
       </div>
     </div>

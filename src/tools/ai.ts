@@ -25,11 +25,12 @@ export const aiTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '使用本地算法提取关键句，支持简短/中等/详细三种长度',
   },
   {
     id: 'text-translate',
     name: '文本翻译',
-    description: '文本翻译（即将上线，敬请期待）',
+    description: '使用 MyMemory 翻译引擎进行多语言文本翻译',
     category: 'ai',
     icon: 'LanguagesIcon',
     version: '1.0.0',
@@ -63,6 +64,7 @@ export const aiTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'text',
+    tips: '支持中英日韩等语言互译，每天免费5000字',
   },
   {
     id: 'speech-to-text',
@@ -78,6 +80,7 @@ export const aiTools: ToolRecord[] = [
       { key: 'continuous', label: '连续识别', type: 'checkbox', defaultValue: true },
     ],
     outputFormat: 'text',
+    tips: '基于浏览器语音识别，需授权麦克风权限',
   },
   {
     id: 'text-to-speech',
@@ -94,6 +97,7 @@ export const aiTools: ToolRecord[] = [
       { key: 'voice', label: '声音', type: 'select', options: [{ label: '默认', value: 'default' }], defaultValue: 'default' },
     ],
     outputFormat: 'text',
+    tips: '将文字转为语音朗读，支持调节语速',
   },
   {
     id: 'e-signature',
@@ -110,5 +114,6 @@ export const aiTools: ToolRecord[] = [
       { key: 'fontStyle', label: '字体风格', type: 'select', options: [{ label: '手写体', value: 'cursive' }, { label: '楷体', value: 'serif' }, { label: '艺术体', value: 'fantasy' }], defaultValue: 'cursive' },
     ],
     outputFormat: 'blob',
+    tips: '手写或选择字体风格生成透明背景签名图片',
   },
 ];

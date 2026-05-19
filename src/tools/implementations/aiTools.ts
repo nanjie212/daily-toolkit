@@ -70,17 +70,34 @@ export async function textSummary(input: Record<string, unknown>): Promise<ToolO
 export async function textTranslate(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const text = input.text as string;
-    const sourceLang = input.sourceLang as string;
-    const targetLang = input.targetLang as string;
+    const sourceLang = (input.sourceLang as string) || 'zh';
+    const targetLang = (input.targetLang as string) || 'en';
 
     if (!text?.trim()) return { success: false, error: '请输入文本内容' };
 
-    const langNames: Record<string, string> = { zh: '中文', en: '英语', ja: '日语', ko: '韩语' };
+    const langPair = `${sourceLang}|${targetLang}`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
 
-    return {
-      success: true,
-      data: `翻译功能即将上线，敬请期待！我们正在接入专业翻译引擎，为您带来更好的翻译体验。`,
-    };
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.responseStatus === 200 && data.responseData?.translatedText) {
+      const translated = data.responseData.translatedText;
+      const langNames: Record<string, string> = { zh: '中文', en: '英语', ja: '日语', ko: '韩语', fr: '法语', de: '德语', es: '西班牙语', ru: '俄语' };
+
+      return {
+        success: true,
+        data: {
+          原文: text,
+          译文: translated,
+          源语言: langNames[sourceLang] || sourceLang,
+          目标语言: langNames[targetLang] || targetLang,
+          提示: '翻译由 MyMemory 提供支持，如需更高质量翻译建议使用专业翻译服务',
+        },
+      };
+    }
+
+    return { success: false, error: `翻译失败: ${data.responseDetails || '未知错误'}` };
   } catch (e) {
     return { success: false, error: `翻译失败: ${(e as Error).message}` };
   }

@@ -17,6 +17,7 @@ export const mediaTools: ToolRecord[] = [
       { key: 'duration', label: '时长(秒)', type: 'number', defaultValue: 3, placeholder: '1-10秒' },
     ],
     outputFormat: 'blob',
+    tips: '建议GIF宽度不超过640px，时长1-10秒效果最佳',
   },
   {
     id: 'file-compress',
@@ -32,5 +33,6 @@ export const mediaTools: ToolRecord[] = [
       { key: 'files', label: '选择文件(可多选)', type: 'file', accept: '*/*', required: true, multiple: true },
     ],
     outputFormat: 'blob',
+    tips: '支持多文件压缩为ZIP和ZIP文件解压',
   },
 ];

@@ -7,11 +7,13 @@ import {
   StarIcon,
   SparklesIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
 import SearchBar from '@/components/SearchBar';
 import ToolCard from '@/components/ToolCard';
 import ThemeToggle from '@/components/ThemeToggle';
+import OnboardingModal from '@/components/OnboardingModal';
 
 const categoryIconMap: Record<string, React.ElementType> = {
   ImageIcon,
@@ -36,6 +38,7 @@ const categoryAccents: Record<string, string> = {
 
 export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, searchQuery } = useStore();
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-done'));
 
   const filteredTools = tools.filter((tool) => {
     const matchCategory = !selectedCategory || tool.category === selectedCategory;
@@ -177,6 +180,14 @@ export default function Home() {
           </div>
         )}
       </div>
+      {showOnboarding && (
+        <OnboardingModal
+          onClose={() => {
+            localStorage.setItem('onboarding-done', '1');
+            setShowOnboarding(false);
+          }}
+        />
+      )}
     </div>
   );
 }
