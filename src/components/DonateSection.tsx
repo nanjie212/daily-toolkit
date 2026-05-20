@@ -12,8 +12,8 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
 
   if (dismissed) return null;
 
-  const wechatSrc = wechatQr || '/wechat-donate.jpg';
-  const alipaySrc = alipayQr || '/alipay-donate.jpg';
+  const wechatSrc = wechatQr || '/wechat-donate.svg';
+  const alipaySrc = alipayQr || '/alipay-donate.svg';
 
   return (
     <div className="animate-fade-in bg-card border border-white/5 rounded-2xl overflow-hidden">
