@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { HeartIcon, CoffeeIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 
 interface DonateSectionProps {
-  wechatQr: string;
-  alipayQr: string;
+  wechatQr?: string;
+  alipayQr?: string;
 }
 
 export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps) {
@@ -11,6 +11,9 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('donate-dismissed') === '1');
 
   if (dismissed) return null;
+
+  const wechatSrc = wechatQr || '/wechat-donate.jpg';
+  const alipaySrc = alipayQr || '/alipay-donate.jpg';
 
   return (
     <div className="animate-fade-in bg-card border border-white/5 rounded-2xl overflow-hidden">
@@ -56,10 +59,9 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
             <div className="bg-surface rounded-2xl p-5 text-center border border-white/5 hover:border-green-500/20 transition-all">
               <div className="w-36 h-36 mx-auto mb-4 rounded-xl bg-white p-2 flex items-center justify-center overflow-hidden">
                 <img
-                  src={wechatQr}
+                  src={wechatSrc}
                   alt="微信赞赏码"
                   className="w-full h-full object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/wechat-donate.svg'; }}
                 />
               </div>
               <div className="flex items-center justify-center gap-2 text-green-400">
@@ -72,10 +74,9 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
             <div className="bg-surface rounded-2xl p-5 text-center border border-white/5 hover:border-blue-500/20 transition-all">
               <div className="w-36 h-36 mx-auto mb-4 rounded-xl bg-white p-2 flex items-center justify-center overflow-hidden">
                 <img
-                  src={alipayQr}
+                  src={alipaySrc}
                   alt="支付宝赞赏码"
                   className="w-full h-full object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/alipay-donate.svg'; }}
                 />
               </div>
               <div className="flex items-center justify-center gap-2 text-blue-400">
