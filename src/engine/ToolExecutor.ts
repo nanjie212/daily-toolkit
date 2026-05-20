@@ -73,6 +73,14 @@ const executorMap: Record<string, (input: Record<string, unknown>) => Promise<To
   'weighted-score-calc': (input) => import('@/tools/implementations/lifeUtilityTools').then(m => m.weightedScoreCalc(input)),
   'clothing-size-converter': (input) => import('@/tools/implementations/lifeUtilityTools').then(m => m.clothingSizeConverter(input)),
   'period-tracker-calc': (input) => import('@/tools/implementations/lifeUtilityTools').then(m => m.periodTrackerCalc(input)),
+  'pdf-split': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfSplit(input)),
+  'pdf-sign': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfSign(input)),
+  'pdf-compress': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfCompress(input)),
+  'pdf-encrypt': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfEncrypt(input)),
+  'pdf-decrypt': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfDecrypt(input)),
+  'pdf-permissions': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfPermissions(input)),
+  'image-table-to-excel': (input) => import('@/tools/implementations/pdfTools').then(m => m.imageTableToExcel(input)),
+  'pdf-to-word': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfToWord(input)),
 };
 
 export async function executeTool(
