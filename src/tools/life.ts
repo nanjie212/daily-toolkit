@@ -554,19 +554,8 @@ export const lifeTools: ToolRecord[] = [
     version: '1.0.0',
     source: 'builtin' as const,
     permissions: [],
-    inputSchema: [
-      {
-        key: 'mode',
-        label: '对照类型',
-        type: 'select',
-        defaultValue: 'clothing',
-        options: [
-          { label: '服装尺码', value: 'clothing' },
-          { label: '鞋码', value: 'shoe' },
-        ],
-      },
-    ],
-    outputFormat: 'text',
+    inputSchema: [],
+    outputFormat: '',
     tips: '各品牌尺码存在差异，建议以具体品牌的官方尺码表为准',
   },
   {

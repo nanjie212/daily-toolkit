@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeftIcon, InfoIcon, RotateCcwIcon } from 'lucide-react';
 import { useStore } from '@/store';
 import { executeTool } from '@/engine/ToolExecutor';
@@ -20,6 +20,26 @@ export default function ToolWorkspace() {
   const [loading, setLoading] = useState(false);
 
   const tool = tools.find((t) => t.id === id);
+
+  const hasAutoExecutedRef = useRef(false);
+
+  useEffect(() => {
+    if (tool && !hasAutoExecutedRef.current) {
+      const inputSchema = tool.inputSchema;
+      const hasRequired = inputSchema.some(f => f.required);
+      const hasNoInput = inputSchema.length === 0;
+
+      if (!hasRequired || hasNoInput) {
+        hasAutoExecutedRef.current = true;
+        executeTool(tool.id, {}).then(result => {
+          setOutput(result);
+          updateRecentUse(tool.id);
+        }).catch(() => {
+          setOutput({ success: false, error: '获取数据失败' });
+        });
+      }
+    }
+  }, [tool]);
 
   if (!tool) {
     return (

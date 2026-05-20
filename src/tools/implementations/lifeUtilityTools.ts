@@ -89,22 +89,21 @@ export async function weightedScoreCalc(input: Record<string, unknown>): Promise
 
 export async function clothingSizeConverter(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const mode = (input.mode as string) || 'clothing';
-    if (mode === 'clothing') {
-      return {
-        success: true,
-        data: {
-          女装尺码: '中国 XS/S/M/L/XL/XXL\n美国 2/4/6/8/10/12\n欧洲 32/34/36/38/40/42\n日本 5/7/9/11/13/15',
-          男装尺码: '中国 S/M/L/XL/XXL/XXXL\n美国 XS/S/M/L/XL/XXL\n欧洲 44/46/48/50/52/54\n日本 XS/S/M/L/XL/XXL',
-          提示: '各品牌尺码有差异，建议以具体品牌尺码表为准',
-        },
-      };
-    }
     return {
       success: true,
       data: {
-        鞋码对照: '中国女 35/36/37/38/39/40\n美国女 5/6/7/8/9/10\n欧洲 35/36/37/38/39/40\n\n中国男 39/40/41/42/43/44\n美国男 6/7/8/9/10/11\n欧洲 39/40/41/42/43/44',
-        提示: '鞋码在不同品牌间可能存在偏差',
+        'type': 'size-table',
+        '👔 女装尺码对照': 
+          '中国\tXS\tS\tM\tL\tXL\tXXL\n美国\t2\t4\t6\t8\t10\t12\n欧洲\t32\t34\t36\t38\t40\t42\n日本\t5\t7\t9\t11\t13\t15',
+        '👕 男装尺码对照':
+          '中国\tS\tM\tL\tXL\tXXL\tXXXL\n美国\tXS\tS\tM\tL\tXL\tXXL\n欧洲\t44\t46\t48\t50\t52\t54\n日本\tXS\tS\tM\tL\tXL\tXXL',
+        '👟 女鞋码对照':
+          '中国\t35\t36\t37\t38\t39\t40\n美国\t5\t6\t7\t8\t9\t10\n欧洲\t35\t36\t37\t38\t39\t40',
+        '👞 男鞋码对照':
+          '中国\t39\t40\t41\t42\t43\t44\n美国\t6\t7\t8\t9\t10\t11\n欧洲\t39\t40\t41\t42\t43\t44',
+        '📏 国际通用尺码标准':
+          'XXS\t胸围<76cm\t腰围<60cm\t臀围<86cm\nXS\t胸围76-82cm\t腰围60-64cm\t臀围86-90cm\nS\t胸围82-88cm\t腰围64-68cm\t臀围90-94cm\nM\t胸围88-94cm\t腰围68-72cm\t臀围94-98cm\nL\t胸围94-100cm\t腰围72-76cm\t臀围98-102cm\nXL\t胸围100-106cm\t腰围76-80cm\t臀围102-106cm\nXXL\t胸围106-112cm\t腰围80-84cm\t臀围106-110cm',
+        '💡 提示': '各品牌尺码存在差异，建议以具体品牌的官方尺码表为准\n上衣以胸围为主要参考，裤装以腰围为主要参考\n网购时可参考已购合身衣物的尺码标签',
       },
     };
   } catch (e) { return { success: false, error: `查询失败: ${(e as Error).message}` }; }
