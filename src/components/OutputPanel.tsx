@@ -44,6 +44,7 @@ export default function OutputPanel({ output }: OutputPanelProps) {
   const isImageData = typeof output.data === 'string' && output.data.startsWith('data:image');
   const isTextData = typeof output.data === 'string';
   const isImageOutput = !!output.downloadUrl && (output.filename?.endsWith('.png') || output.filename?.endsWith('.jpg') || output.filename?.endsWith('.jpeg') || output.filename?.endsWith('.webp'));
+  const isEmojiGrid = output.data && typeof output.data === 'object' && !Array.isArray(output.data) && (output.data as Record<string, string>)['type'] === 'emoji-grid';
 
   return (
     <div className="animate-success-pulse animate-fade-in bg-card border border-white/5 rounded-2xl overflow-hidden">
@@ -98,6 +99,8 @@ export default function OutputPanel({ output }: OutputPanelProps) {
               </div>
             )}
           </div>
+        ) : isEmojiGrid ? (
+          <EmojiGridDisplay data={output.data as Record<string, string>} />
         ) : isTextData ? (
           <pre className="bg-surface rounded-xl p-4 text-sm text-gray-300 whitespace-pre-wrap break-all max-h-96 overflow-y-auto font-mono">
             {output.data as string}
@@ -114,6 +117,45 @@ export default function OutputPanel({ output }: OutputPanelProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function EmojiGridDisplay({ data }: { data: Record<string, string> }) {
+  const [copiedEmoji, setCopiedEmoji] = useState('');
+
+  const handleCopy = (emoji: string) => {
+    navigator.clipboard.writeText(emoji);
+    setCopiedEmoji(emoji);
+    setTimeout(() => setCopiedEmoji(''), 1500);
+  };
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(data)
+        .filter(([key]) => key !== 'type')
+        .map(([category, symbols]) => (
+          <div key={category}>
+            <h4 className="text-gray-400 text-xs font-medium mb-2">{category}</h4>
+            <div className="flex flex-wrap gap-1">
+              {Array.from(symbols).map((char, i) => (
+                <button
+                  key={`${char}-${i}`}
+                  onClick={() => handleCopy(char)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-surface hover:bg-white/10 text-lg transition-all hover:scale-110 active:scale-95 relative group"
+                  title="点击复制"
+                >
+                  {char}
+                  {copiedEmoji === char && (
+                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-accent text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
+                      已复制
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
     </div>
   );
 }

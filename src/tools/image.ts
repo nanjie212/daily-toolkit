@@ -289,21 +289,7 @@ export const imageTools: ToolRecord[] = [
     ],
     outputFormat: 'blob',
   },
-  {
-    id: 'image-to-base64',
-    name: '图片转Base64',
-    description: '将图片转换为Base64编码，便于嵌入HTML',
-    category: 'image',
-    icon: 'FileCode2Icon',
-    version: '1.0.0',
-    source: 'builtin' as const,
-    permissions: [],
-    inputSchema: [
-      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
-    ],
-    outputFormat: 'json',
-    tips: '转换后可复制Base64代码嵌入HTML或CSS中使用',
-  },
+  
   {
     id: 'image-grayscale',
     name: '图片黑白化',

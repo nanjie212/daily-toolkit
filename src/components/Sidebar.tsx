@@ -12,8 +12,6 @@ import {
   MessageCircleIcon,
   DollarSignIcon,
   HeartPulseIcon,
-  PaintBucketIcon,
-  CodeXmlIcon,
   SmileIcon,
 } from 'lucide-react';
 import { useStore } from '@/store';
@@ -27,8 +25,6 @@ const iconMap: Record<string, React.ElementType> = {
   SparklesIcon,
   DollarSignIcon,
   HeartPulseIcon,
-  PaintBucketIcon,
-  CodeXmlIcon,
   SmileIcon,
 };
 

@@ -85,15 +85,19 @@ export async function fancyTextGenerator(input: Record<string, unknown>): Promis
 export async function specialSymbols(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const mode = (input.mode as string) || 'emoji';
+    const emojiData: Record<string, string> = {};
+
     if (mode === 'emoji') {
       return {
         success: true,
         data: {
-          表情符号: '😀😃😄😁😆😅🤣😂🙂😊😇🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩😏',
-          手势: '👍👎👌✌️🤞🤟🤘🤙👈👉👆👇☝️👋🤚✋🖐️🖖👏🙌🤝💪',
-          爱心: '❤️🧡💛💚💙💜🖤🤍🤎💔❣️💕💞💓💗💖💘💝',
-          天气: '☀️🌤️⛅🌥️☁️🌦️🌧️⛈️🌩️🌨️❄️☃️⛄🌬️💨🌪️🌫️🌈☔💧',
-          提示: '点击复制所需符号即可使用',
+          'type': 'emoji-grid',
+          '😊 笑脸': '😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🫢🤫🤔🤐🤨😐😑😶🫡😏😒🙄😬😮😯😲😳🥺😢😭😤😡🤬🥱😴🤤😪😵🤯🥴',
+          '❤️ 爱心': '❤️🧡💛💚💙💜🖤🤍🤎💔❣️💕💞💓💗💖💘💝💟♥️❤️‍🔥❤️‍🩹',
+          '👍 手势': '👍👎👌✌️🤞🤟🤘🤙👈👉👆👇☝️✋🖐️🖖👋🤚💪🦾🦵🦶👂🦻👃🧠🦷🦴👀👁️👅👄🫦',
+          '⭐ 星星': '⭐🌟✨⚡💫🌟🌠⭐🌟✨💫🌟🌈',
+          '🎉 庆祝': '🎉🎊🎈🎁🎀🪅🪩🎇🎆✨🎃🎄🎋🎍',
+          '☀️ 天气': '☀️🌤️⛅🌥️☁️🌦️🌧️⛈️🌩️🌨️❄️☃️⛄🌬️💨🌪️🌫️🌈☔💧🌊',
         },
       };
     }
@@ -101,15 +105,16 @@ export async function specialSymbols(input: Record<string, unknown>): Promise<To
       return {
         success: true,
         data: {
-          箭头: '←↑→↓↖↗↘↙⟵⟶⟷⇦⇧⇨⇩⇄⇅⇞⇟⤴⤵↩↪➡️➡️⬅️⬆️⬇️',
-          数学: '±×÷≠≈≤≥∞√∑∏∫∂∆∇∈∉⊂⊃∪∩∧∨⊕⊗',
-          货币: '$¢£¥€₹₩₽₿',
-          特殊: '©®™°¹²³¼½¾№¶§⌘⏎⇧⌥⌫',
-          提示: '点击复制所需符号即可使用',
+          'type': 'emoji-grid',
+          '↔️ 箭头': '←↑→↓↖↗↘↙↔↕↵↩↪⤴⤵↰↱↲↳↴↵⏎➡️⬅️⬆️⬇️↗️↘️↙️↖️⬆️⬇️➡️⬅️↕↔',
+          '± 数学': '±×÷≠≈≤≥∞√∑∏∫∂∆∇∈∉⊂⊃∪∩∧∨⊕⊗⊥∠∟⊿⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞',
+          '$ 货币': '$¢£¥€₹₩₽₿₨₱₴₪₫₭₮₲₵',
+          '® 特殊': '©®™℠°¹²³¼½¾№℗℞℧℮ℹ™℠℀℁℅℆№℗℞℧℮ℹ™',
+          '⌨ 键盘': '⌘⌥⇧⌃⌫⌦⎋⏎⇥⇤⇞⇟⎀⎁⎂⎃⎄⎅⎆⎇⎈⎉⎊⎋⏏⏭⏮⏯⏴⏵⏶⏷⏸⏹⏺⏻⏼⏽⏾',
         },
       };
     }
-    return { success: true, data: { 提示: '选择表情包或特殊符号分组查看' } };
+    return { success: true, data: { 'type': 'emoji-grid', '提示': '选择表情符号或箭头分组查看' } };
   } catch (e) {
     return { success: false, error: `获取失败: ${(e as Error).message}` };
   }

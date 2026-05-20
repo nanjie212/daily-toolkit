@@ -9,6 +9,7 @@ import ToolFeedback from '@/components/ToolFeedback';
 import CalculatorUI from '@/components/CalculatorUI';
 import PomodoroTimerUI from '@/components/PomodoroTimerUI';
 import StopwatchUI from '@/components/StopwatchUI';
+import InteractiveImageEditor from '@/components/InteractiveImageEditor';
 import type { ToolOutput } from '@/types';
 
 export default function ToolWorkspace() {
@@ -109,6 +110,27 @@ export default function ToolWorkspace() {
         <div className="flex justify-center">
           <StopwatchUI />
         </div>
+      </div>
+    );
+  }
+
+  if (tool.id === 'screenshot-annotate' || tool.id === 'image-crop') {
+    return (
+      <div className="min-h-full p-6 lg:p-8">
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => navigate('/')}
+            aria-label="返回首页"
+            className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-white">{tool.name}</h1>
+            <p className="text-gray-400 text-sm mt-0.5">{tool.description}</p>
+          </div>
+        </div>
+        <InteractiveImageEditor />
       </div>
     );
   }
