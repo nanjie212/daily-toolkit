@@ -81,6 +81,14 @@ const executorMap: Record<string, (input: Record<string, unknown>) => Promise<To
   'pdf-permissions': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfPermissions(input)),
   'image-table-to-excel': (input) => import('@/tools/implementations/pdfTools').then(m => m.imageTableToExcel(input)),
   'pdf-to-word': (input) => import('@/tools/implementations/pdfTools').then(m => m.pdfToWord(input)),
+  'photo-restore': (input) => import('@/tools/implementations/magicTools').then(m => m.photoRestore(input)),
+  'ai-bg-remove': (input) => import('@/tools/implementations/magicTools').then(m => m.aiBackgroundRemove(input)),
+  'text-to-handwriting': (input) => import('@/tools/implementations/magicTools').then(m => m.textToHandwriting(input)),
+  'word-cloud': (input) => import('@/tools/implementations/magicTools').then(m => m.wordCloudGenerate(input)),
+  'pixel-art': (input) => import('@/tools/implementations/magicTools').then(m => m.pixelArtConvert(input)),
+  'photo-sketch': (input) => import('@/tools/implementations/magicTools').then(m => m.photoToSketch(input)),
+  'led-marquee': (input) => import('@/tools/implementations/magicTools').then(m => m.ledMarquee(input)),
+  'lucky-wheel': (input) => import('@/tools/implementations/magicTools').then(m => m.luckyWheel(input)),
 };
 
 export async function executeTool(
