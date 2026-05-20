@@ -17,6 +17,7 @@ import SearchBar from '@/components/SearchBar';
 import ToolCard from '@/components/ToolCard';
 import ThemeToggle from '@/components/ThemeToggle';
 import OnboardingModal from '@/components/OnboardingModal';
+import DonateSection from '@/components/DonateSection';
 
 const categoryIconMap: Record<string, React.ElementType> = {
   ImageIcon,
@@ -196,6 +197,11 @@ export default function Home() {
           </div>
         )}
       </div>
+      {!selectedCategory && !searchQuery && (
+        <div className="animate-fade-in">
+          <DonateSection wechatQr="" alipayQr="" />
+        </div>
+      )}
       {showOnboarding && (
         <OnboardingModal
           onClose={() => {

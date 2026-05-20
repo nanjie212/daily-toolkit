@@ -205,21 +205,36 @@ export async function idPhoto(input: Record<string, unknown>): Promise<ToolOutpu
 
     const imageData = ctx.getImageData(0, 0, targetW, targetH);
     const data = imageData.data;
-    const refR = data[0], refG = data[1], refB = data[2];
-    const threshold = 60;
+
+    const corners = [
+      [0, 0], [targetW - 1, 0], [0, targetH - 1], [targetW - 1, targetH - 1]
+    ];
+    let avgRefR = 0, avgRefG = 0, avgRefB = 0;
+    for (const [cx, cy] of corners) {
+      const ci = (cy * targetW + cx) * 4;
+      avgRefR += data[ci]; avgRefG += data[ci + 1]; avgRefB += data[ci + 2];
+    }
+    avgRefR = Math.round(avgRefR / 4);
+    avgRefG = Math.round(avgRefG / 4);
+    avgRefB = Math.round(avgRefB / 4);
 
     const bgR = parseInt(bgHex.slice(1, 3), 16);
     const bgG = parseInt(bgHex.slice(3, 5), 16);
     const bgB = parseInt(bgHex.slice(5, 7), 16);
 
+    const colorThreshold = 35;
+
     for (let i = 0; i < data.length; i += 4) {
-      const dr = Math.abs(data[i] - refR);
-      const dg = Math.abs(data[i + 1] - refG);
-      const db = Math.abs(data[i + 2] - refB);
-      if (dr < threshold && dg < threshold && db < threshold) {
-        data[i] = bgR;
-        data[i + 1] = bgG;
-        data[i + 2] = bgB;
+      const dr = Math.abs(data[i] - avgRefR);
+      const dg = Math.abs(data[i + 1] - avgRefG);
+      const db = Math.abs(data[i + 2] - avgRefB);
+      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+
+      if (dist < colorThreshold) {
+        const blend = Math.min(1, dist / colorThreshold);
+        data[i] = Math.round(data[i] * blend + bgR * (1 - blend));
+        data[i + 1] = Math.round(data[i + 1] * blend + bgG * (1 - blend));
+        data[i + 2] = Math.round(data[i + 2] * blend + bgB * (1 - blend));
       }
     }
     ctx.putImageData(imageData, 0, 0);

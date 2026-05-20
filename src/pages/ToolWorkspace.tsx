@@ -180,11 +180,33 @@ export default function ToolWorkspace() {
           {output ? (
             <OutputPanel output={output} />
           ) : (
-            <div className="bg-card border border-white/5 rounded-2xl p-12 flex flex-col items-center justify-center text-gray-400 min-h-[300px]">
-              <div className="w-16 h-16 rounded-2xl bg-surface flex items-center justify-center mb-4">
-                <InfoIcon className="w-8 h-8 text-gray-600" />
+            <div className="bg-card border border-white/5 rounded-2xl p-8 min-h-[300px] flex flex-col">
+              <div className="w-14 h-14 rounded-2xl bg-surface flex items-center justify-center mb-4">
+                <InfoIcon className="w-7 h-7 text-gray-600" />
               </div>
-              <p className="text-sm">填写参数并点击执行查看结果</p>
+              {tool.tips && (
+                <div className="mb-4 p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                  <p className="text-amber-300/80 text-sm flex items-start gap-2">
+                    <span className="text-amber-400 text-xs mt-0.5">💡</span>
+                    <span>{tool.tips}</span>
+                  </p>
+                </div>
+              )}
+              <h3 className="text-white text-sm font-medium mb-3">使用步骤</h3>
+              <ol className="space-y-2 text-sm text-gray-400">
+                <li className="flex gap-2">
+                  <span className="text-accent font-bold text-xs mt-0.5">1.</span>
+                  <span>填写或选择左侧的输入参数</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-accent font-bold text-xs mt-0.5">2.</span>
+                  <span>点击「执行」按钮开始处理</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-accent font-bold text-xs mt-0.5">3.</span>
+                  <span>查看结果，支持复制或下载</span>
+                </li>
+              </ol>
             </div>
           )}
           <ToolFeedback toolId={tool.id} />
