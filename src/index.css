@@ -27,6 +27,48 @@ html.light {
   --accent: #00C889;
 }
 
+/* Light mode text fixes */
+html.light .text-white {
+  color: var(--text);
+}
+html.light .text-gray-300,
+html.light .text-gray-400 {
+  color: var(--text-secondary);
+}
+html.light .text-gray-500,
+html.light .text-gray-600 {
+  color: #9CA3AF;
+}
+html.light .placeholder-gray-500::placeholder {
+  color: #9CA3AF;
+}
+html.light .hover\:text-white:hover {
+  color: var(--text);
+}
+
+/* Light mode border fixes */
+html.light .border-white\/5,
+html.light .border-white\/10 {
+  border-color: var(--border);
+}
+
+/* Light mode background fixes */
+html.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+html.light .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+html.light .bg-glass {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* Light mode sidebar */
+html.light .sidebar-tool-name {
+  color: var(--text);
+}
+
 * {
   margin: 0;
   padding: 0;
