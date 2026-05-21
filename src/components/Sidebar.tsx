@@ -46,7 +46,7 @@ export default function Sidebar() {
   })();
 
   return (
-    <aside className="w-16 hover:w-56 transition-all duration-300 bg-card border-r border-white/5 flex flex-col h-full overflow-hidden group/sidebar">
+    <aside className="hidden md:flex w-16 hover:w-56 transition-all duration-300 bg-card border-r border-white/5 flex-col h-full overflow-hidden group/sidebar">
       <div className="p-4 flex items-center gap-3 border-b border-white/5 min-h-[64px]">
         <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0">
           <WrenchIcon className="w-5 h-5 text-accent" />

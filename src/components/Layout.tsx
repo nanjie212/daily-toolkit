@@ -30,7 +30,7 @@ export default function Layout() {
   return (
     <div className="flex h-screen bg-bg overflow-hidden">
       <Sidebar />
-      <main ref={mainRef} className="flex-1 overflow-y-auto pb-16 md:pb-0">
+      <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
         <Outlet />
       </main>
       <ToolDetail />
