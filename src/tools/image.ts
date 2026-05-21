@@ -75,7 +75,7 @@ export const imageTools: ToolRecord[] = [
   {
     id: 'id-photo',
     name: '证件照制作',
-    description: '制作标准证件照，支持更换背景色和裁剪尺寸',
+    description: '制作标准一寸/二寸证件照 - 拍照要求:纯色背景+光线均匀+头部居中',
     category: 'image',
     icon: 'UserIcon',
     version: '1.0.0',
@@ -107,7 +107,7 @@ export const imageTools: ToolRecord[] = [
       },
     ],
     outputFormat: 'blob',
-    tips: '支持蓝底、红底、白底，提供1寸和2寸标准尺寸',
+    tips: '拍照要求：① 纯色背景(蓝/白/红) ② 面部光线均匀无阴影 ③ 头部占照片2/3高度 ④ 双眼在同一水平线',
   },
   {
     id: 'image-watermark',

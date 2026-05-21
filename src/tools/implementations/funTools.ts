@@ -57,29 +57,44 @@ export async function whatToEat(input: Record<string, unknown>): Promise<ToolOut
 
 export async function fancyTextGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const text = input.text as string;
-    const style = (input.style as string) || 'bold';
-    if (!text?.trim()) return { success: false, error: '请输入文本' };
-    const charMaps: Record<string, Record<string, string>> = {
-      bold: { A:'𝗔',B:'𝗕',C:'𝗖',D:'𝗗',E:'𝗘',F:'𝗙',G:'𝗚',H:'𝗛',I:'𝗜',J:'𝗝',K:'𝗞',L:'𝗟',M:'𝗠',N:'𝗡',O:'𝗢',P:'𝗣',Q:'𝗤',R:'𝗥',S:'𝗦',T:'𝗧',U:'𝗨',V:'𝗩',W:'𝗪',X:'𝗫',Y:'𝗬',Z:'𝗭',a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',n:'𝗻',o:'𝗼',p:'𝗽',q:'𝗾',r:'𝗿',s:'𝘀',t:'𝘁',u:'𝘂',v:'𝘃',w:'𝘄',x:'𝘅',y:'𝘆',z:'𝘇' },
-      italic: { A:'𝘈',B:'𝘉',C:'𝘊',D:'𝘋',E:'𝘌',F:'𝘍',G:'𝘎',H:'𝘏',I:'𝘐',J:'𝘑',K:'𝘒',L:'𝘓',M:'𝘔',N:'𝘕',O:'𝘖',P:'𝘗',Q:'𝘘',R:'𝘙',S:'𝘚',T:'𝘛',U:'𝘜',V:'𝘝',W:'𝘞',X:'𝘟',Y:'𝘠',Z:'𝘡',a:'𝘢',b:'𝘣',c:'𝘤',d:'𝘥',e:'𝘦',f:'𝘧',g:'𝘨',h:'𝘩',i:'𝘪',j:'𝘫',k:'𝘬',l:'𝘭',m:'𝘮',n:'𝘯',o:'𝘰',p:'𝘱',q:'𝘲',r:'𝘳',s:'𝘴',t:'𝘵',u:'𝘶',v:'𝘷',w:'𝘸',x:'𝘹',y:'𝘺',z:'𝘻' },
-      fancy: { A:'𝓐',B:'𝓑',C:'𝓒',D:'𝓓',E:'𝓔',F:'𝓕',G:'𝓖',H:'𝓗',I:'𝓘',J:'𝓙',K:'𝓚',L:'𝓛',M:'𝓜',N:'𝓝',O:'𝓞',P:'𝓟',Q:'𝓠',R:'𝓡',S:'𝓢',T:'𝓣',U:'𝓤',V:'𝓥',W:'𝓦',X:'𝓧',Y:'𝓨',Z:'𝓩',a:'𝓪',b:'𝓫',c:'𝓬',d:'𝓭',e:'𝓮',f:'𝓯',g:'𝓰',h:'𝓱',i:'𝓲',j:'𝓳',k:'𝓴',l:'𝓵',m:'𝓶',n:'𝓷',o:'𝓸',p:'𝓹',q:'𝓺',r:'𝓻',s:'𝓼',t:'𝓽',u:'𝓾',v:'𝓿',w:'𝔀',x:'𝔁',y:'𝔂',z:'𝔃' },
-    };
-    const map = charMaps[style] || charMaps.bold;
-    const result = text.split('').map((c) => map[c] || c).join('');
-    const stylesCN: Record<string, string> = { bold: '粗体', italic: '斜体', fancy: '花体' };
-    return {
-      success: true,
-      data: {
-        原文: text,
-        风格: stylesCN[style] || style,
-        转换结果: result,
-        提示: '复制结果即可在微信、微博等平台使用',
+    const text = (input.text as string) || '';
+    const style = (input.style as string) || 'bubbles';
+    if (!text.trim()) return { success: false, error: '请输入文字' };
+
+    const transformers: Record<string, (t: string) => string> = {
+      bubbles: (t) => [...t].map(c => {
+        const map: Record<string, string> = { 'a':'ⓐ','b':'ⓑ','c':'ⓒ','d':'ⓓ','e':'ⓔ','f':'ⓕ','g':'ⓖ','h':'ⓗ','i':'ⓘ','j':'ⓙ','k':'ⓚ','l':'ⓛ','m':'ⓜ','n':'ⓝ','o':'ⓞ','p':'ⓟ','q':'ⓠ','r':'ⓡ','s':'ⓢ','t':'ⓣ','u':'ⓤ','v':'ⓥ','w':'ⓦ','x':'ⓧ','y':'ⓨ','z':'ⓩ','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ','D':'Ⓓ','E':'Ⓔ','F':'Ⓕ','G':'Ⓖ','H':'Ⓗ','I':'Ⓘ','J':'Ⓙ','K':'Ⓚ','L':'Ⓛ','M':'Ⓜ','N':'Ⓝ','O':'Ⓞ','P':'Ⓟ','Q':'Ⓠ','R':'Ⓡ','S':'Ⓢ','T':'Ⓣ','U':'Ⓤ','V':'Ⓥ','W':'Ⓦ','X':'Ⓧ','Y':'Ⓨ','Z':'Ⓩ','0':'⓪','1':'①','2':'②','3':'③','4':'④','5':'⑤','6':'⑥','7':'⑦','8':'⑧','9':'⑨' };
+        return map[c] || c;
+      }).join(''),
+      squares: (t) => [...t].map(c => {
+        const map: Record<string, string> = { 'A':'🄰','B':'🄱','C':'🄲','D':'🄳','E':'🄴','F':'🄵','G':'🄶','H':'🄷','I':'🄸','J':'🄹','K':'🄺','L':'🄻','M':'🄼','N':'🄽','O':'🄾','P':'🄿','Q':'🅀','R':'🅁','S':'🅂','T':'🅃','U':'🅄','V':'🅅','W':'🅆','X':'🅇','Y':'🅈','Z':'🅉','a':'🄰','b':'🄱','c':'🄲','d':'🄳','e':'🄴','f':'🄵','g':'🄶','h':'🄷','i':'🄸','j':'🄹','k':'🄺','l':'🄻','m':'🄼','n':'🄽','o':'🄾','p':'🄿','q':'🅀','r':'🅁','s':'🅂','t':'🅃','u':'🅄','v':'🅅','w':'🅆','x':'🅇','y':'🅈','z':'🅉' };
+        return map[c] || c;
+      }).join(''),
+      zalgo: (t) => [...t].map(c => {
+        const marks = ['\u0300','\u0301','\u0302','\u0303','\u0304','\u0305','\u0306','\u0307','\u0308','\u0309','\u030a','\u030b','\u030c','\u030d','\u030e'];
+        let r = c;
+        const n = Math.floor(Math.random() * 5) + 3;
+        for (let i = 0; i < n; i++) r += marks[Math.floor(Math.random() * marks.length)];
+        return r;
+      }).join(''),
+      strikethrough: (t) => [...t].map(c => c + '\u0336').join(''),
+      flip: (t) => {
+        const map: Record<string, string> = { 'a':'ɐ','b':'q','c':'ɔ','d':'p','e':'ǝ','f':'ɟ','g':'ƃ','h':'ɥ','i':'ᴉ','j':'ɾ','k':'ʞ','l':'l','m':'ɯ','n':'u','o':'o','p':'d','q':'b','r':'ɹ','s':'s','t':'ʇ','u':'n','v':'ʌ','w':'ʍ','x':'x','y':'ʎ','z':'z','A':'∀','B':'𐐒','C':'Ɔ','D':'◖','E':'Ǝ','F':'Ⅎ','G':'⅁','H':'H','I':'I','J':'ſ','K':'⋊','L':'⅂','M':'W','N':'N','O':'O','P':'Ԁ','Q':'Ό','R':'ᴚ','S':'S','T':'⊥','U':'∩','V':'Λ','W':'M','X':'X','Y':'⅄','Z':'Z' };
+        return [...t].reverse().map(c => map[c] || c).join('');
+      },
+      bold: (t) => {
+        const map: Record<string, string> = { 'a':'𝐚','b':'𝐛','c':'𝐜','d':'𝐝','e':'𝐞','f':'𝐟','g':'𝐠','h':'𝐡','i':'𝐢','j':'𝐣','k':'𝐤','l':'𝐥','m':'𝐦','n':'𝐧','o':'𝐨','p':'𝐩','q':'𝐪','r':'𝐫','s':'𝐬','t':'𝐭','u':'𝐮','v':'𝐯','w':'𝐰','x':'𝐱','y':'𝐲','z':'𝐳','A':'𝐀','B':'𝐁','C':'𝐂','D':'𝐃','E':'𝐄','F':'𝐅','G':'𝐆','H':'𝐇','I':'𝐈','J':'𝐉','K':'𝐊','L':'𝐋','M':'𝐌','N':'𝐍','O':'𝐎','P':'𝐏','Q':'𝐐','R':'𝐑','S':'𝐒','T':'𝐓','U':'𝐔','V':'𝐕','W':'𝐖','X':'𝐗','Y':'𝐘','Z':'𝐙','0':'𝟎','1':'𝟏','2':'𝟐','3':'𝟑','4':'𝟒','5':'𝟓','6':'𝟔','7':'𝟕','8':'𝟖','9':'𝟗' };
+        return [...t].map(c => map[c] || c).join('');
       },
     };
-  } catch (e) {
-    return { success: false, error: `生成失败: ${(e as Error).message}` };
-  }
+
+    const transformed = (transformers[style] || transformers.bubbles)(text);
+
+    return {
+      success: true,
+      data: { 原文: text, '转换结果': transformed, 风格: style, 提示: '点击右上角复制按钮复制转换后的文字' },
+    };
+  } catch (e) { return { success: false, error: `转换失败: ${(e as Error).message}` }; }
 }
 
 export async function specialSymbols(input: Record<string, unknown>): Promise<ToolOutput> {
@@ -122,86 +137,167 @@ export async function specialSymbols(input: Record<string, unknown>): Promise<To
 
 export async function kinshipCalculator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const relation = (input.relation as string) || '';
-    if (!relation) return { success: false, error: '请输入关系，如：爸爸的哥哥' };
-    const parts = relation.split(/[的之]/);
+    const path = (input.path as string) || '';
+    if (!path.trim()) return { success: false, error: '请通过按钮组合生成关系路径' };
+
+    const kinshipMap: Record<string, Record<string, string>> = {
+      '我': {
+        '爸爸': '爸爸', '妈妈': '妈妈', '哥哥': '哥哥', '弟弟': '弟弟',
+        '姐姐': '姐姐', '妹妹': '妹妹', '老公': '老公', '老婆': '老婆',
+        '儿子': '儿子', '女儿': '女儿',
+      },
+      '爸爸': {
+        '爸爸': '爷爷', '妈妈': '奶奶', '哥哥': '伯伯', '弟弟': '叔叔',
+        '姐姐': '姑妈', '妹妹': '姑姑',
+      },
+      '妈妈': {
+        '爸爸': '外公', '妈妈': '外婆', '哥哥': '舅舅', '弟弟': '舅舅',
+        '姐姐': '姨妈', '妹妹': '姨妈',
+      },
+      '老公': {
+        '爸爸': '公公', '妈妈': '婆婆', '哥哥': '大伯子', '弟弟': '小叔子',
+        '姐姐': '大姑子', '妹妹': '小姑子',
+      },
+      '老婆': {
+        '爸爸': '岳父', '妈妈': '岳母', '哥哥': '大舅子', '弟弟': '小舅子',
+        '姐姐': '大姨子', '妹妹': '小姨子',
+      },
+      '哥哥': { '儿子': '侄子', '女儿': '侄女', '老婆': '嫂子' },
+      '弟弟': { '儿子': '侄子', '女儿': '侄女', '老婆': '弟媳' },
+      '姐姐': { '儿子': '外甥', '女儿': '外甥女', '老公': '姐夫' },
+      '妹妹': { '儿子': '外甥', '女儿': '外甥女', '老公': '妹夫' },
+      '爷爷': { '哥哥': '伯祖父', '弟弟': '叔祖父', '姐姐': '姑奶奶', '妹妹': '姑奶奶' },
+      '奶奶': { '哥哥': '舅爷爷', '弟弟': '舅爷爷', '姐姐': '姨奶奶', '妹妹': '姨奶奶' },
+      '伯伯': { '儿子': '堂兄/堂弟', '女儿': '堂姐/堂妹' },
+      '叔叔': { '儿子': '堂兄/堂弟', '女儿': '堂姐/堂妹' },
+      '姑妈': { '儿子': '表兄/表弟', '女儿': '表姐/表妹' },
+      '姑姑': { '儿子': '表兄/表弟', '女儿': '表姐/表妹' },
+      '舅舅': { '儿子': '表兄/表弟', '女儿': '表姐/表妹' },
+      '姨妈': { '儿子': '表兄/表弟', '女儿': '表姐/表妹' },
+    };
+
+    const parts = path.split('的').filter(Boolean);
     let current = '我';
     for (const part of parts) {
       const map = kinshipMap[current];
       if (!map || !map[part]) {
-        return { success: false, error: `暂不支持"${relation}"的计算` };
+        return { success: true, data: { 关系路径: path, 计算过程: `从"${current}"找不到"${part}"的关系`, 提示: '暂不支持该关系计算' } };
       }
       current = map[part];
     }
+
     return {
       success: true,
-      data: {
-        关系描述: relation,
-        你应该叫: current,
-        提示: '输入例如"爸爸的哥哥"，来算亲戚该怎么称呼。仅支持常见直系亲属关系。',
-      },
+      data: { '关系路径': path, '称呼': current, '关系类型': path === current ? '直系亲属' : '亲戚', 提示: '继续添加关系链以计算更复杂的称呼' },
     };
-  } catch (e) {
-    return { success: false, error: `计算失败: ${(e as Error).message}` };
-  }
+  } catch (e) { return { success: false, error: `计算失败: ${(e as Error).message}` }; }
 }
 
 export async function idiomChain(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const word = input.word as string;
-    if (!word?.trim()) return { success: false, error: '请输入一个成语' };
-    const lastChar = word[word.length - 1];
-    const matches = chineseIdioms.filter((i) => i[0] === lastChar && i !== word);
-    if (matches.length === 0) {
-      return {
-        success: true,
-        data: {
-          你的成语: word,
-          接龙结果: '暂无收录以"' + lastChar + '"开头的成语',
-          提示: '试试其他结尾字的成语',
-        },
-      };
+    const start = (input.start as string) || '';
+    const difficulty = (input.difficulty as string) || 'normal';
+    const idiomDB: Record<string, string[]> = {
+      一: ['一心一意','一见如故','一马当先','一鸣惊人','一目十行','一诺千金','一针见血','一落千丈'],
+      心: ['心花怒放','心想事成','心旷神怡','心直口快','心血来潮','心猿意马'],
+      马: ['马到成功','马不停蹄','马首是瞻'],
+      人: ['人山人海','人声鼎沸','人尽其才','人面桃花','人言可畏'],
+      天: ['天长地久','天翻地覆','天衣无缝','天马行空','天涯海角'],
+      大: ['大公无私','大器晚成','大同小异','大刀阔斧','大智若愚'],
+      万: ['万无一失','万众一心','万象更新','万紫千红'],
+      千: ['千钧一发','千丝万缕','千锤百炼','千载难逢'],
+      百: ['百发百中','百花齐放','百折不挠','百感交集'],
+      龙: ['龙飞凤舞','龙马精神','龙腾虎跃','龙争虎斗'],
+      风: ['风和日丽','风调雨顺','风华正茂','风驰电掣'],
+      花: ['花好月圆','花团锦簇','花言巧语','花枝招展'],
+      日: ['日新月异','日积月累','日理万机'],
+      水: ['水落石出','水深火热','水到渠成','水滴石穿'],
+      山: ['山清水秀','山穷水尽','山盟海誓'],
+      金: ['金碧辉煌','金玉满堂','金榜题名','金枝玉叶'],
+      火: ['火冒三丈','火眼金睛'],
+      不: ['不可思议','不翼而飞','不屈不挠','不约而同'],
+      自: ['自强不息','自告奋勇','自力更生','自言自语'],
+      无: ['无微不至','无与伦比','无可奈何','无穷无尽'],
+      出: ['出类拔萃','出人头地','出口成章'],
+      画: ['画龙点睛','画蛇添足','画饼充饥'],
+      虎: ['虎头蛇尾','虎视眈眈','虎口余生'],
+    };
+
+    const firstChar = start.slice(-1);
+    const candidates = idiomDB[firstChar] || [];
+    if (candidates.length === 0) {
+      return { success: true, data: { 接龙结束: `找不到以"${firstChar}"开头的成语`, 已用字数: `${start.length}`, 提示: '试试换一个成语开头!' } };
     }
-    const next = matches[Math.floor(Math.random() * matches.length)];
+
+    const pool = difficulty === 'easy' ? candidates : candidates.filter(c => c.length >= 4);
+    const chosen = pool[Math.floor(Math.random() * pool.length)] || candidates[0];
+
+    const levelNames: Record<string, string> = { easy: '简单', normal: '普通', hard: '困难' };
+    const combo = start.replace(/[，,、\s]+/g, '').length / 4;
+
     return {
       success: true,
       data: {
-        你的成语: word,
-        接: `→ ${next}`,
-        可接成语数: `${matches.length} 个`,
-        备选: matches.slice(0, 5).join('、'),
-        提示: '点击再执行可换一个接龙结果',
+        '你的开头': start,
+        'AI接龙': chosen,
+        '难度': levelNames[difficulty] || '普通',
+        '接龙次数': `第 ${Math.floor(combo) + 1} 轮`,
+        '下一字': `请以"${chosen.slice(-1)}"开头继续`,
+        '提示': `输入以"${chosen.slice(-1)}"开头的成语继续接龙`,
       },
     };
-  } catch (e) {
-    return { success: false, error: `接龙失败: ${(e as Error).message}` };
-  }
+  } catch (e) { return { success: false, error: `接龙失败: ${(e as Error).message}` }; }
 }
 
 export async function memeTextGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const topText = input.topText as string;
-    const bottomText = input.bottomText as string;
+    const text = (input.text as string) || '';
     const style = (input.style as string) || 'impact';
-    if (!topText && !bottomText) return { success: false, error: '请至少输入一行文字' };
-    const styles: Record<string, string> = {
-      impact: 'IMPACT字体风格',
-      heart: '甜蜜恋爱风格',
-      rage: '暴怒吐槽风格',
-      sad: '无奈心酸风格',
-      happy: '快乐沙雕风格',
+    if (!text.trim()) return { success: false, error: '请输入文字' };
+
+    const styles: Record<string, { font: string; color: string; stroke: string; bg: string; desc: string }> = {
+      impact: { font: 'bold 48px Impact, sans-serif', color: '#ffffff', stroke: '#000000', bg: '#transparent', desc: '经典表情包风格(白字黑边)' },
+      meme: { font: 'bold 40px "Comic Sans MS", cursive', color: '#ffffff', stroke: '#333333', bg: '#transparent', desc: '卡通 meme 风格' },
+      retro: { font: 'bold 44px "Courier New", monospace', color: '#00ff00', stroke: '#003300', bg: '#000000', desc: '复古终端绿屏风格' },
+      cute: { font: 'bold 38px "华文楷体", "KaiTi", serif', color: '#ff69b4', stroke: '#ffffff', bg: '#ffebf5', desc: '可爱粉色风格' },
+      dramatic: { font: 'bold 52px "SimHei", "黑体", sans-serif', color: '#ff4444', stroke: '#000000', bg: '#transparent', desc: '戏剧夸张红字风格' },
     };
+
+    const s = styles[style] || styles.impact;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d')!;
+
+    if (s.bg !== '#transparent') {
+      ctx.fillStyle = s.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    ctx.font = s.font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (s.stroke) {
+      ctx.strokeStyle = s.stroke;
+      ctx.lineWidth = 4;
+      ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+    }
+
+    ctx.fillStyle = s.color;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('生成失败'))), 'image/png');
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+
     return {
       success: true,
-      data: {
-        上方文字: topText || '（未填）',
-        下方文字: bottomText || '（未填）',
-        风格: styles[style] || style,
-        生成模板: `[${styles[style] || style}]\n${topText || ''}\n---\n${bottomText || ''}`,
-        提示: '此为文字模板生成，可在微信表情包制作工具中使用此文案',
-      },
+      data: { 文字: text, 风格: s.desc, 提示: '已生成表情包文字图片，可下载后添加到表情包上' },
+      downloadUrl,
+      filename: 'meme-text.png',
     };
-  } catch (e) {
-    return { success: false, error: `生成失败: ${(e as Error).message}` };
-  }
+  } catch (e) { return { success: false, error: `生成失败: ${(e as Error).message}` }; }
 }

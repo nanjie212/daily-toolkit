@@ -8,7 +8,7 @@ import {
   StarIcon,
   SparklesIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
 import SearchBar from '@/components/SearchBar';
@@ -49,6 +49,27 @@ export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, searchQuery } = useStore();
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-done'));
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('home-scroll');
+    if (savedScroll && scrollContainerRef.current) {
+      setTimeout(() => {
+        scrollContainerRef.current?.scrollTo(0, parseInt(savedScroll, 10));
+      }, 100);
+    }
+
+    const handleScroll = () => {
+      if (scrollContainerRef.current) {
+        sessionStorage.setItem('home-scroll', String(scrollContainerRef.current.scrollTop));
+      }
+    };
+
+    const container = scrollContainerRef.current;
+    container?.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container?.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const filteredTools = tools.filter((tool) => {
     const matchCategory = !selectedCategory || tool.category === selectedCategory;
     const matchSearch = !searchQuery ||
@@ -70,7 +91,7 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-full p-6 lg:p-8 space-y-8">
+    <div ref={scrollContainerRef} className="min-h-full p-6 lg:p-8 space-y-8">
       <div className="flex justify-end">
         <ThemeToggle />
       </div>

@@ -565,11 +565,7 @@ export async function imageStitch(input: Record<string, unknown>): Promise<ToolO
     const fileArray = Array.isArray(files) ? files : [files];
     if (fileArray.length === 0) return { success: false, error: '请选择至少一张图片' };
 
-    const images: HTMLImageElement[] = [];
-    for (const file of fileArray) {
-      const img = await loadImage(file);
-      images.push(img);
-    }
+    const images = await Promise.all(fileArray.map(file => loadImage(file)));
 
     if (images.length === 1) {
       const canvas = document.createElement('canvas');
@@ -758,6 +754,7 @@ export async function imageToPdf(input: Record<string, unknown>): Promise<ToolOu
       }
 
       const ctx = canvas.getContext('2d')!;
+      if (img.naturalWidth === 0 || img.naturalHeight === 0) return { success: false, error: '图片加载失败，请检查文件格式' };
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 

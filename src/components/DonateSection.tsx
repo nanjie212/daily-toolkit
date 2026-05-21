@@ -9,6 +9,7 @@ interface DonateSectionProps {
 export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('donate-dismissed') === '1');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   if (dismissed) return null;
 
@@ -57,12 +58,14 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-surface rounded-2xl p-5 text-center border border-white/5 hover:border-green-500/20 transition-all">
-              <div className="w-36 h-36 mx-auto mb-4 rounded-xl bg-white p-2 flex items-center justify-center overflow-hidden">
-                <img
-                  src={wechatSrc}
-                  alt="微信赞赏码"
-                  className="w-full h-full object-contain"
-                />
+              <div
+                onClick={() => setPreviewImage(wechatSrc)}
+                className="w-48 h-48 sm:w-56 sm:h-56 mx-auto mb-4 rounded-xl bg-white p-3 flex items-center justify-center overflow-hidden cursor-pointer hover:scale-105 transition-transform group relative"
+              >
+                <img src={wechatSrc} alt="微信赞赏码" className="w-full h-full object-contain" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center rounded-xl">
+                  <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-black/50 px-2 py-1 rounded transition-opacity">点击放大</span>
+                </div>
               </div>
               <div className="flex items-center justify-center gap-2 text-green-400">
                 <CoffeeIcon className="w-4 h-4" />
@@ -72,12 +75,14 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
             </div>
 
             <div className="bg-surface rounded-2xl p-5 text-center border border-white/5 hover:border-blue-500/20 transition-all">
-              <div className="w-36 h-36 mx-auto mb-4 rounded-xl bg-white p-2 flex items-center justify-center overflow-hidden">
-                <img
-                  src={alipaySrc}
-                  alt="支付宝赞赏码"
-                  className="w-full h-full object-contain"
-                />
+              <div
+                onClick={() => setPreviewImage(alipaySrc)}
+                className="w-48 h-48 sm:w-56 sm:h-56 mx-auto mb-4 rounded-xl bg-white p-3 flex items-center justify-center overflow-hidden cursor-pointer hover:scale-105 transition-transform group relative"
+              >
+                <img src={alipaySrc} alt="支付宝赞赏码" className="w-full h-full object-contain" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center rounded-xl">
+                  <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-black/50 px-2 py-1 rounded transition-opacity">点击放大</span>
+                </div>
               </div>
               <div className="flex items-center justify-center gap-2 text-blue-400">
                 <CoffeeIcon className="w-4 h-4" />
@@ -90,6 +95,23 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
           <p className="text-center text-gray-600 text-xs mt-5">
             所有工具永久免费，每一份赞赏都是继续开发的动力 💛
           </p>
+        </div>
+      )}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-md w-full bg-white rounded-2xl p-4" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+            <img src={previewImage} alt="赞赏码" className="w-full h-auto rounded-xl" />
+            <p className="text-center text-gray-500 text-xs mt-3">打开微信/支付宝扫一扫</p>
+          </div>
         </div>
       )}
     </div>

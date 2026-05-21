@@ -301,7 +301,7 @@ function EmojiGridDisplay({ data }: { data: Record<string, string> }) {
                 <button
                   key={`${char}-${i}`}
                   onClick={() => handleCopy(char)}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-surface hover:bg-white/10 text-lg transition-all hover:scale-110 active:scale-95 relative group"
+                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-surface hover:bg-white/10 text-lg transition-all hover:scale-110 active:scale-95 relative group font-['Segoe_UI_Emoji','Apple_Color_Emoji','Noto_Color_Emoji','sans-serif']"
                   title="点击复制"
                 >
                   {char}

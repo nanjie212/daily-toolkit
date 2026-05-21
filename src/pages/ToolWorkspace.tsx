@@ -10,6 +10,7 @@ import CalculatorUI from '@/components/CalculatorUI';
 import PomodoroTimerUI from '@/components/PomodoroTimerUI';
 import StopwatchUI from '@/components/StopwatchUI';
 import InteractiveImageEditor from '@/components/InteractiveImageEditor';
+import KinshipCalculator from '@/components/KinshipCalculator';
 import type { ToolOutput } from '@/types';
 
 export default function ToolWorkspace() {
@@ -18,6 +19,7 @@ export default function ToolWorkspace() {
   const { tools, selectTool, setDetailOpen, updateRecentUse } = useStore();
   const [output, setOutput] = useState<ToolOutput | null>(null);
   const [loading, setLoading] = useState(false);
+  const [kinshipPath, setKinshipPath] = useState('');
 
   const tool = tools.find((t) => t.id === id);
 
@@ -151,6 +153,40 @@ export default function ToolWorkspace() {
           </div>
         </div>
         <InteractiveImageEditor />
+      </div>
+    );
+  }
+
+  if (tool.id === 'kinship-calculator') {
+    return (
+      <div className="animate-fade-in">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => navigate('/')}
+            aria-label="返回首页"
+            className="min-h-[44px] min-w-[44px] p-2 rounded-xl bg-surface text-gray-400 hover:text-white transition-all"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </button>
+          <h1 className="text-2xl font-heading font-bold text-white">{tool.name}</h1>
+        </div>
+        <KinshipCalculator
+          onPathChange={(path) => {
+            setKinshipPath(path);
+          }}
+          onExecute={() => {
+            if (!kinshipPath) return;
+            executeTool(tool.id, { path: kinshipPath }).then((result) => {
+              setOutput(result);
+              updateRecentUse(tool.id);
+            }).catch(() => {
+              setOutput({ success: false, error: '计算失败' });
+            });
+          }}
+        />
+        <div className="mt-4">
+          <OutputPanel output={output} />
+        </div>
       </div>
     );
   }

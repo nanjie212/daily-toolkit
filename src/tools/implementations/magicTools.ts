@@ -506,21 +506,39 @@ export async function ledMarquee(input: Record<string, unknown>): Promise<ToolOu
     const text = (input.text as string) || '';
     const speed = (input.speed as string) || 'medium';
     const color = (input.color as string) || '#00ff88';
+    const bgOpacity = (input.bgOpacity as string) || '0';
+    const direction = (input.direction as string) || 'left';
+    const fontSize = (input.fontSize as string) || 'auto';
     if (!text.trim()) return { success: false, error: '请输入弹幕文字' };
 
-    const speedMs = speed === 'fast' ? 4000 : speed === 'slow' ? 10000 : 6000;
-    const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden}.marquee{font-size:clamp(32px,8vw,120px);font-weight:900;color:${color};white-space:nowrap;animation:scroll ${speedMs}ms linear infinite;text-shadow:0 0 20px ${color},0 0 40px ${color},0 0 80px ${color}}@keyframes scroll{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}</style></head><body><div class="marquee">${text}</div></body></html>`;
+    const speedMs = speed === 'fast' ? 3000 : speed === 'slow' ? 10000 : 6000;
+    const fontSizeCss = fontSize === 'auto' ? 'clamp(32px,8vw,120px)' : fontSize;
+    const bgAlpha = Number(bgOpacity) / 100;
+    const bgColor = `rgba(0,0,0,${bgAlpha})`;
+
+    const dirKeyframes: Record<string, string> = {
+      left: '@keyframes scroll{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}',
+      right: '@keyframes scroll{0%{transform:translateX(-100%)}100%{transform:translateX(100vw)}}',
+      up: '@keyframes scroll{0%{transform:translateY(100vh)}100%{transform:translateY(-100%)}}',
+      down: '@keyframes scroll{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}',
+    };
+    const dirStyle = direction === 'up' || direction === 'down'
+      ? 'writing-mode:vertical-lr;text-orientation:upright;'
+      : 'white-space:nowrap;';
+
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:${bgColor};display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden}.marquee{font-size:${fontSizeCss};font-weight:900;color:${color};${dirStyle}animation:scroll ${speedMs}ms linear infinite;text-shadow:0 0 20px ${color},0 0 40px ${color},0 0 80px ${color}}${dirKeyframes[direction]}</style></head><body><div class="marquee">${text}</div></body></html>`;
 
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    const downloadUrl = downloadBlobUrl(blob, 'led-marquee.html');
+    const downloadUrl = URL.createObjectURL(blob);
 
     return {
       success: true,
       data: {
         弹幕文字: text,
+        滚动方向: direction === 'left' ? '← 向左' : direction === 'right' ? '→ 向右' : direction === 'up' ? '↑ 向上' : '↓ 向下',
         速度: speed === 'fast' ? '快速' : speed === 'slow' ? '慢速' : '正常',
         颜色: color,
-        提示: '点击「下载」保存HTML文件，用浏览器打开即可全屏展示弹幕，适合演唱会应援、活动展示',
+        提示: '点击「下载」保存HTML文件，用浏览器打开(F11全屏)即可展示弹幕',
       },
       downloadUrl,
       filename: 'led-marquee.html',
@@ -608,7 +626,7 @@ export async function luckyWheel(input: Record<string, unknown>): Promise<ToolOu
     const downloadUrl = downloadBlobUrl(blob, 'lucky-wheel.png');
 
     // Build interactive HTML
-    const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:20px;font-family:"PingFang SC","Microsoft YaHei",sans-serif}h1{color:#ecf0f1}canvas{cursor:pointer;border-radius:50%;box-shadow:0 0 40px rgba(255,255,255,.1)}button{padding:12px 40px;font-size:18px;border:none;border-radius:12px;background:#e74c3c;color:#fff;cursor:pointer;font-weight:bold;transition:transform .15s}button:active{transform:scale(.95)}#result{color:#f1c40f;font-size:24px;font-weight:bold;min-height:40px}</style></head><body><h1>${title}</h1><canvas id="wheel" width="500" height="500"></canvas><button onclick="spin()">🎯 开始转动</button><div id="result"></div><script>const names=${JSON.stringify(nameList)};const colors=${JSON.stringify(colors)};let spinning=false;const canvas=document.getElementById('wheel');const ctx=canvas.getContext('2d');const cx=250,cy=250,radius=220;let currentAngle=0;const sliceAngle=360/names.length;function drawWheel(angle){ctx.clearRect(0,0,500,500);ctx.fillStyle='#1a1a2e';ctx.beginPath();ctx.arc(cx,cy,radius+15,0,Math.PI*2);ctx.fill();for(let i=0;i<names.length;i++){const startAngle=((i*sliceAngle-90)+angle)*Math.PI/180;const endAngle=(((i+1)*sliceAngle-90)+angle)*Math.PI/180;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,startAngle,endAngle);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();ctx.strokeStyle='#1a1a2e';ctx.lineWidth=2;ctx.stroke();const midAngle=(startAngle+endAngle)/2;const labelR=radius*.65;ctx.save();ctx.translate(cx+Math.cos(midAngle)*labelR,cy+Math.sin(midAngle)*labelR);ctx.rotate(midAngle+Math.PI/2);ctx.font='bold 14px "PingFang SC","Microsoft YaHei",sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';const d=names[i].length>6?names[i].slice(0,6)+'..':names[i];ctx.fillText(d,0,0);ctx.restore()}ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);ctx.fillStyle='#2c3e50';ctx.fill()}function spin(){if(spinning)return;spinning=true;document.getElementById('result').textContent='转动中...';const targetIdx=Math.floor(Math.random()*names.length);const targetAngle=360*5+targetIdx*sliceAngle+sliceAngle/2;const startAngle=currentAngle;const duration=3000;const startTime=Date.now();function animate(){const elapsed=Date.now()-startTime;const progress=Math.min(elapsed/duration,1);const eased=1-Math.pow(1-progress,3);currentAngle=startAngle+targetAngle*eased;drawWheel(currentAngle);if(progress<1){requestAnimationFrame(animate)}else{spinning=false;document.getElementById('result').textContent='🎉 '+names[targetIdx]+' 🎉'}}animate()}drawWheel(0)</script></body></html>`;
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:20px;font-family:"PingFang SC","Microsoft YaHei",sans-serif}h1{color:#ecf0f1}canvas{cursor:pointer;border-radius:50%;box-shadow:0 0 40px rgba(255,255,255,.1);filter:drop-shadow(0 0 30px rgba(255,255,255,0.08))}button{padding:12px 40px;font-size:18px;border:none;border-radius:12px;background:#e74c3c;color:#fff;cursor:pointer;font-weight:bold;transition:transform .15s}button:active{transform:scale(.95)}#result{color:#f1c40f;font-weight:bold;min-height:40px;transition:all .3s;font-size:24px}</style></head><body><h1>${title}</h1><canvas id="wheel" width="500" height="500"></canvas><button onclick="spin()">🎯 开始转动</button><div id="result"></div><script>const names=${JSON.stringify(nameList)};const colors=${JSON.stringify(colors)};let spinning=false;const canvas=document.getElementById('wheel');const ctx=canvas.getContext('2d');const cx=250,cy=250,radius=220;let currentAngle=0;const sliceAngle=360/names.length;function drawWheel(angle){ctx.clearRect(0,0,500,500);ctx.fillStyle='#1a1a2e';ctx.beginPath();ctx.arc(cx,cy,radius+15,0,Math.PI*2);ctx.fill();for(let i=0;i<names.length;i++){const startAngle=((i*sliceAngle-90)+angle)*Math.PI/180;const endAngle=(((i+1)*sliceAngle-90)+angle)*Math.PI/180;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,startAngle,endAngle);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();ctx.strokeStyle='#1a1a2e';ctx.lineWidth=2;ctx.stroke();const midAngle=(startAngle+endAngle)/2;const labelR=radius*.65;ctx.save();ctx.translate(cx+Math.cos(midAngle)*labelR,cy+Math.sin(midAngle)*labelR);ctx.rotate(midAngle+Math.PI/2);ctx.font='bold 14px "PingFang SC","Microsoft YaHei",sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';const d=names[i].length>6?names[i].slice(0,6)+'..':names[i];ctx.fillText(d,0,0);ctx.restore()}ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);ctx.fillStyle='#2c3e50';ctx.fill()}function spin(){if(spinning)return;spinning=true;document.getElementById('result').textContent='转动中...';const targetIdx=Math.floor(Math.random()*names.length);const targetAngle=360*5+targetIdx*sliceAngle+sliceAngle/2;const startAngle=currentAngle;const duration=3000;const startTime=Date.now();function animate(){const elapsed=Date.now()-startTime;const progress=Math.min(elapsed/duration,1);const eased=1-Math.pow(1-progress,4);currentAngle=startAngle+targetAngle*eased;drawWheel(currentAngle);if(progress<1){requestAnimationFrame(animate)}else{spinning=false;document.getElementById('result').textContent='🎉 '+names[targetIdx]+' 🎉'}}animate()}drawWheel(0)</script></body></html>`;
 
     const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
     const htmlDownloadUrl = downloadBlobUrl(htmlBlob, 'lucky-wheel.html');
