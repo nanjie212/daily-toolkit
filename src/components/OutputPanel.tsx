@@ -54,13 +54,14 @@ function detectIconAndGradient(key: string, value: string): { bgGradient: string
   return { bgGradient: 'from-gray-500 to-gray-600', badgeColor: 'text-gray-200' };
 }
 
-function formatValue(value: string): { display: string; isNumeric: boolean; isCurrency: boolean; isPercent: boolean } {
-  const numStr = value.replace(/[,，]/g, '').replace(/[¥￥$€£]/g, '').trim();
+function formatValue(value: unknown): { display: string; isNumeric: boolean; isCurrency: boolean; isPercent: boolean } {
+  const strValue = String(value ?? '');
+  const numStr = strValue.replace(/[,，]/g, '').replace(/[¥￥$€£]/g, '').trim();
   const num = parseFloat(numStr);
   const isNumeric = !isNaN(num) && numStr !== '';
-  const isCurrency = /[¥￥$€£]/.test(value);
-  const isPercent = value.includes('%');
-  return { display: value, isNumeric, isCurrency, isPercent };
+  const isCurrency = /[¥￥$€£]/.test(strValue);
+  const isPercent = strValue.includes('%');
+  return { display: strValue, isNumeric, isCurrency, isPercent };
 }
 
 export default function OutputPanel({ output }: OutputPanelProps) {

@@ -28,29 +28,272 @@ export async function petAgeCalc(input: Record<string, unknown>): Promise<ToolOu
   } catch (e) { return { success: false, error: `计算失败: ${(e as Error).message}` }; }
 }
 
+type DiscountType = 'simple' | 'percent' | 'fixed' | 'manjian' | 'secondHalf' | 'nDiscount' | 'buyNGetM' | 'deposit' | 'combo';
+
+interface DiscountResult {
+  type: string;
+  finalPrice: number;
+  saved: number;
+  discountRate: number;
+  detail: string;
+}
+
 export async function discountCalc(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
+    const discountType = (input.discountType as DiscountType) || 'simple';
     const price = Number(input.price) || 0;
-    const discount = Number(input.discount) || 0;
     if (price <= 0) return { success: false, error: '请输入有效原价' };
-    let final: number;
-    if (discount > 0 && discount <= 10) {
-      final = price * discount / 10;
-    } else if (discount > 10 && discount <= 100) {
-      final = price * discount / 100;
-    } else {
-      final = price - discount;
+
+    let result: DiscountResult;
+
+    switch (discountType) {
+      case 'simple': {
+        const discount = Number(input.discount) || 0;
+        let final: number;
+        if (discount > 0 && discount <= 10) {
+          final = price * discount / 10;
+        } else if (discount > 10 && discount <= 100) {
+          final = price * discount / 100;
+        } else {
+          final = price - discount;
+        }
+        const saved = price - final;
+        const discountRate = Math.round((1 - final / price) * 100);
+        result = {
+          type: '简单折扣',
+          finalPrice: final,
+          saved: saved,
+          discountRate: discountRate,
+          detail: discount <= 10 ? `${discount}折` : discount <= 100 ? `${discount}%优惠` : `立减¥${discount}`,
+        };
+        break;
+      }
+
+      case 'percent': {
+        const percent = Number(input.percent) || 0;
+        if (percent <= 0 || percent > 100) return { success: false, error: '请输入有效的折扣百分比' };
+        const final = price * (100 - percent) / 100;
+        const saved = price - final;
+        result = {
+          type: '百分比优惠',
+          finalPrice: final,
+          saved: saved,
+          discountRate: percent,
+          detail: `${percent}% off`,
+        };
+        break;
+      }
+
+      case 'fixed': {
+        const amount = Number(input.amount) || 0;
+        if (amount <= 0) return { success: false, error: '请输入有效优惠金额' };
+        const final = Math.max(0, price - amount);
+        const saved = price - final;
+        const discountRate = Math.round((saved / price) * 100);
+        result = {
+          type: '立减优惠',
+          finalPrice: final,
+          saved: saved,
+          discountRate: discountRate,
+          detail: `立减¥${amount}`,
+        };
+        break;
+      }
+
+      case 'manjian': {
+        const threshold = Number(input.threshold) || 0;
+        const reduction = Number(input.reduction) || 0;
+        const numItems = Number(input.numItems) || 1;
+        const totalPrice = price * numItems;
+        if (threshold <= 0 || reduction <= 0) return { success: false, error: '请输入有效满减金额' };
+        
+        let final = totalPrice;
+        let times = 0;
+        const mode = (input.manjianMode as string) || 'once';
+        
+        if (mode === 'once') {
+          if (totalPrice >= threshold) {
+            final = totalPrice - reduction;
+            times = 1;
+          }
+        } else {
+          times = Math.floor(totalPrice / threshold);
+          final = totalPrice - times * reduction;
+        }
+        
+        const saved = totalPrice - final;
+        const discountRate = Math.round((saved / totalPrice) * 100);
+        const detail = numItems > 1 
+          ? `满¥${threshold}减¥${reduction}${mode === 'loop' ? '(每满)' : ''}，共${numItems}件` 
+          : `满¥${threshold}减¥${reduction}${mode === 'loop' ? '(每满)' : ''}`;
+        
+        result = {
+          type: '满减优惠',
+          finalPrice: final,
+          saved: saved,
+          discountRate: discountRate,
+          detail: detail,
+        };
+        break;
+      }
+
+      case 'secondHalf': {
+        const numItems = Number(input.numItems) || 2;
+        if (numItems < 2) return { success: false, error: '至少需要2件才能享第二件半价' };
+        
+        const fullPriceItems = Math.ceil(numItems / 2);
+        const halfPriceItems = numItems - fullPriceItems;
+        const totalPrice = fullPriceItems * price + halfPriceItems * price * 0.5;
+        const originalTotal = price * numItems;
+        const saved = originalTotal - totalPrice;
+        const discountRate = Math.round((saved / originalTotal) * 100);
+        
+        result = {
+          type: '第二件半价',
+          finalPrice: totalPrice,
+          saved: saved,
+          discountRate: discountRate,
+          detail: `购买${numItems}件，${fullPriceItems}件原价+${halfPriceItems}件半价`,
+        };
+        break;
+      }
+
+      case 'nDiscount': {
+        const numItems = Number(input.numItems) || 3;
+        const discountPercent = Number(input.discountPercent) || 80;
+        if (numItems < 2) return { success: false, error: '至少需要2件' };
+        if (discountPercent <= 0 || discountPercent > 100) return { success: false, error: '请输入有效折扣' };
+        
+        const totalPrice = price * numItems * discountPercent / 100;
+        const originalTotal = price * numItems;
+        const saved = originalTotal - totalPrice;
+        const discountRate = Math.round((saved / originalTotal) * 100);
+        
+        result = {
+          type: '多件折扣',
+          finalPrice: totalPrice,
+          saved: saved,
+          discountRate: discountRate,
+          detail: `买${numItems}件打${discountPercent}折`,
+        };
+        break;
+      }
+
+      case 'buyNGetM': {
+        const buyN = Number(input.buyN) || 2;
+        const getM = Number(input.getM) || 1;
+        if (buyN < 1 || getM < 1) return { success: false, error: '请输入有效数字' };
+        
+        const effectiveItems = buyN + getM;
+        const paidPrice = price * buyN;
+        const originalTotal = price * effectiveItems;
+        const saved = originalTotal - paidPrice;
+        const discountRate = Math.round((saved / originalTotal) * 100);
+        
+        result = {
+          type: '买N送M',
+          finalPrice: paidPrice,
+          saved: saved,
+          discountRate: discountRate,
+          detail: `买${buyN}送${getM}，花${buyN}件的钱得${effectiveItems}件`,
+        };
+        break;
+      }
+
+      case 'deposit': {
+        const deposit = Number(input.deposit) || 0;
+        const finalPayment = Number(input.finalPayment) || 0;
+        const depositDilation = Number(input.depositDilation) || 0;
+        
+        if (deposit <= 0) return { success: false, error: '请输入定金金额' };
+        
+        let dilationSaved = 0;
+        if (depositDilation > deposit) {
+          dilationSaved = depositDilation - deposit;
+        }
+        
+        const totalPaid = deposit + finalPayment;
+        const saved = price - totalPaid + dilationSaved;
+        const finalPrice = Math.max(0, price - saved);
+        const discountRate = Math.round((saved / price) * 100);
+        
+        result = {
+          type: '定金膨胀',
+          finalPrice: finalPrice,
+          saved: saved,
+          discountRate: discountRate,
+          detail: `定金¥${deposit}${depositDilation > deposit ? `抵¥${depositDilation}` : ''}+尾款¥${finalPayment}`,
+        };
+        break;
+      }
+
+      case 'combo': {
+        const results: DiscountResult[] = [];
+        const comboSteps: string[] = [];
+        let currentPrice = price;
+        
+        if (input.hasDeposit === 'true') {
+          const deposit = Number(input.cDeposit) || 0;
+          const depositDilation = Number(input.cDepositDilation) || 0;
+          if (deposit > 0 && depositDilation > deposit) {
+            const saved = depositDilation - deposit;
+            currentPrice = currentPrice - saved;
+            comboSteps.push(`定金膨胀省¥${saved}`);
+          }
+        }
+        
+        if (input.hasManjian === 'true') {
+          const threshold = Number(input.cThreshold) || 0;
+          const reduction = Number(input.cReduction) || 0;
+          if (threshold > 0 && reduction > 0 && currentPrice >= threshold) {
+            currentPrice = currentPrice - reduction;
+            comboSteps.push(`满减省¥${reduction}`);
+          }
+        }
+        
+        if (input.hasCoupon === 'true') {
+          const coupon = Number(input.cCoupon) || 0;
+          if (coupon > 0) {
+            currentPrice = Math.max(0, currentPrice - coupon);
+            comboSteps.push(`优惠券省¥${coupon}`);
+          }
+        }
+        
+        if (input.hasPercent === 'true') {
+          const percent = Number(input.cPercent) || 0;
+          if (percent > 0 && percent <= 100) {
+            const before = currentPrice;
+            currentPrice = currentPrice * (100 - percent) / 100;
+            comboSteps.push(`${percent}%折扣省¥${(before - currentPrice).toFixed(2)}`);
+          }
+        }
+        
+        const saved = price - currentPrice;
+        const discountRate = Math.round((saved / price) * 100);
+        
+        result = {
+          type: '叠加优惠',
+          finalPrice: currentPrice,
+          saved: saved,
+          discountRate: discountRate,
+          detail: comboSteps.length > 0 ? comboSteps.join(' → ') : '无叠加优惠',
+        };
+        break;
+      }
+
+      default:
+        return { success: false, error: '未知折扣类型' };
     }
-    const saved = price - final;
-    const discountRate = Math.round((1 - final / price) * 100);
+
     return {
       success: true,
       data: {
         原价: `¥${price.toFixed(2)}`,
-        [`${discount <= 10 ? '折扣' : '优惠/满减'}`]: discount <= 10 ? `${discount}折` : `¥${discount}`,
-        到手价: `¥${final.toFixed(2)}`,
-        省了: `¥${saved.toFixed(2)} (${discountRate}% off)`,
-        提示: '可输入折扣(1-10)、百分比(10-100)或优惠金额',
+        优惠方式: result.type,
+        优惠详情: result.detail,
+        到手价: `¥${result.finalPrice.toFixed(2)}`,
+        省了: `¥${result.saved.toFixed(2)} (${result.discountRate}% off)`,
+        提示: '记得对比多种方式，选最划算的！',
       },
     };
   } catch (e) { return { success: false, error: `计算失败: ${(e as Error).message}` }; }

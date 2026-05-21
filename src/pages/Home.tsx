@@ -3,19 +3,20 @@ import {
   DollarSignIcon,
   HeartPulseIcon,
   SmileIcon,
-  ArrowRightIcon,
-  ClockIcon,
-  StarIcon,
   SparklesIcon,
+  StarIcon,
+  ClockIcon,
+  PinIcon,
+  SearchIcon,
+  LayoutGridIcon,
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
 import SearchBar from '@/components/SearchBar';
-import ToolCard from '@/components/ToolCard';
 import ThemeToggle from '@/components/ThemeToggle';
+import ToolGrid from '@/components/ToolGrid';
 import OnboardingModal from '@/components/OnboardingModal';
-import DonateSection from '@/components/DonateSection';
 
 const categoryIconMap: Record<string, React.ElementType> = {
   ImageIcon,
@@ -46,29 +47,8 @@ const categoryAccents: Record<string, string> = {
 };
 
 export default function Home() {
-  const { tools, selectedCategory, recentToolIds, favoriteToolIds, searchQuery } = useStore();
+  const { tools, selectedCategory, recentToolIds, favoriteToolIds, pinnedToolIds, searchQuery } = useStore();
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-done'));
-
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const savedScroll = sessionStorage.getItem('home-scroll');
-    if (savedScroll && scrollContainerRef.current) {
-      setTimeout(() => {
-        scrollContainerRef.current?.scrollTo(0, parseInt(savedScroll, 10));
-      }, 100);
-    }
-
-    const handleScroll = () => {
-      if (scrollContainerRef.current) {
-        sessionStorage.setItem('home-scroll', String(scrollContainerRef.current.scrollTop));
-      }
-    };
-
-    const container = scrollContainerRef.current;
-    container?.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container?.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const filteredTools = tools.filter((tool) => {
     const matchCategory = !selectedCategory || tool.category === selectedCategory;
@@ -86,135 +66,189 @@ export default function Home() {
     .map((id) => tools.find((t) => t.id === id))
     .filter(Boolean) as typeof tools;
 
-  const recommendedTools = tools.filter((t) =>
-    ['image-compress', 'simple-calculator', 'qrcode-generator', 'password-generator', 'mortgage-calculator', 'sensitive-mask'].includes(t.id)
-  );
+  const pinnedTools = pinnedToolIds
+    .map((id) => tools.find((t) => t.id === id))
+    .filter(Boolean) as typeof tools;
+
+  const displayedTools = selectedCategory || searchQuery
+    ? filteredTools
+    : filteredTools;
 
   return (
-    <div ref={scrollContainerRef} className="min-h-full p-6 lg:p-8 space-y-8">
-      <div className="flex justify-end">
-        <ThemeToggle />
-      </div>
-      <div className="flex flex-col items-center text-center py-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <SparklesIcon className="w-8 h-8 text-accent" />
-          <h1 className="text-4xl lg:text-5xl font-heading font-bold text-white">
-            普通日常工具箱
-          </h1>
+    <div className="min-h-full">
+      {/* 头部 */}
+      <div className="sticky top-0 z-40 bg-bg/80 backdrop-blur-lg border-b border-white/5">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+              <SparklesIcon className="w-6 h-6 text-accent" />
+            </div>
+            <div>
+              <h1 className="text-white font-heading font-bold text-lg">普通日常工具箱</h1>
+              <p className="text-gray-500 text-xs">本地优先 · 隐私保护 · 无需注册</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+          </div>
         </div>
-        <p className="text-gray-400 text-lg max-w-md">
-          本地优先 · 隐私保护 · 无需注册
-        </p>
-        <SearchBar />
-      </div>
+        
+        {/* 搜索框 */}
+        <div className="px-6 pb-4">
+          <div className="relative">
+            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => useStore.getState().setSearchQuery(e.target.value)}
+              placeholder="搜索工具名称或描述..."
+              className="w-full pl-11 pr-4 py-2.5 bg-card border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => useStore.getState().setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
 
-      {!selectedCategory && !searchQuery && (
-        <div className="animate-fade-in">
-          <h2 className="text-white font-heading font-bold text-xl mb-4">工具分类</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {categories.map((cat, index) => {
+        {/* 分类标签 */}
+        <div className="px-6 pb-4">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => useStore.getState().setSelectedCategory(null)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                !selectedCategory
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'bg-card text-gray-400 border border-white/5 hover:text-white hover:border-white/10'
+              }`}
+            >
+              <LayoutGridIcon className="w-4 h-4" />
+              全部 ({tools.length})
+            </button>
+            {categories.map((cat) => {
               const Icon = categoryIconMap[cat.icon] || SparklesIcon;
+              const catTools = tools.filter(t => t.category === cat.id);
               return (
                 <button
                   key={cat.id}
                   onClick={() => useStore.getState().setSelectedCategory(cat.id)}
-                  className={`animate-fade-in group relative bg-gradient-to-br ${categoryColors[cat.id]} border rounded-2xl p-5 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg`}
-                  style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    selectedCategory === cat.id
+                      ? 'bg-accent/20 text-accent border border-accent/30'
+                      : 'bg-card text-gray-400 border border-white/5 hover:text-white hover:border-white/10'
+                  }`}
                 >
-                  <Icon className={`w-8 h-8 mb-3 ${categoryAccents[cat.id]}`} />
-                  <h3 className="text-white font-heading font-semibold text-sm mb-1">{cat.name}</h3>
-                  <p className="text-gray-400 text-xs line-clamp-2">{cat.description}</p>
-                  <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowRightIcon className="w-4 h-4 text-gray-400" />
-                  </div>
+                  <Icon className="w-4 h-4" />
+                  {cat.name} ({catTools.length})
                 </button>
               );
             })}
           </div>
         </div>
-      )}
+      </div>
 
-      {selectedCategory && (
-        <div className="animate-fade-in flex items-center gap-3">
-          <button
-            onClick={() => useStore.getState().setSelectedCategory(null)}
-            className="text-gray-400 hover:text-white transition-colors text-sm"
-          >
-            全部
-          </button>
-          <span className="text-gray-600">/</span>
-          <span className="text-accent text-sm font-medium">
-            {categories.find((c) => c.id === selectedCategory)?.name}
-          </span>
+      {/* 内容区域 */}
+      <div className="p-6">
+        {/* 搜索结果提示 */}
+        {searchQuery && (
+          <div className="mb-4 p-4 bg-card rounded-xl border border-white/5">
+            <p className="text-gray-400 text-sm">
+              搜索 "<span className="text-white">{searchQuery}</span>" 找到 {filteredTools.length} 个工具
+            </p>
+          </div>
+        )}
+
+        {/* 固定工具 */}
+        {pinnedTools.length > 0 && !selectedCategory && !searchQuery && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <PinIcon className="w-4 h-4 text-accent" />
+              <h2 className="text-white font-heading font-semibold">已固定工具</h2>
+              <span className="text-xs text-gray-500">({pinnedTools.length})</span>
+            </div>
+            <div className="bg-card rounded-xl border border-white/5 p-4">
+              <ToolGrid tools={pinnedTools} />
+            </div>
+          </div>
+        )}
+
+        {/* 收藏工具 */}
+        {favoriteTools.length > 0 && !selectedCategory && !searchQuery && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <StarIcon className="w-4 h-4 text-amber-400" />
+              <h2 className="text-white font-heading font-semibold">我的收藏</h2>
+              <span className="text-xs text-gray-500">({favoriteTools.length})</span>
+            </div>
+            <div className="bg-card rounded-xl border border-white/5 p-4">
+              <ToolGrid tools={favoriteTools} />
+            </div>
+          </div>
+        )}
+
+        {/* 最近使用 */}
+        {recentTools.length > 0 && !selectedCategory && !searchQuery && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <ClockIcon className="w-4 h-4 text-gray-400" />
+              <h2 className="text-white font-heading font-semibold">最近使用</h2>
+              <span className="text-xs text-gray-500">({recentTools.length})</span>
+            </div>
+            <div className="bg-card rounded-xl border border-white/5 p-4">
+              <ToolGrid tools={recentTools} />
+            </div>
+          </div>
+        )}
+
+        {/* 全部/分类工具 */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white font-heading font-semibold">
+              {searchQuery
+                ? `搜索结果`
+                : selectedCategory
+                ? categories.find(c => c.id === selectedCategory)?.name
+                : '全部工具'}
+            </h2>
+            <span className="text-xs text-gray-500">{filteredTools.length} 个工具</span>
+          </div>
+          <div className="bg-card rounded-xl border border-white/5 p-4">
+            <ToolGrid tools={displayedTools} />
+          </div>
         </div>
-      )}
 
-      {!selectedCategory && !searchQuery && favoriteTools.length > 0 && (
-        <div className="animate-fade-in">
-          <div className="flex items-center gap-2 mb-4">
-            <StarIcon className="w-5 h-5 text-amber-400" />
-            <h2 className="text-white font-heading font-bold text-xl">收藏工具</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {favoriteTools.map((tool, index) => (
-              <ToolCard key={tool.id} tool={tool} index={index} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!selectedCategory && !searchQuery && recommendedTools.length > 0 && (
-        <div className="animate-fade-in">
-          <div className="flex items-center gap-2 mb-4">
-            <SparklesIcon className="w-5 h-5 text-accent" />
-            <h2 className="text-white font-heading font-bold text-xl">推荐工具</h2>
-          </div>
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-            {recommendedTools.map((tool, index) => (
-              <div key={tool.id} className="flex-shrink-0 w-64">
-                <ToolCard tool={tool} compact index={index} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!selectedCategory && !searchQuery && recentTools.length > 0 && (
-        <div className="animate-fade-in">
-          <div className="flex items-center gap-2 mb-4">
-            <ClockIcon className="w-5 h-5 text-gray-400" />
-            <h2 className="text-white font-heading font-bold text-xl">最近使用</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {recentTools.slice(0, 8).map((tool, index) => (
-              <ToolCard key={tool.id} tool={tool} compact index={index} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="animate-fade-in">
-        <h2 className="text-white font-heading font-bold text-xl mb-4">
-          {searchQuery ? '搜索结果' : selectedCategory ? '分类工具' : '全部工具'}
-        </h2>
-        {filteredTools.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredTools.map((tool, index) => (
-              <ToolCard key={tool.id} tool={tool} index={index} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-lg">没有找到匹配的工具</p>
-            <p className="text-sm mt-2">尝试其他关键词或分类</p>
+        {/* 分类快捷入口 */}
+        {!selectedCategory && !searchQuery && (
+          <div className="mb-6">
+            <h2 className="text-white font-heading font-semibold mb-3">快速分类</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {categories.map((cat, index) => {
+                const Icon = categoryIconMap[cat.icon] || SparklesIcon;
+                const catTools = tools.filter(t => t.category === cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => useStore.getState().setSelectedCategory(cat.id)}
+                    className={`animate-fade-in group relative bg-gradient-to-br ${categoryColors[cat.id]} border rounded-xl p-4 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg`}
+                    style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
+                  >
+                    <Icon className={`w-8 h-8 mb-3 ${categoryAccents[cat.id]}`} />
+                    <h3 className="text-white font-heading font-semibold text-sm mb-1">{cat.name}</h3>
+                    <p className="text-gray-400 text-xs">{catTools.length} 个工具</p>
+                    <p className="text-gray-500 text-xs line-clamp-2 mt-1">{cat.description}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
-      {!selectedCategory && !searchQuery && (
-        <div className="animate-fade-in">
-          <DonateSection wechatQr="" alipayQr="" />
-        </div>
-      )}
+
+      {/* 新手引导 */}
       {showOnboarding && (
         <OnboardingModal
           onClose={() => {

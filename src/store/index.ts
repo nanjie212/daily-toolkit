@@ -35,6 +35,7 @@ interface ToolBoxState {
 
 const RECENT_KEY = 'toolbox_recent_tools';
 const FAVORITE_KEY = 'toolbox_favorite_tools';
+const PINNED_KEY = 'toolbox_pinned_tools';
 const LIKES_KEY = 'toolbox_tool_likes';
 const FEEDBACKS_KEY = 'toolbox_tool_feedbacks';
 
@@ -51,6 +52,7 @@ export const useStore = create<ToolBoxState>((set, get) => ({
   categories,
   recentToolIds: loadFromStorage<string[]>(RECENT_KEY, []),
   favoriteToolIds: loadFromStorage<string[]>(FAVORITE_KEY, []),
+  pinnedToolIds: loadFromStorage<string[]>(PINNED_KEY, []),
   searchQuery: '',
   selectedCategory: null,
   selectedTool: null,
@@ -69,6 +71,7 @@ export const useStore = create<ToolBoxState>((set, get) => ({
     set((state) => ({
       tools: state.tools.filter((t) => t.id !== id),
       favoriteToolIds: state.favoriteToolIds.filter((fid) => fid !== id),
+      pinnedToolIds: state.pinnedToolIds.filter((pid) => pid !== id),
       recentToolIds: state.recentToolIds.filter((rid) => rid !== id),
     })),
 
@@ -81,6 +84,15 @@ export const useStore = create<ToolBoxState>((set, get) => ({
         : [...state.favoriteToolIds, id];
       saveToStorage(FAVORITE_KEY, favorites);
       return { favoriteToolIds: favorites };
+    }),
+
+  togglePinned: (id) =>
+    set((state) => {
+      const pinned = state.pinnedToolIds.includes(id)
+        ? state.pinnedToolIds.filter((pid) => pid !== id)
+        : [...state.pinnedToolIds, id];
+      saveToStorage(PINNED_KEY, pinned);
+      return { pinnedToolIds: pinned };
     }),
 
   likeTool: (toolId) => {
