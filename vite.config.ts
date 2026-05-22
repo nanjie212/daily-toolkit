@@ -6,13 +6,7 @@ import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge';
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [
-          'react-dev-locator',
-        ],
-      },
-    }),
+    react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
@@ -62,9 +56,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'tesseract': ['tesseract.js'],
-          'mathjs': ['mathjs'],
           'lucide': ['lucide-react'],
-          'marked': ['marked'],
           'opencc': ['opencc-js'],
           'qrcode': ['qrcode'],
           'jszip': ['jszip'],

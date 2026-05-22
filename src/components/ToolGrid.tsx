@@ -244,7 +244,7 @@ export default function ToolGrid({ tools }: ToolGridProps) {
   return (
     <div className="relative">
       {/* 工具图标网格 */}
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3 p-4">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-3 p-4">
         {tools.map((tool, index) => {
           const Icon = iconMap[tool.icon] || SparklesIcon;
           const isFavorite = favoriteToolIds.includes(tool.id);

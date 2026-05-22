@@ -64,7 +64,12 @@ export default function FooterBar() {
       localStorage.setItem('toolbox_usage_records', JSON.stringify(filtered));
     };
     window.addEventListener('beforeunload', saveDuration);
-    return () => { window.removeEventListener('beforeunload', saveDuration); saveDuration(); };
+    window.addEventListener('pagehide', saveDuration);
+    return () => {
+      window.removeEventListener('beforeunload', saveDuration);
+      window.removeEventListener('pagehide', saveDuration);
+      saveDuration();
+    };
   }, [location.pathname]);
 
   return (
