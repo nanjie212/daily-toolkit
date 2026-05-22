@@ -8,10 +8,7 @@ interface DonateSectionProps {
 
 export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps) {
   const [expanded, setExpanded] = useState(false);
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem('donate-dismissed') === '1');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  if (dismissed) return null;
 
   const wechatSrc = wechatQr || '/wechat-donate.jpg';
   const alipaySrc = alipayQr || '/alipay-donate.jpg';
@@ -38,17 +35,9 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
         </button>
       ) : (
         <div className="p-6">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <h3 className="text-white font-heading font-bold text-lg mb-1">支持开发者</h3>
-              <p className="text-gray-400 text-sm">所有工具永久免费 · 赞赏支持服务器和维护</p>
-            </div>
-            <button
-              onClick={() => { localStorage.setItem('donate-dismissed', '1'); setDismissed(true); }}
-              className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-white/5"
-            >
-              <XIcon className="w-4 h-4" />
-            </button>
+          <div className="mb-5">
+            <h3 className="text-white font-heading font-bold text-lg mb-1">支持开发者</h3>
+            <p className="text-gray-400 text-sm">所有工具永久免费 · 赞赏支持服务器和维护</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

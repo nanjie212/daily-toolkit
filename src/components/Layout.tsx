@@ -1,38 +1,40 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
-import Sidebar from './Sidebar';
 import ToolDetail from './ToolDetail';
 import MobileNav from './MobileNav';
+import FooterBar from './FooterBar';
 
 export default function Layout() {
-  const mainRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
   useEffect(() => {
-    const main = mainRef.current;
-    if (!main) return;
+    const container = scrollRef.current;
+    if (!container) return;
 
     const savedScroll = sessionStorage.getItem('main-scroll');
     if (savedScroll) {
       requestAnimationFrame(() => {
-        main.scrollTop = parseInt(savedScroll, 10);
+        container.scrollTop = parseInt(savedScroll, 10);
       });
     }
 
     const handleScroll = () => {
-      sessionStorage.setItem('main-scroll', String(main.scrollTop));
+      sessionStorage.setItem('main-scroll', String(container.scrollTop));
     };
 
-    main.addEventListener('scroll', handleScroll, { passive: true });
-    return () => main.removeEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-bg overflow-hidden">
-      <Sidebar />
-      <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
-        <Outlet />
-      </main>
+    <div ref={scrollRef} className="h-screen bg-bg overflow-y-auto overflow-x-hidden">
+      <div className="min-h-full flex flex-col">
+        <main className="flex-1 pb-16 md:pb-0">
+          <Outlet />
+        </main>
+        <FooterBar />
+      </div>
       <ToolDetail />
       <MobileNav />
     </div>
