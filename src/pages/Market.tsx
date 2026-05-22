@@ -6,6 +6,32 @@ import type { ToolRecord } from '@/types';
 
 const marketTools: ToolRecord[] = [
   {
+    id: 'base64-encode', name: 'Base64 编解码', description: 'Base64编码解码，支持中英文和特殊字符',
+    category: 'market', icon: 'FileCodeIcon', version: '1.0.0', source: 'community', permissions: [],
+    inputSchema: [
+      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '输入要编码或解码的文本...', required: true },
+      { key: 'mode', label: '操作模式', type: 'select', defaultValue: 'encode', options: [{ label: '编码 (文字→Base64)', value: 'encode' }, { label: '解码 (Base64→文字)', value: 'decode' }] },
+    ],
+    outputFormat: 'text', tips: 'Base64编码不是加密，可被直接解码还原原文',
+  },
+  {
+    id: 'id-card-parser', name: '身份证解析', description: '解析中国身份证号，提取地区、生日、性别并校验真伪',
+    category: 'market', icon: 'IdCardIcon', version: '1.0.0', source: 'community', permissions: [],
+    inputSchema: [
+      { key: 'idNumber', label: '身份证号', type: 'text', placeholder: '请输入18位身份证号...', required: true },
+    ],
+    outputFormat: 'text', tips: '输入18位身份证号，自动解析地区、生日、性别并校验',
+  },
+  {
+    id: 'number-to-chinese', name: '数字转中文', description: '将阿拉伯数字转换为中文小写或大写金额',
+    category: 'market', icon: 'TypeIcon', version: '1.0.0', source: 'community', permissions: [],
+    inputSchema: [
+      { key: 'num', label: '数字', type: 'text', placeholder: '输入数字...', required: true },
+      { key: 'mode', label: '格式', type: 'select', defaultValue: 'lower', options: [{ label: '小写数字', value: 'lower' }, { label: '大写金额', value: 'upper' }] },
+    ],
+    outputFormat: 'text', tips: '支持整数和小数，大写模式可用于发票金额',
+  },
+  {
     id: 'text-counter', name: '文本统计', description: '自动统计字符数、词数、行数和段落数',
     category: 'market', icon: 'FileTextIcon', version: '1.0.0', source: 'community', permissions: [],
     inputSchema: [

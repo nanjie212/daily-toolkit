@@ -419,48 +419,6 @@ export const lifeTools: ToolRecord[] = [
   },
   
   {
-    id: 'id-card-parser',
-    name: '身份证解析',
-    description: '解析中国身份证号，提取地区、生日、性别信息',
-    category: 'everyday',
-    icon: 'IdCardIcon',
-    version: '1.0.0',
-    source: 'builtin' as const,
-    permissions: [],
-    inputSchema: [
-      { key: 'idNumber', label: '身份证号', type: 'text', placeholder: '请输入18位身份证号...', required: true },
-    ],
-    outputFormat: 'text',
-    tips: '输入18位身份证号，自动解析地区、生日、性别并校验',
-  },
-  
-  {
-    id: 'number-to-chinese',
-    name: '数字转中文',
-    description: '将阿拉伯数字转换为中文大写或小写',
-    category: 'everyday',
-    icon: 'TypeIcon',
-    version: '1.0.0',
-    source: 'builtin' as const,
-    permissions: [],
-    inputSchema: [
-      { key: 'num', label: '数字', type: 'text', placeholder: '输入数字...', required: true },
-      {
-        key: 'mode',
-        label: '格式',
-        type: 'select',
-        defaultValue: 'lower',
-        options: [
-          { label: '小写数字', value: 'lower' },
-          { label: '大写金额', value: 'upper' },
-        ],
-      },
-    ],
-    outputFormat: 'text',
-    tips: '支持整数和小数，大写模式可用于发票金额',
-  },
-  
-  {
     id: 'fraction-calculator',
     name: '分数计算器',
     description: '分数加减乘除和约分，自动化简到最简形式',
