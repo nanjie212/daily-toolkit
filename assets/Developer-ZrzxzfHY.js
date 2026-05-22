@@ -1,4 +1,4 @@
-import{j as t}from"./index-D53Ti-fH.js";import{r as s}from"./vendor-DqKY06Xw.js";import{az as F,l as E,t as C,r as D,I as b,e as j,N as k,ai as v}from"./lucide-p5RHQ87D.js";function N(){const[r,h]=s.useState(""),[o,B]=s.useState(""),[i,d]=s.useState(""),[a,x]=s.useState(""),[m,p]=s.useState(!1),[l,A]=s.useState(null),w=()=>{if(!r.trim())return;const n=r.slice(0,20).replace(/\s+/g,"-"),u=`你是一个工具开发助手。请根据以下描述生成一个ToolBox工具：
+import{j as t}from"./index-BmDBv1WI.js";import{r as s}from"./vendor-DqKY06Xw.js";import{aA as F,l as E,t as C,r as D,I as b,e as j,N as k,aj as v}from"./lucide-BkymBtsG.js";function N(){const[r,h]=s.useState(""),[o,B]=s.useState(""),[i,d]=s.useState(""),[a,x]=s.useState(""),[m,p]=s.useState(!1),[l,A]=s.useState(null),w=()=>{if(!r.trim())return;const n=r.slice(0,20).replace(/\s+/g,"-"),u=`你是一个工具开发助手。请根据以下描述生成一个ToolBox工具：
 
 工具描述：${r}
 
