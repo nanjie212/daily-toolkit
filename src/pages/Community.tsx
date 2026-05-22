@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon, ArrowLeftIcon } from 'lucide-react';
 import { safeStorage } from '@/lib/safeStorage';
-import { useStore } from '@/store';
+import { fetchMessages, addMessage, toggleLike, addReply, isNicknameLiked, isConfigured } from '@/lib/supabase';
 
 interface Reply {
   id: string;
@@ -16,28 +16,14 @@ interface Message {
   content: string;
   timestamp: number;
   likes: number;
-  likedBy: string[];
+  liked_by: string[];
   replies: Reply[];
 }
 
-const MESSAGES_KEY = 'toolbox_community_messages';
-const USER_KEY = 'toolbox_community_user';
+const randomNicks = ['快乐的小鸟', '阳光下的猫', '随风而行', '星空漫步者', '午后红茶', '薄荷糖', '蔚蓝海岸', '竹林听雨', '晨曦微露', '北方的狼', '小鱼儿', '追风少年'];
 
-function getUserId(): string {
-  let uid = safeStorage.getJSON<string>(USER_KEY, '');
-  if (!uid) {
-    uid = 'user_' + Math.random().toString(36).substring(2, 10);
-    safeStorage.setJSON(USER_KEY, uid);
-  }
-  return uid;
-}
-
-function loadMessages(): Message[] {
-  return safeStorage.getJSON<Message[]>(MESSAGES_KEY, []);
-}
-
-function saveMessages(msgs: Message[]): void {
-  safeStorage.setJSON(MESSAGES_KEY, msgs.slice(-200));
+function genNickname(): string {
+  return randomNicks[Math.floor(Math.random() * randomNicks.length)] + Math.floor(Math.random() * 100);
 }
 
 function formatTime(ts: number): string {
@@ -50,14 +36,9 @@ function formatTime(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const randomNicks = ['快乐的小鸟', '阳光下的猫', '随风而行', '星空漫步者', '午后红茶', '薄荷糖', '蔚蓝海岸', '竹林听雨', '晨曦微露', '北方的狼', '小鱼儿', '追风少年'];
-
-function genNickname(): string {
-  return randomNicks[Math.floor(Math.random() * randomNicks.length)] + Math.floor(Math.random() * 100);
-}
-
 export default function Community() {
-  const [messages, setMessages] = useState<Message[]>(loadMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
   const [nickname, setNickname] = useState(() => safeStorage.getJSON<string>('toolbox_community_nickname', '') || genNickname());
   const [content, setContent] = useState('');
   const [nickEditing, setNickEditing] = useState(false);
@@ -66,81 +47,69 @@ export default function Community() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'hottest'>('newest');
   const [showSuccess, setShowSuccess] = useState(false);
   const msgListRef = useRef<HTMLDivElement>(null);
-  const uid = useRef(getUserId()).current;
 
-  const save = useCallback((msgs: Message[]) => {
-    setMessages(msgs);
-    saveMessages(msgs);
+  const loadMessages = useCallback(async () => {
+    setLoading(true);
+    try {
+      const msgs = await fetchMessages() as Message[];
+      const enriched = await Promise.all(msgs.map(async (msg) => {
+        if (!msg.replies) {
+          const { fetchReplies } = await import('@/lib/supabase');
+          msg.replies = await fetchReplies(msg.id) as Reply[];
+        }
+        return msg;
+      }));
+      setMessages(enriched);
+    } catch {
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadMessages();
+    const interval = setInterval(loadMessages, 30000);
+    return () => clearInterval(interval);
+  }, [loadMessages]);
 
   const handleSaveNick = () => {
     safeStorage.setJSON('toolbox_community_nickname', nickname);
     setNickEditing(false);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = content.trim();
     if (!trimmed) return;
     if (trimmed.length > 500) return;
-    const newMsg: Message = {
-      id: Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-      nickname: nickname || '匿名用户',
-      content: trimmed,
-      timestamp: Date.now(),
-      likes: 0,
-      likedBy: [],
-      replies: [],
-    };
-    const updated = [newMsg, ...messages];
-    save(updated);
+
+    await addMessage(nickname || '匿名用户', trimmed);
     setContent('');
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 2000);
-    setTimeout(() => msgListRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+    loadMessages();
   };
 
-  const handleLike = (msgId: string) => {
-    const updated = messages.map((m) => {
-      if (m.id !== msgId) return m;
-      if (m.likedBy.includes(uid)) {
-        return { ...m, likes: m.likes - 1, likedBy: m.likedBy.filter((u) => u !== uid) };
-      }
-      return { ...m, likes: m.likes + 1, likedBy: [...m.likedBy, uid] };
-    });
-    save(updated);
+  const handleLike = async (msgId: string) => {
+    await toggleLike(msgId);
+    loadMessages();
   };
 
   const handleDelete = (msgId: string) => {
-    save(messages.filter((m) => m.id !== msgId));
+    if (isConfigured) return;
+    setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    const local = safeStorage.getJSON<Message[]>('toolbox_community_messages', []);
+    safeStorage.setJSON('toolbox_community_messages', local.filter((m) => m.id !== msgId));
   };
 
-  const handleReply = (msgId: string) => {
+  const handleReply = async (msgId: string) => {
     const trimmed = replyContent.trim();
     if (!trimmed || trimmed.length > 300) return;
-    const updated = messages.map((m) => {
-      if (m.id !== msgId) return m;
-      return {
-        ...m,
-        replies: [
-          ...m.replies,
-          {
-            id: Date.now().toString(36),
-            nickname: nickname || '匿名用户',
-            content: trimmed,
-            timestamp: Date.now(),
-          },
-        ],
-      };
-    });
-    save(updated);
+    await addReply(msgId, nickname || '匿名用户', trimmed);
     setReplyTo(null);
     setReplyContent('');
+    loadMessages();
   };
-
-  const sorted = [...messages].sort((a, b) => {
-    if (sortOrder === 'hottest') return b.likes - a.likes || b.timestamp - a.timestamp;
-    return b.timestamp - a.timestamp;
-  });
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -148,6 +117,11 @@ export default function Community() {
       handleSend();
     }
   };
+
+  const sorted = [...messages].sort((a, b) => {
+    if (sortOrder === 'hottest') return (b.likes || 0) - (a.likes || 0) || b.timestamp - a.timestamp;
+    return b.timestamp - a.timestamp;
+  });
 
   const nickColors = ['text-emerald-400', 'text-blue-400', 'text-purple-400', 'text-pink-400', 'text-amber-400', 'text-cyan-400', 'text-rose-400'];
 
@@ -170,7 +144,9 @@ export default function Community() {
           </button>
           <div>
             <h1 className="text-3xl font-heading font-bold text-white mb-1">社区留言板</h1>
-            <p className="text-gray-400">分享你的想法，与其他用户互动交流</p>
+            <p className="text-gray-400 text-sm">
+              {isConfigured ? '留言已同步到云端，所有用户可见' : '留言仅保存在本地（配置云存储后可全网可见）'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-surface rounded-xl p-1">
@@ -214,7 +190,6 @@ export default function Community() {
                 {nickname || '匿名用户'}
               </button>
             )}
-            <span className="text-xs text-gray-600">#{uid.slice(-4)}</span>
           </div>
         </div>
         <div className="relative">
@@ -247,13 +222,30 @@ export default function Community() {
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
           <MessageCircleIcon className="w-4 h-4" />
-          <span>共 {messages.length} 条留言</span>
+          <span>
+            {loading ? '加载中...' : `共 ${messages.length} 条留言`}
+            {isConfigured && <span className="text-[10px] text-accent/60 ml-2">· 云端同步中</span>}
+          </span>
         </div>
 
-        {sorted.length > 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card border border-white/5 rounded-2xl p-4 animate-pulse">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-surface" />
+                  <div className="h-3 w-20 bg-surface rounded" />
+                  <div className="h-2 w-12 bg-surface rounded" />
+                </div>
+                <div className="h-3 w-full bg-surface rounded mb-2" />
+                <div className="h-3 w-3/4 bg-surface rounded" />
+              </div>
+            ))}
+          </div>
+        ) : sorted.length > 0 ? (
           <div ref={msgListRef} className="space-y-3">
             {sorted.map((msg) => {
-              const liked = msg.likedBy.includes(uid);
+              const liked = isNicknameLiked(msg);
               return (
                 <div key={msg.id} className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10 group">
                   <div className="flex items-start justify-between mb-2">
@@ -266,13 +258,15 @@ export default function Community() {
                       </span>
                       <span className="text-xs text-gray-600">{formatTime(msg.timestamp)}</span>
                     </div>
-                    <button
-                      onClick={() => handleDelete(msg.id)}
-                      className="p-1 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                      title="删除"
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" />
-                    </button>
+                    {!isConfigured && (
+                      <button
+                        onClick={() => handleDelete(msg.id)}
+                        className="p-1 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                        title="删除"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <p className="text-gray-200 text-sm whitespace-pre-wrap break-words mb-3">{msg.content}</p>
@@ -285,7 +279,7 @@ export default function Community() {
                       }`}
                     >
                       <HeartIcon className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
-                      <span>{msg.likes > 0 ? msg.likes : '赞'}</span>
+                      <span>{(msg.likes || 0) > 0 ? msg.likes : '赞'}</span>
                     </button>
                     <button
                       onClick={() => {
@@ -297,7 +291,7 @@ export default function Community() {
                       }`}
                     >
                       <ReplyIcon className="w-3.5 h-3.5" />
-                      <span>{msg.replies.length > 0 ? msg.replies.length : '回复'}</span>
+                      <span>{(msg.replies || []).length > 0 ? msg.replies.length : '回复'}</span>
                     </button>
                   </div>
 
@@ -323,7 +317,7 @@ export default function Community() {
                     </div>
                   )}
 
-                  {msg.replies.length > 0 && (
+                  {msg.replies && msg.replies.length > 0 && (
                     <div className="mt-3 space-y-2 pl-4 border-l border-white/5">
                       {msg.replies.map((reply) => (
                         <div key={reply.id} className="bg-surface/50 rounded-xl p-3">
