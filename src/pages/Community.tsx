@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon } from 'lucide-react';
+import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon, ArrowLeftIcon } from 'lucide-react';
 import { safeStorage } from '@/lib/safeStorage';
 import { useStore } from '@/store';
 
@@ -160,9 +160,18 @@ export default function Community() {
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-white mb-2">社区留言板</h1>
-          <p className="text-gray-400">分享你的想法，与其他用户互动交流</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => window.history.back()}
+            aria-label="返回"
+            className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-heading font-bold text-white mb-1">社区留言板</h1>
+            <p className="text-gray-400">分享你的想法，与其他用户互动交流</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 bg-surface rounded-xl p-1">
           <button

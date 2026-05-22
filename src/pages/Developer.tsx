@@ -1,12 +1,5 @@
 import { useState } from 'react';
-import {
-  BookIcon,
-  CodeIcon,
-  FlaskConicalIcon,
-  PlayIcon,
-  CopyIcon,
-  CheckIcon,
-} from 'lucide-react';
+import { ArrowLeftIcon, BookIcon, CodeIcon, FlaskConicalIcon, PlayIcon, CopyIcon, CheckIcon } from 'lucide-react';
 import AIPromptGenerator from '@/components/AIPromptGenerator';
 
 export default function Developer() {
@@ -59,10 +52,19 @@ console.log(result);`);
 
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-heading font-bold text-white mb-2">开发者中心</h1>
-        <p className="text-gray-400">创建、测试和发布你的自定义工具</p>
-      </div>
+      <div className="flex items-center gap-4">
+          <button
+            onClick={() => window.history.back()}
+            aria-label="返回"
+            className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-heading font-bold text-white mb-1">开发者中心</h1>
+            <p className="text-gray-400">创建、测试和发布你的自定义工具</p>
+          </div>
+        </div>
 
       <div className="flex gap-2 border-b border-white/5 pb-0">
         {tabs.map((tab) => {

@@ -269,8 +269,8 @@ export default function ToolGrid({ tools }: ToolGridProps) {
                   ${isHovered ? 'scale-110 shadow-lg shadow-accent/20 ring-2 ring-accent/50' : 'hover:scale-105'}
                 `}
               >
-                <Icon className="w-7 h-7 text-white/90" />
-                <span className="text-[10px] text-white/70 mt-1 text-center leading-tight px-1 line-clamp-2">
+                <Icon className="w-8 h-8 text-white/90" />
+                <span className="text-xs text-white/70 mt-2 text-center leading-tight px-1 line-clamp-2">
                   {tool.name}
                 </span>
                 

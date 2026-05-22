@@ -86,13 +86,13 @@ export default function Home() {
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             <button
               onClick={() => useStore.getState().setSelectedCategory(null)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                 !selectedCategory
                   ? 'bg-accent/20 text-accent border border-accent/30'
                   : 'bg-card text-gray-400 border border-white/5 hover:text-white'
               }`}
             >
-              <LayoutGridIcon className="w-3 h-3" />
+              <LayoutGridIcon className="w-4 h-4" />
               全部
             </button>
             {categories.map((cat) => {
@@ -101,7 +101,7 @@ export default function Home() {
                 <button
                   key={cat.id}
                   onClick={() => useStore.getState().setSelectedCategory(cat.id)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     selectedCategory === cat.id
                       ? 'bg-accent/20 text-accent border border-accent/30'
                       : 'bg-card text-gray-400 border border-white/5 hover:text-white'
