@@ -223,31 +223,34 @@ export async function pdfEncrypt(input: Record<string, unknown>): Promise<ToolOu
       return { success: false, error: 'PDF文件没有页面内容' };
     }
 
-    // 设置加密
+    // 设置加密并保存
+    let resultBytes: Uint8Array;
     try {
-      doc.encrypt({
-        userPassword: password,
-        ownerPassword: password + '_owner_' + Date.now(),
-        permissions: {
-          printing: 'highResolution',
-          modifying: false,
-          copying: false,
-          annotating: true,
-          fillingForms: true,
-          contentAccessibility: true,
-          documentAssembly: false,
+      // pdf-lib 1.17.1 使用 save 时传入加密参数，而不是单独的 encrypt 方法
+      resultBytes = await doc.save({
+        encrypt: {
+          userPassword: password,
+          ownerPassword: password + '_owner_' + Date.now(),
+          permissions: {
+            printing: 'highResolution',
+            modifying: false,
+            copying: false,
+            annotating: true,
+            fillingForms: true,
+            contentAccessibility: true,
+            documentAssembly: false,
+          },
         },
       });
     } catch (encryptError) {
-      return { success: false, error: `加密设置失败: ${(encryptError as Error).message}` };
-    }
-
-    // 保存加密后的PDF
-    let resultBytes: Uint8Array;
-    try {
-      resultBytes = await doc.save();
-    } catch (saveError) {
-      return { success: false, error: `PDF保存失败: ${(saveError as Error).message}` };
+      const errMsg = (encryptError as Error).message;
+      if (errMsg.includes('encrypt') || errMsg.includes('Encrypt')) {
+        return {
+          success: false,
+          error: '当前浏览器环境暂不支持PDF加密，请尝试使用Chrome或Edge浏览器',
+        };
+      }
+      return { success: false, error: `PDF加密失败: ${errMsg}` };
     }
 
     const blob = new Blob([resultBytes], { type: 'application/pdf' });
