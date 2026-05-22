@@ -181,38 +181,93 @@ export async function pdfEncrypt(input: Record<string, unknown>): Promise<ToolOu
     if (!file) return { success: false, error: '请选择PDF文件' };
     if (!password || password.length < 4) return { success: false, error: '密码至少4位' };
 
+    // 检查文件类型
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      return { success: false, error: '请选择PDF文件' };
+    }
+
+    // 检查文件大小（限制50MB）
+    if (file.size > 50 * 1024 * 1024) {
+      return { success: false, error: 'PDF文件过大，请选择小于50MB的文件' };
+    }
+
     const pdfBytes = await fileToUint8Array(file);
-    const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+    
+    // 验证PDF文件头
+    const header = new TextDecoder().decode(pdfBytes.slice(0, 5));
+    if (header !== '%PDF-') {
+      return { success: false, error: '文件不是有效的PDF格式' };
+    }
 
-    doc.encrypt({
-      userPassword: password,
-      ownerPassword: password + '_owner',
-      permissions: {
-        printing: 'highResolution',
-        modifying: true,
-        copying: true,
-        annotating: true,
-        fillingForms: true,
-        contentAccessibility: true,
-        documentAssembly: true,
-      },
-    });
+    let doc: PDFDocument;
+    try {
+      // 尝试加载PDF，忽略可能的加密
+      doc = await PDFDocument.load(pdfBytes, { 
+        ignoreEncryption: true,
+        updateMetadata: false,
+      });
+    } catch (loadError) {
+      const errMsg = (loadError as Error).message;
+      if (errMsg.includes('encrypted') || errMsg.includes('password')) {
+        return { success: false, error: '该PDF已被加密，请先解密后再重新加密' };
+      }
+      if (errMsg.includes('Invalid PDF')) {
+        return { success: false, error: 'PDF文件格式无效或已损坏，请检查文件' };
+      }
+      return { success: false, error: `PDF加载失败: ${errMsg}` };
+    }
 
-    const resultBytes = await doc.save();
+    // 检查PDF是否已经有内容
+    const pageCount = doc.getPageCount();
+    if (pageCount === 0) {
+      return { success: false, error: 'PDF文件没有页面内容' };
+    }
+
+    // 设置加密
+    try {
+      doc.encrypt({
+        userPassword: password,
+        ownerPassword: password + '_owner_' + Date.now(),
+        permissions: {
+          printing: 'highResolution',
+          modifying: false,
+          copying: false,
+          annotating: true,
+          fillingForms: true,
+          contentAccessibility: true,
+          documentAssembly: false,
+        },
+      });
+    } catch (encryptError) {
+      return { success: false, error: `加密设置失败: ${(encryptError as Error).message}` };
+    }
+
+    // 保存加密后的PDF
+    let resultBytes: Uint8Array;
+    try {
+      resultBytes = await doc.save();
+    } catch (saveError) {
+      return { success: false, error: `PDF保存失败: ${(saveError as Error).message}` };
+    }
+
     const blob = new Blob([resultBytes], { type: 'application/pdf' });
     const downloadUrl = downloadBlob(blob, 'encrypted.pdf');
 
     return {
       success: true,
       data: {
-        状态: '已加密',
+        状态: '✅ 已加密',
+        页数: `${pageCount} 页`,
         密码: password,
+        权限设置: '禁止修改、禁止复制、允许打印、允许填写表单',
         提示: '请妥善保管密码，丢失后无法恢复',
       },
       downloadUrl,
       filename: 'encrypted.pdf',
     };
-  } catch (e) { return { success: false, error: `PDF加密失败: ${(e as Error).message}` }; }
+  } catch (e) { 
+    return { success: false, error: `PDF加密失败: ${(e as Error).message}` }; 
+  }
 }
 
 export async function pdfDecrypt(input: Record<string, unknown>): Promise<ToolOutput> {
