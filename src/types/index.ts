@@ -22,6 +22,7 @@ export interface InputField {
   options?: { label: string; value: string }[];
   accept?: string;
   multiple?: boolean;
+  rows?: number;
 }
 
 export interface ToolOutput {
@@ -30,6 +31,7 @@ export interface ToolOutput {
   error?: string;
   downloadUrl?: string;
   filename?: string;
+  type?: string;
   提示?: string;
 }
 

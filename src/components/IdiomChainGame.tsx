@@ -9,6 +9,14 @@ interface IdiomChallenge {
   hint?: string;
 }
 
+interface IdiomChainData {
+  date: string;
+  challenges: IdiomChallenge[];
+  changeRemain: number;
+  badges: string[];
+  completedToday: number;
+}
+
 export default function IdiomChainGame() {
   const [userInput, setUserInput] = useState('');
   const [chain, setChain] = useState<string[]>([]);
@@ -31,10 +39,10 @@ export default function IdiomChainGame() {
 
   const loadData = () => {
     const today = new Date().toDateString();
-    const savedData = safeStorage.getJSON('idiom_chain_data') || {};
+    const savedData = safeStorage.getJSON<IdiomChainData>('idiom_chain_data', { date: '', challenges: [], changeRemain: 3, badges: [], completedToday: 0 });
+
     const lastDate = savedData.date || '';
 
-    // 新的一天，重置挑战
     if (lastDate !== today) {
       const newChallenges = generateDailyChallenges();
       savedData.date = today;
@@ -45,7 +53,7 @@ export default function IdiomChainGame() {
 
     setChangeRemain(savedData.changeRemain || 3);
     setTodayChallenges(savedData.challenges || []);
-    setCompletedToday(savedData.challenges?.filter((c: IdiomChallenge) => c.completed).length || 0);
+    setCompletedToday(savedData.challenges.filter((c) => c.completed).length);
     setBadges(savedData.badges || []);
   };
 
@@ -250,7 +258,7 @@ export default function IdiomChainGame() {
       setCurrentHint(`已更换！请以"${newIdiom.slice(-1)}"开头`);
       setChangeRemain(changeRemain - 1);
 
-      const savedData = safeStorage.getJSON('idiom_chain_data') || {};
+      const savedData = safeStorage.getJSON<IdiomChainData>('idiom_chain_data', { date: '', challenges: [], changeRemain: 3, badges: [], completedToday: 0 });
       savedData.changeRemain = changeRemain - 1;
       safeStorage.setJSON('idiom_chain_data', savedData);
     }
@@ -264,14 +272,14 @@ export default function IdiomChainGame() {
     setCompletedToday(newCompleted);
 
     // 检查是否获得徽章
-    const savedData = safeStorage.getJSON('idiom_chain_data') || {};
-    if (newCompleted === 5 && !savedData.badges?.includes('daily_master')) {
-      savedData.badges = [...(savedData.badges || []), 'daily_master'];
-      setBadges([...(badges || []), 'daily_master']);
+    const savedData = safeStorage.getJSON<IdiomChainData>('idiom_chain_data', { date: '', challenges: [], changeRemain: 3, badges: [], completedToday: 0 });
+    if (newCompleted === 5 && !savedData.badges.includes('daily_master')) {
+      savedData.badges = [...savedData.badges, 'daily_master'];
+      setBadges([...badges, 'daily_master']);
     }
-    if (chain.length >= 10 && !savedData.badges?.includes('long_chain')) {
-      savedData.badges = [...(savedData.badges || []), 'long_chain'];
-      setBadges([...(badges || []), 'long_chain']);
+    if (chain.length >= 10 && !savedData.badges.includes('long_chain')) {
+      savedData.badges = [...savedData.badges, 'long_chain'];
+      setBadges([...badges, 'long_chain']);
     }
 
     savedData.completedToday = newCompleted;

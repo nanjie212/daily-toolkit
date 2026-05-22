@@ -9,6 +9,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
+import type { ToolRecord } from '@/types';
 import ThemeToggle from '@/components/ThemeToggle';
 import ToolGrid from '@/components/ToolGrid';
 import OnboardingModal from '@/components/OnboardingModal';
@@ -46,7 +47,7 @@ export default function Home() {
 
   const pinnedTools = pinnedToolIds
     .map((id) => tools.find((t) => t.id === id))
-    .filter(Boolean) as tools;
+    .filter(Boolean) as ToolRecord[];
 
   return (
     <div className="h-full flex flex-col bg-bg">

@@ -241,7 +241,7 @@ export async function pdfEncrypt(input: Record<string, unknown>): Promise<ToolOu
             documentAssembly: false,
           },
         },
-      });
+      } as any);
     } catch (encryptError) {
       const errMsg = (encryptError as Error).message;
       if (errMsg.includes('encrypt') || errMsg.includes('Encrypt')) {
@@ -284,7 +284,7 @@ export async function pdfDecrypt(input: Record<string, unknown>): Promise<ToolOu
     let doc: PDFDocument;
 
     try {
-      doc = await PDFDocument.load(pdfBytes, { password });
+      doc = await PDFDocument.load(pdfBytes, { password } as any);
     } catch (e) {
       return { success: false, error: '密码错误或PDF文件损坏，请重试' };
     }
@@ -328,21 +328,21 @@ export async function pdfPermissions(input: Record<string, unknown>): Promise<To
     const pdfBytes = await fileToUint8Array(file);
     const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
 
-    doc.encrypt({
-      userPassword: password,
-      ownerPassword: password + '_admin',
-      permissions: {
-        printing: allowPrint ? 'highResolution' : 'none',
-        modifying: allowModify,
-        copying: allowCopy,
-        annotating: allowAnnotate,
-        fillingForms: allowModify,
-        contentAccessibility: allowCopy,
-        documentAssembly: allowModify,
+    const resultBytes = await (doc as any).save({
+      encrypt: {
+        userPassword: password,
+        ownerPassword: password + '_admin',
+        permissions: {
+          printing: allowPrint ? 'highResolution' : 'none',
+          modifying: allowModify,
+          copying: allowCopy,
+          annotating: allowAnnotate,
+          fillingForms: allowModify,
+          contentAccessibility: allowCopy,
+          documentAssembly: allowModify,
+        },
       },
     });
-
-    const resultBytes = await doc.save();
     const blob = new Blob([resultBytes], { type: 'application/pdf' });
     const downloadUrl = downloadBlob(blob, 'protected.pdf');
 
@@ -477,7 +477,7 @@ export async function pdfToWord(input: Record<string, unknown>): Promise<ToolOut
     for (let i = 1; i <= totalPages; i++) {
       const page = await pdfDoc.getPage(i);
       const content = await page.getTextContent();
-      const pageText = content.items
+      const pageText = (content.items as any[])
         .map((item: { str?: string }) => (item.str || ''))
         .filter((s: string) => s.trim())
         .join(' ');

@@ -9,6 +9,7 @@ interface ToolBoxState {
   categories: CategoryRecord[];
   recentToolIds: string[];
   favoriteToolIds: string[];
+  pinnedToolIds: string[];
   searchQuery: string;
   selectedCategory: string | null;
   selectedTool: ToolRecord | null;
@@ -22,6 +23,7 @@ interface ToolBoxState {
   removeTool: (id: string) => void;
   selectTool: (tool: ToolRecord | null) => void;
   toggleFavorite: (id: string) => void;
+  togglePinned: (id: string) => void;
   likeTool: (toolId: string) => void;
   addFeedback: (toolId: string, feedback: string) => void;
   setSearchQuery: (query: string) => void;
