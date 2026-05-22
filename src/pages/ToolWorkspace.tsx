@@ -205,7 +205,7 @@ export default function ToolWorkspace() {
     );
   }
 
-  if (tool.id === 'screenshot-annotate' || tool.id === 'image-crop') {
+  if (tool.id === 'screenshot-annotate') {
     return (
       <div className="min-h-full p-6 lg:p-8">
         <div className="flex items-center gap-4 mb-6">

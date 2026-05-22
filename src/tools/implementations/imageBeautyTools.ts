@@ -2,7 +2,7 @@ import type { ToolOutput } from '@/types';
 
 export async function imageToBase64(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const file = input.image as File;
+    const file = input.file as File;
     if (!file) return { success: false, error: '请上传图片' };
     const reader = new FileReader();
     const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -30,7 +30,7 @@ export async function imageToBase64(input: Record<string, unknown>): Promise<Too
 
 export async function imageGrayscale(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const file = input.image as File;
+    const file = input.file as File;
     if (!file) return { success: false, error: '请上传图片' };
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -75,7 +75,7 @@ export async function imageGrayscale(input: Record<string, unknown>): Promise<To
 
 export async function imageMirror(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const file = input.image as File;
+    const file = input.file as File;
     const direction = (input.direction as string) || 'horizontal';
     if (!file) return { success: false, error: '请上传图片' };
     const img = new Image();
@@ -120,7 +120,7 @@ export async function imageMirror(input: Record<string, unknown>): Promise<ToolO
 
 export async function imageRoundedCorners(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const file = input.image as File;
+    const file = input.file as File;
     const radius = Number(input.radius) || 20;
     if (!file) return { success: false, error: '请上传图片' };
     const img = new Image();
@@ -171,7 +171,7 @@ export async function imageRoundedCorners(input: Record<string, unknown>): Promi
 
 export async function imageBrightnessContrast(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const file = input.image as File;
+    const file = input.file as File;
     const brightness = Number(input.brightness) || 0;
     const contrast = Number(input.contrast) || 1;
     if (!file) return { success: false, error: '请上传图片' };

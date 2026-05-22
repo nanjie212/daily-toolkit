@@ -567,7 +567,7 @@ export const lifeTools: ToolRecord[] = [
     source: 'builtin' as const,
     permissions: [],
     inputSchema: [],
-    outputFormat: '',
+    outputFormat: 'json',
     tips: '各品牌尺码存在差异，建议以具体品牌的官方尺码表为准',
   },
   {

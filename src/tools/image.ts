@@ -260,20 +260,17 @@ export const imageTools: ToolRecord[] = [
   {
     id: 'image-crop',
     name: '图片裁剪',
-    description: '自由裁剪图片尺寸，支持按比例或自定义裁剪',
+    description: '自由裁剪图片，支持拖拽选区、比例锁定和实时预览',
     category: 'image',
     icon: 'CropIcon',
     version: '1.0.0',
     source: 'builtin' as const,
     permissions: [],
     inputSchema: [
-      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
-      { key: 'width', label: '裁剪宽度(px)', type: 'number', required: true, defaultValue: 800 },
-      { key: 'height', label: '裁剪高度(px)', type: 'number', required: true, defaultValue: 600 },
-      { key: 'x', label: '起始X坐标', type: 'number', defaultValue: 0 },
-      { key: 'y', label: '起始Y坐标', type: 'number', defaultValue: 0 },
+      { key: 'file', label: '上传图片', type: 'file', accept: 'image/*', required: true },
     ],
-    outputFormat: 'blob',
+    outputFormat: 'html',
+    tips: '上传后可在图片上拖拽选择裁剪区域，支持自由比例/1:1/4:3/16:9等',
   },
   {
     id: 'pdf-merge',
@@ -300,7 +297,7 @@ export const imageTools: ToolRecord[] = [
     source: 'builtin' as const,
     permissions: [],
     inputSchema: [
-      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
+      { key: 'file', label: '上传图片', type: 'file', accept: 'image/*', required: true },
     ],
     outputFormat: 'blob',
     tips: '将彩色图片转为经典黑白风格，效果自然',
@@ -315,7 +312,7 @@ export const imageTools: ToolRecord[] = [
     source: 'builtin' as const,
     permissions: [],
     inputSchema: [
-      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
+      { key: 'file', label: '上传图片', type: 'file', accept: 'image/*', required: true },
       {
         key: 'direction',
         label: '翻转方向',
@@ -340,7 +337,7 @@ export const imageTools: ToolRecord[] = [
     source: 'builtin' as const,
     permissions: [],
     inputSchema: [
-      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
+      { key: 'file', label: '上传图片', type: 'file', accept: 'image/*', required: true },
       { key: 'radius', label: '圆角半径(px)', type: 'number', defaultValue: 20, placeholder: '圆角像素大小' },
     ],
     outputFormat: 'blob',
@@ -356,7 +353,7 @@ export const imageTools: ToolRecord[] = [
     source: 'builtin' as const,
     permissions: [],
     inputSchema: [
-      { key: 'image', label: '上传图片', type: 'file', accept: 'image/*', required: true },
+      { key: 'file', label: '上传图片', type: 'file', accept: 'image/*', required: true },
       { key: 'brightness', label: '亮度(%)', type: 'number', defaultValue: 0, placeholder: '-100到100' },
       { key: 'contrast', label: '对比度', type: 'number', defaultValue: 1, placeholder: '0.5到2.0' },
     ],

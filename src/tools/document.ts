@@ -1,3 +1,99 @@
 import type { ToolRecord } from '@/types';
 
-export const documentTools: ToolRecord[] = [];
+export const documentTools: ToolRecord[] = [
+  {
+    id: 'text-counter',
+    name: '字数统计',
+    description: '统计文本的字数、字符数、单词数、段落数等详细信息',
+    category: 'everyday',
+    icon: 'TextIcon',
+    version: '1.0.0',
+    source: 'builtin',
+    permissions: [],
+    inputSchema: [
+      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '粘贴需要统计的文本...', required: true },
+    ],
+    outputFormat: 'json',
+    tips: '支持中文汉字、英文字符、单词、行数、段落数和句子数统计',
+  },
+  {
+    id: 'traditional-simplified',
+    name: '繁简转换',
+    description: '在繁体中文和简体中文之间相互转换',
+    category: 'everyday',
+    icon: 'LanguagesIcon',
+    version: '1.0.0',
+    source: 'builtin',
+    permissions: [],
+    inputSchema: [
+      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '输入需要转换的文本...', required: true },
+      {
+        key: 'mode',
+        label: '转换方向',
+        type: 'select',
+        defaultValue: 't2s',
+        options: [
+          { label: '繁体→简体', value: 't2s' },
+          { label: '简体→繁体', value: 's2t' },
+        ],
+      },
+    ],
+    outputFormat: 'text',
+    tips: '使用 OpenCC 精准转换，支持繁简互转',
+  },
+  {
+    id: 'case-converter',
+    name: '大小写转换',
+    description: '在大小写、首字母大写、驼峰式等多种格式间转换文本',
+    category: 'everyday',
+    icon: 'CaseSensitiveIcon',
+    version: '1.0.0',
+    source: 'builtin',
+    permissions: [],
+    inputSchema: [
+      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '输入需要转换的文本...', required: true },
+      {
+        key: 'mode',
+        label: '转换模式',
+        type: 'select',
+        defaultValue: 'upper',
+        options: [
+          { label: '全部大写', value: 'upper' },
+          { label: '全部小写', value: 'lower' },
+          { label: '首字母大写', value: 'capitalize' },
+          { label: '驼峰式', value: 'camel' },
+          { label: '蛇形式', value: 'snake' },
+          { label: '中横线式', value: 'kebab' },
+        ],
+      },
+    ],
+    outputFormat: 'text',
+    tips: '支持6种大小写格式转换',
+  },
+  {
+    id: 'text-dedup',
+    name: '文本去重',
+    description: '去除文本中的重复行，支持精确去重和相似去重',
+    category: 'everyday',
+    icon: 'FilterIcon',
+    version: '1.0.0',
+    source: 'builtin',
+    permissions: [],
+    inputSchema: [
+      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '粘贴需要去重的文本（每行一条）...', required: true },
+      {
+        key: 'mode',
+        label: '去重模式',
+        type: 'select',
+        defaultValue: 'exact',
+        options: [
+          { label: '精确去重', value: 'exact' },
+          { label: '模糊去重(忽略空格)', value: 'fuzzy' },
+          { label: '按行排序并去重', value: 'sort' },
+        ],
+      },
+    ],
+    outputFormat: 'text',
+    tips: '支持3种去重模式，结果会显示原始行数、去重后行数和移除行数',
+  },
+];

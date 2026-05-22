@@ -99,6 +99,24 @@ export default function OutputPanel({ output }: OutputPanelProps) {
     );
   }
 
+  if (output.type === 'html' && typeof output.data === 'string') {
+    return (
+      <div className="bg-card border border-white/5 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
+          <h3 className="text-white font-medium text-sm">执行结果</h3>
+        </div>
+        <div className="w-full" style={{ height: '80vh' }}>
+          <iframe
+            srcDoc={output.data}
+            className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            title="tool-output-html"
+          />
+        </div>
+      </div>
+    );
+  }
+
   const isImageData = typeof output.data === 'string' && output.data.startsWith('data:image');
   const isTextData = typeof output.data === 'string';
   const isImageOutput = !!output.downloadUrl && (output.filename?.endsWith('.png') || output.filename?.endsWith('.jpg') || output.filename?.endsWith('.jpeg') || output.filename?.endsWith('.webp'));

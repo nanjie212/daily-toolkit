@@ -907,59 +907,344 @@ export async function screenshotAnnotate(input: Record<string, unknown>): Promis
 
 export async function imageCrop(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const file = input.image as File;
-    const cropWidth = Number(input.width) || 800;
-    const cropHeight = Number(input.height) || 600;
-    const startX = Number(input.x) || 0;
-    const startY = Number(input.y) || 0;
-
+    const file = input.file as File;
     if (!file) return { success: false, error: '请上传图片' };
 
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('图片加载失败'));
-      img.src = url;
+    const reader = new FileReader();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('图片读取失败'));
+      reader.readAsDataURL(file);
     });
 
-    const actualWidth = Math.min(cropWidth, img.width - startX);
-    const actualHeight = Math.min(cropHeight, img.height - startY);
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>图片裁剪</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#1a1a2e;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+.header{display:flex;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.08)}
+.header h1{font-size:16px;font-weight:600}
+.crop-container{flex:1;display:flex;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden}
+.crop-wrapper{position:relative;display:inline-block;max-width:100%;max-height:calc(100vh - 200px)}
+.crop-wrapper img{display:block;max-width:100%;max-height:calc(100vh - 200px);user-select:none;-webkit-user-drag:none}
+.crop-overlay{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair}
+.crop-box{position:absolute;border:2px dashed #fff;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);cursor:move;display:none}
+.crop-box.active{display:block}
+.resize-handle{position:absolute;width:12px;height:12px;background:#007aff;border:2px solid #fff;border-radius:50%;z-index:10}
+.resize-handle.tl{top:-6px;left:-6px;cursor:nw-resize}
+.resize-handle.tr{top:-6px;right:-6px;cursor:ne-resize}
+.resize-handle.bl{bottom:-6px;left:-6px;cursor:sw-resize}
+.resize-handle.br{bottom:-6px;right:-6px;cursor:se-resize}
+.crop-info{position:absolute;bottom:-28px;left:0;font-size:12px;color:#8e8e93;white-space:nowrap}
+.toolbar{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;background:rgba(255,255,255,0.05);border-top:1px solid rgba(255,255,255,0.08)}
+.aspect-group{display:flex;gap:4px}
+.aspect-btn{padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#8e8e93;font-size:13px;cursor:pointer;transition:all .2s}
+.aspect-btn.active{background:#007aff;color:#fff;border-color:#007aff}
+.btn{padding:10px 24px;border-radius:10px;border:none;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s}
+.btn-crop{background:#007aff;color:#fff}
+.btn-crop:hover{background:#0056cc}
+.btn-reset{background:rgba(255,255,255,0.1);color:#8e8e93}
+.btn-reset:hover{background:rgba(255,255,255,0.15);color:#fff}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.result-container{display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px}
+.result-container.active{display:flex}
+.result-container img{max-width:100%;max-height:60vh;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.3)}
+.result-info{text-align:center;font-size:13px;color:#8e8e93}
+.btn-group{display:flex;gap:12px}
+.btn-download{background:#34c759;color:#fff}
+.btn-download:hover{background:#28a745}
+.btn-back{background:rgba(255,255,255,0.1);color:#8e8e93}
+.btn-back:hover{background:rgba(255,255,255,0.15);color:#fff}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🖼️ 图片裁剪</h1>
+</div>
 
-    if (actualWidth <= 0 || actualHeight <= 0) {
-      URL.revokeObjectURL(url);
-      return { success: false, error: '裁剪区域超出图片范围' };
+<div class="crop-container" id="cropContainer">
+  <div class="crop-wrapper" id="cropWrapper">
+    <img id="sourceImage" src="\${dataUrl}" alt="原图">
+    <div class="crop-overlay" id="cropOverlay"></div>
+    <div class="crop-box" id="cropBox">
+      <div class="resize-handle tl" data-dir="tl"></div>
+      <div class="resize-handle tr" data-dir="tr"></div>
+      <div class="resize-handle bl" data-dir="bl"></div>
+      <div class="resize-handle br" data-dir="br"></div>
+      <div class="crop-info" id="cropInfo"></div>
+    </div>
+  </div>
+</div>
+
+<div class="result-container" id="resultContainer">
+  <img id="resultImage" alt="裁剪结果">
+  <div class="result-info" id="resultInfo"></div>
+  <div class="btn-group">
+    <button class="btn btn-back" onclick="backToCrop()">返回重新裁剪</button>
+    <button class="btn btn-download" id="downloadBtn">下载裁剪图片</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="aspect-group">
+    <button class="aspect-btn active" data-ratio="free">自由</button>
+    <button class="aspect-btn" data-ratio="1:1">1:1</button>
+    <button class="aspect-btn" data-ratio="4:3">4:3</button>
+    <button class="aspect-btn" data-ratio="16:9">16:9</button>
+    <button class="aspect-btn" data-ratio="3:4">3:4</button>
+    <button class="aspect-btn" data-ratio="9:16">9:16</button>
+  </div>
+  <button class="btn btn-reset" onclick="resetCrop()">重置</button>
+  <button class="btn btn-crop" id="cropBtn" onclick="doCrop()">✂️ 裁剪</button>
+</div>
+
+<script>
+const img = document.getElementById('sourceImage');
+const overlay = document.getElementById('cropOverlay');
+const cropBox = document.getElementById('cropBox');
+const cropInfo = document.getElementById('cropInfo');
+const cropBtn = document.getElementById('cropBtn');
+const cropContainer = document.getElementById('cropContainer');
+const resultContainer = document.getElementById('resultContainer');
+const resultImage = document.getElementById('resultImage');
+const resultInfo = document.getElementById('resultInfo');
+const downloadBtn = document.getElementById('downloadBtn');
+
+let isDragging = false;
+let isResizing = false;
+let isMoving = false;
+let startX, startY, startW, startH;
+let currentDir = '';
+let aspectRatio = 0;
+let cropRect = null;
+
+img.onload = function() {
+  const wrapper = document.getElementById('cropWrapper');
+  const rect = wrapper.getBoundingClientRect();
+  const naturalW = img.naturalWidth;
+  const naturalH = img.naturalHeight;
+  const displayW = img.width;
+  const displayH = img.height;
+  const scaleX = naturalW / displayW;
+  const scaleY = naturalH / displayH;
+
+  // 默认裁剪区域：居中 70%
+  const defaultW = displayW * 0.7;
+  const defaultH = displayH * 0.7;
+  const defaultX = (displayW - defaultW) / 2;
+  const defaultY = (displayH - defaultH) / 2;
+  showCrop(defaultX, defaultY, defaultW, defaultH);
+  updateCropInfo(defaultX, defaultY, defaultW, defaultH, scaleX, scaleY);
+
+  overlay.onmousedown = function(e) {
+    const rect = wrapper.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (mx >= cropRect.x && mx <= cropRect.x + cropRect.w && my >= cropRect.y && my <= cropRect.y + cropRect.h) {
+      isMoving = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      return;
     }
+    isDragging = true;
+    cropRect = { x: mx, y: my, w: 0, h: 0 };
+    cropBox.className = 'crop-box active';
+    startX = mx;
+    startY = my;
+  };
 
-    const canvas = document.createElement('canvas');
-    canvas.width = actualWidth;
-    canvas.height = actualHeight;
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, startX, startY, actualWidth, actualHeight, 0, 0, actualWidth, actualHeight);
+  document.onmousemove = function(e) {
+    const rect = wrapper.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
 
-    URL.revokeObjectURL(url);
+    if (isDragging) {
+      let nx = Math.min(startX, mx);
+      let ny = Math.min(startY, my);
+      let nw = Math.abs(mx - startX);
+      let nh = Math.abs(my - startY);
+      if (aspectRatio > 0) {
+        nh = nw / aspectRatio;
+        if (ny + nh > displayH) { nh = displayH - ny; nw = nh * aspectRatio; }
+      }
+      cropRect = { x: nx, y: ny, w: Math.min(nw, displayW - nx), h: Math.min(nh, displayH - ny) };
+      cropBox.style.cssText = \`left:\${cropRect.x}px;top:\${cropRect.y}px;width:\${cropRect.w}px;height:\${cropRect.h}px\`;
+      updateCropInfo(cropRect.x, cropRect.y, cropRect.w, cropRect.h, scaleX, scaleY);
+    } else if (isResizing) {
+      let nx = cropRect.x, ny = cropRect.y, nw = cropRect.w, nh = cropRect.h;
+      const dx = mx - (cropRect.x + cropRect.w);
+      const dy = my - (cropRect.y + cropRect.h);
+      if (currentDir.includes('r')) { nw = Math.max(20, startW + dx); if (aspectRatio > 0) nh = nw / aspectRatio; }
+      if (currentDir.includes('b')) { nh = Math.max(20, startH + dy); if (aspectRatio > 0) nw = nh * aspectRatio; }
+      if (currentDir.includes('l')) { const right = cropRect.x + cropRect.w; nx = right - nw; }
+      if (currentDir.includes('t')) { const bottom = cropRect.y + cropRect.h; ny = bottom - nh; }
+      if (nx < 0) { nx = 0; nw = Math.min(nw, cropRect.x + cropRect.w); }
+      if (ny < 0) { ny = 0; nh = Math.min(nh, cropRect.y + cropRect.h); }
+      if (nx + nw > displayW) { nw = displayW - nx; if (aspectRatio > 0) nh = nw / aspectRatio; }
+      if (ny + nh > displayH) { nh = displayH - ny; if (aspectRatio > 0) nw = nh * aspectRatio; }
+      cropRect = { x: nx, y: ny, w: Math.max(20, nw), h: Math.max(20, nh) };
+      cropBox.style.cssText = \`left:\${cropRect.x}px;top:\${cropRect.y}px;width:\${cropRect.w}px;height:\${cropRect.h}px\`;
+      updateCropInfo(cropRect.x, cropRect.y, cropRect.w, cropRect.h, scaleX, scaleY);
+    } else if (isMoving) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      let nx = cropRect.x + dx, ny = cropRect.y + dy;
+      if (nx < 0) nx = 0; if (ny < 0) ny = 0;
+      if (nx + cropRect.w > displayW) nx = displayW - cropRect.w;
+      if (ny + cropRect.h > displayH) ny = displayH - cropRect.h;
+      cropRect = { ...cropRect, x: nx, y: ny };
+      cropBox.style.cssText = \`left:\${nx}px;top:\${ny}px;width:\${cropRect.w}px;height:\${cropRect.h}px\`;
+      updateCropInfo(nx, ny, cropRect.w, cropRect.h, scaleX, scaleY);
+      startX = e.clientX;
+      startY = e.clientY;
+    }
+  };
 
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error('裁剪失败'))),
-        file.type || 'image/png',
-        0.92
-      );
-    });
+  document.onmouseup = function() {
+    isDragging = false; isResizing = false; isMoving = false;
+  };
 
-    const downloadUrl = URL.createObjectURL(blob);
-    return {
-      success: true,
-      data: {
-        原始尺寸: `${img.width} x ${img.height} px`,
-        裁剪尺寸: `${actualWidth} x ${actualHeight} px`,
-        裁剪位置: `(${startX}, ${startY})`,
-        文件大小: `${(blob.size / 1024).toFixed(1)} KB`,
-      },
-      downloadUrl,
-      filename: `cropped-${file.name}`,
+  // Touch support
+  overlay.ontouchstart = function(e) {
+    const touch = e.touches[0];
+    const rect = wrapper.getBoundingClientRect();
+    const mx = touch.clientX - rect.left;
+    const my = touch.clientY - rect.top;
+    if (mx >= cropRect.x && mx <= cropRect.x + cropRect.w && my >= cropRect.y && my <= cropRect.y + cropRect.h) {
+      isMoving = true;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      return;
+    }
+    isDragging = true;
+    cropRect = { x: mx, y: my, w: 0, h: 0 };
+    cropBox.className = 'crop-box active';
+    startX = mx;
+    startY = my;
+  };
+
+  document.ontouchmove = function(e) {
+    const touch = e.touches[0];
+    const rect = wrapper.getBoundingClientRect();
+    const mx = touch.clientX - rect.left;
+    const my = touch.clientY - rect.top;
+    if (isDragging) {
+      let nx = Math.min(startX, mx), ny = Math.min(startY, my);
+      let nw = Math.abs(mx - startX), nh = Math.abs(my - startY);
+      if (aspectRatio > 0) { nh = nw / aspectRatio; if (ny + nh > displayH) { nh = displayH - ny; nw = nh * aspectRatio; } }
+      cropRect = { x: nx, y: ny, w: Math.min(nw, displayW - nx), h: Math.min(nh, displayH - ny) };
+      cropBox.style.cssText = \`left:\${cropRect.x}px;top:\${cropRect.y}px;width:\${cropRect.w}px;height:\${cropRect.h}px\`;
+      updateCropInfo(cropRect.x, cropRect.y, cropRect.w, cropRect.h, scaleX, scaleY);
+    } else if (isMoving) {
+      const dx = touch.clientX - startX, dy = touch.clientY - startY;
+      let nx = cropRect.x + dx, ny = cropRect.y + dy;
+      if (nx < 0) nx = 0; if (ny < 0) ny = 0;
+      if (nx + cropRect.w > displayW) nx = displayW - cropRect.w;
+      if (ny + cropRect.h > displayH) ny = displayH - cropRect.h;
+      cropRect = { ...cropRect, x: nx, y: ny };
+      cropBox.style.cssText = \`left:\${nx}px;top:\${ny}px;width:\${cropRect.w}px;height:\${cropRect.h}px\`;
+      updateCropInfo(nx, ny, cropRect.w, cropRect.h, scaleX, scaleY);
+      startX = touch.clientX;
+      startY = touch.clientY;
+    }
+  };
+
+  document.ontouchend = function() { isDragging = false; isMoving = false; };
+
+  // Resize handles
+  document.querySelectorAll('.resize-handle').forEach(h => {
+    h.onmousedown = function(e) {
+      isResizing = true; currentDir = this.dataset.dir;
+      startW = cropRect.w; startH = cropRect.h;
+      e.stopPropagation(); e.preventDefault();
     };
+  });
+
+  // Aspect ratio buttons
+  document.querySelectorAll('.aspect-btn').forEach(b => {
+    b.onclick = function() {
+      document.querySelectorAll('.aspect-btn').forEach(x => x.classList.remove('active'));
+      this.classList.add('active');
+      const ratio = this.dataset.ratio;
+      if (ratio === 'free') { aspectRatio = 0; return; }
+      const parts = ratio.split(':').map(Number);
+      aspectRatio = parts[0] / parts[1];
+      if (cropRect) {
+        let nh = cropRect.w / aspectRatio;
+        if (cropRect.y + nh > displayH) { nh = displayH - cropRect.y; }
+        cropRect.h = nh;
+        cropBox.style.cssText = \`left:\${cropRect.x}px;top:\${cropRect.y}px;width:\${cropRect.w}px;height:\${cropRect.h}px\`;
+        updateCropInfo(cropRect.x, cropRect.y, cropRect.w, cropRect.h, scaleX, scaleY);
+      }
+    };
+  });
+};
+
+function showCrop(x, y, w, h) {
+  cropRect = { x, y, w, h };
+  cropBox.className = 'crop-box active';
+  cropBox.style.cssText = \`left:\${x}px;top:\${y}px;width:\${w}px;height:\${h}px\`;
+}
+
+function updateCropInfo(x, y, w, h, sx, sy) {
+  const nw = Math.round(w * sx), nh = Math.round(h * sy);
+  cropInfo.textContent = \`\${nw} × \${nh}px  位置(\${Math.round(x * sx)}, \${Math.round(y * sy)})\`;
+}
+
+function resetCrop() {
+  const displayW = img.width, displayH = img.height;
+  const dw = displayW * 0.7, dh = displayH * 0.7;
+  showCrop((displayW - dw) / 2, (displayH - dh) / 2, dw, dh);
+}
+
+function doCrop() {
+  if (!cropRect || cropRect.w < 5 || cropRect.h < 5) return;
+  cropBtn.disabled = true; cropBtn.textContent = '⏳ 裁剪中...';
+
+  const canvas = document.createElement('canvas');
+  const naturalW = img.naturalWidth, naturalH = img.naturalHeight;
+  const displayW = img.width, displayH = img.height;
+  const sx = naturalW / displayW, sy = naturalH / displayH;
+  const nx = Math.round(cropRect.x * sx), ny = Math.round(cropRect.y * sy);
+  const nw = Math.round(cropRect.w * sx), nh = Math.round(cropRect.h * sy);
+
+  canvas.width = nw; canvas.height = nh;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, nx, ny, nw, nh, 0, 0, nw, nh);
+
+  canvas.toBlob(function(blob) {
+    const url = URL.createObjectURL(blob);
+    resultImage.src = url;
+    resultInfo.innerHTML = \`裁剪完成：\${nw} × \${nh}px  |  大小：\${(blob.size / 1024).toFixed(1)} KB\`;
+    downloadBtn.onclick = function() {
+      const a = document.createElement('a');
+      a.href = url; a.download = 'cropped_\${nw}x\${nh}.png'; a.click();
+    };
+    cropContainer.style.display = 'none';
+    resultContainer.classList.add('active');
+    cropBtn.disabled = false; cropBtn.textContent = '✂️ 裁剪';
+  }, 'image/png', 0.92);
+}
+
+function backToCrop() {
+  cropContainer.style.display = 'flex';
+  resultContainer.classList.remove('active');
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) doCrop();
+  if (e.key === 'r' || e.key === 'R') resetCrop();
+});
+<\/script>
+</body>
+</html>`;
+
+    return { success: true, type: 'html', data: html };
   } catch (e) {
     return { success: false, error: `裁剪失败: ${(e as Error).message}` };
   }
