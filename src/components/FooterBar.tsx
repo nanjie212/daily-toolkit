@@ -136,8 +136,9 @@ export default function FooterBar() {
         </div>
 
         {/* 底部版权 */}
-        <div className="text-center text-gray-600 text-[10px]">
-          普通日常工具箱 · 所有工具永久免费 · 无需注册 · 数据不上传服务器
+        <div className="text-center text-gray-600 text-[10px] space-y-1">
+          <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 数据不上传服务器</p>
+          <p>v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</p>
         </div>
       </div>
     </footer>

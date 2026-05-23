@@ -5,6 +5,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge';
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify('1.1.0'),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
+  },
   plugins: [
     react(),
     VitePWA({
