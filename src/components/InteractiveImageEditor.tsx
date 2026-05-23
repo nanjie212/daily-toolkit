@@ -1,7 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { MoveIcon, MousePointer2Icon, SquareIcon, MinusIcon, TypeIcon, CropIcon, Undo2Icon, DownloadIcon } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import {
+  MousePointer2Icon, SquareIcon, MinusIcon, TypeIcon, CropIcon,
+  Undo2Icon, Redo2Icon, DownloadIcon, PencilIcon, CircleIcon, EraserIcon,
+} from 'lucide-react';
 
-type ToolType = 'arrow' | 'rectangle' | 'circle' | 'text' | 'crop' | 'none';
+type ToolType = 'arrow' | 'rectangle' | 'circle' | 'freehand' | 'text' | 'mosaic' | 'crop' | 'none';
 
 interface Annotation {
   type: ToolType;
@@ -11,19 +14,23 @@ interface Annotation {
   endY: number;
   color: string;
   text?: string;
+  lineWidth?: number;
+  points?: { x: number; y: number }[];
 }
 
 export default function InteractiveImageEditor() {
   const [image, setImage] = useState<string | null>(null);
   const [currentTool, setCurrentTool] = useState<ToolType>('none');
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [undoStack, setUndoStack] = useState<Annotation[][]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
   const [drawCurrent, setDrawCurrent] = useState({ x: 0, y: 0 });
   const [selectedColor, setSelectedColor] = useState('#ff0000');
+  const [lineWidth, setLineWidth] = useState(3);
+  const [freehandPoints, setFreehandPoints] = useState<{ x: number; y: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,12 +42,20 @@ export default function InteractiveImageEditor() {
         setImage(reader.result as string);
         imageRef.current = img;
         setAnnotations([]);
+        setUndoStack([]);
         setCurrentTool('arrow');
       };
       img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
   }, []);
+
+  const drawBaseImage = (ctx: CanvasRenderingContext2D) => {
+    const img = imageRef.current;
+    if (img) {
+      ctx.drawImage(img, 0, 0);
+    }
+  };
 
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -60,19 +75,26 @@ export default function InteractiveImageEditor() {
     setIsDrawing(true);
     setDrawStart(coords);
     setDrawCurrent(coords);
+    if (currentTool === 'freehand') {
+      setFreehandPoints([coords]);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     const coords = getCanvasCoords(e);
     setDrawCurrent(coords);
+    if (currentTool === 'freehand') {
+      setFreehandPoints(prev => [...prev, coords]);
+    }
     redrawCanvas(drawStart, coords);
   };
 
   const handleMouseUp = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    if (currentTool !== 'crop') {
+    if (currentTool !== 'crop' && currentTool !== 'text') {
+      setUndoStack(prev => [...prev, annotations]);
       setAnnotations(prev => [...prev, {
         type: currentTool,
         startX: Math.min(drawStart.x, drawCurrent.x),
@@ -80,6 +102,23 @@ export default function InteractiveImageEditor() {
         endX: Math.max(drawStart.x, drawCurrent.x),
         endY: Math.max(drawStart.y, drawCurrent.y),
         color: selectedColor,
+        lineWidth,
+        points: currentTool === 'freehand' ? [...freehandPoints] : undefined,
+      }]);
+      setFreehandPoints([]);
+    }
+    if (currentTool === 'text') {
+      const text = prompt('请输入标注文字：', '');
+      if (!text) return;
+      setUndoStack(prev => [...prev, annotations]);
+      setAnnotations(prev => [...prev, {
+        type: 'text',
+        startX: drawStart.x,
+        startY: drawStart.y,
+        endX: drawStart.x,
+        endY: drawStart.y,
+        color: selectedColor,
+        text,
       }]);
     }
     drawAllAnnotations();
@@ -91,12 +130,14 @@ export default function InteractiveImageEditor() {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
     ctx.strokeStyle = selectedColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = lineWidth;
     ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
     if (currentTool === 'arrow') {
       const angle = Math.atan2(end.y - start.y, end.x - start.x);
-      const headLen = 10;
+      const headLen = Math.max(12, lineWidth * 4);
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
       ctx.lineTo(end.x, end.y);
@@ -110,7 +151,7 @@ export default function InteractiveImageEditor() {
       ctx.fill();
     } else if (currentTool === 'rectangle') {
       ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-      ctx.fillStyle = selectedColor + '20';
+      ctx.fillStyle = selectedColor + '15';
       ctx.fillRect(start.x, start.y, end.x - start.x, end.y - start.y);
     } else if (currentTool === 'circle') {
       const cx = (start.x + end.x) / 2;
@@ -120,18 +161,73 @@ export default function InteractiveImageEditor() {
       ctx.beginPath();
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = selectedColor + '20';
+      ctx.fillStyle = selectedColor + '15';
       ctx.fill();
+    } else if (currentTool === 'freehand') {
+      if (freehandPoints.length < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(freehandPoints[0].x, freehandPoints[0].y);
+      for (let i = 1; i < freehandPoints.length; i++) {
+        ctx.lineTo(freehandPoints[i].x, freehandPoints[i].y);
+      }
+      ctx.stroke();
+    } else if (currentTool === 'text') {
+      ctx.fillStyle = selectedColor;
+      ctx.font = `${Math.max(14, lineWidth * 5)}px sans-serif`;
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('文字', end.x, end.y);
+    } else if (currentTool === 'mosaic') {
+      const x = Math.min(start.x, end.x);
+      const y = Math.min(start.y, end.y);
+      const w = Math.abs(end.x - start.x);
+      const h = Math.abs(end.y - start.y);
+      const mosaicSize = Math.max(4, lineWidth * 2);
+      const imageData = ctx.getImageData(x, y, w, h);
+      for (let my = 0; my < h; my += mosaicSize) {
+        for (let mx = 0; mx < w; mx += mosaicSize) {
+          let r = 0, g = 0, b = 0, count = 0;
+          const tileH = Math.min(mosaicSize, h - my);
+          const tileW = Math.min(mosaicSize, w - mx);
+          for (let ty = 0; ty < tileH; ty++) {
+            for (let tx = 0; tx < tileW; tx++) {
+              const idx = ((my + ty) * w + (mx + tx)) * 4;
+              r += imageData.data[idx];
+              g += imageData.data[idx + 1];
+              b += imageData.data[idx + 2];
+              count++;
+            }
+          }
+          r = Math.round(r / count);
+          g = Math.round(g / count);
+          b = Math.round(b / count);
+          for (let ty = 0; ty < tileH; ty++) {
+            for (let tx = 0; tx < tileW; tx++) {
+              const idx = ((my + ty) * w + (mx + tx)) * 4;
+              imageData.data[idx] = r;
+              imageData.data[idx + 1] = g;
+              imageData.data[idx + 2] = b;
+            }
+          }
+        }
+      }
+      ctx.putImageData(imageData, x, y);
     } else if (currentTool === 'crop') {
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 5]);
       ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(0, 0, canvasRef.current?.width || 800, start.y);
-      ctx.fillRect(0, end.y, canvasRef.current?.width || 800, (canvasRef.current?.height || 600) - end.y);
-      ctx.fillRect(0, start.y, start.x, end.y - start.y);
-      ctx.fillRect(end.x, start.y, (canvasRef.current?.width || 800) - end.x, end.y - start.y);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      const cw = canvasRef.current?.width || 0;
+      const ch = canvasRef.current?.height || 0;
+      const sx = Math.min(start.x, end.x);
+      const sy = Math.min(start.y, end.y);
+      const sw = Math.abs(end.x - start.x);
+      const sh = Math.abs(end.y - start.y);
+      ctx.fillRect(0, 0, cw, sy);
+      ctx.fillRect(0, sy + sh, cw, ch - sy - sh);
+      ctx.fillRect(0, sy, sx, sh);
+      ctx.fillRect(sx + sw, sy, cw - sx - sw, sh);
+      ctx.setLineDash([]);
     }
   };
 
@@ -140,13 +236,18 @@ export default function InteractiveImageEditor() {
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBaseImage(ctx);
     for (const a of annotations) {
       ctx.strokeStyle = a.color;
-      ctx.lineWidth = 2;
+      ctx.fillStyle = a.color;
+      ctx.lineWidth = a.lineWidth ?? 2;
       ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
       if (a.type === 'arrow') {
         const angle = Math.atan2(a.endY - a.startY, a.endX - a.startX);
-        const headLen = 10;
+        const headLen = Math.max(12, (a.lineWidth ?? 2) * 4);
         ctx.beginPath();
         ctx.moveTo(a.startX, a.startY);
         ctx.lineTo(a.endX, a.endY);
@@ -156,11 +257,10 @@ export default function InteractiveImageEditor() {
         ctx.lineTo(a.endX - headLen * Math.cos(angle - Math.PI / 6), a.endY - headLen * Math.sin(angle - Math.PI / 6));
         ctx.lineTo(a.endX - headLen * Math.cos(angle + Math.PI / 6), a.endY - headLen * Math.sin(angle + Math.PI / 6));
         ctx.closePath();
-        ctx.fillStyle = a.color;
         ctx.fill();
       } else if (a.type === 'rectangle') {
         ctx.strokeRect(a.startX, a.startY, a.endX - a.startX, a.endY - a.startY);
-        ctx.fillStyle = a.color + '20';
+        ctx.fillStyle = a.color + '15';
         ctx.fillRect(a.startX, a.startY, a.endX - a.startX, a.endY - a.startY);
       } else if (a.type === 'circle') {
         const cx = (a.startX + a.endX) / 2;
@@ -170,13 +270,73 @@ export default function InteractiveImageEditor() {
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.fillStyle = a.color + '15';
+        ctx.fill();
+      } else if (a.type === 'freehand' && a.points && a.points.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(a.points[0].x, a.points[0].y);
+        for (let i = 1; i < a.points.length; i++) {
+          ctx.lineTo(a.points[i].x, a.points[i].y);
+        }
+        ctx.stroke();
+      } else if (a.type === 'text' && a.text) {
+        ctx.font = `${Math.max(14, (a.lineWidth ?? 2) * 5)}px sans-serif`;
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(a.text, a.startX, a.startY);
+      } else if (a.type === 'mosaic') {
+        const mosaicSize = Math.max(4, (a.lineWidth ?? 2) * 2);
+        const w = a.endX - a.startX;
+        const h = a.endY - a.startY;
+        if (w <= 0 || h <= 0) continue;
+        const imageData = ctx.getImageData(a.startX, a.startY, w, h);
+        for (let my = 0; my < h; my += mosaicSize) {
+          for (let mx = 0; mx < w; mx += mosaicSize) {
+            let r = 0, g = 0, b = 0, count = 0;
+            const tileH = Math.min(mosaicSize, h - my);
+            const tileW = Math.min(mosaicSize, w - mx);
+            for (let ty = 0; ty < tileH; ty++) {
+              for (let tx = 0; tx < tileW; tx++) {
+                const idx = ((my + ty) * w + (mx + tx)) * 4;
+                r += imageData.data[idx];
+                g += imageData.data[idx + 1];
+                b += imageData.data[idx + 2];
+                count++;
+              }
+            }
+            r = Math.round(r / count);
+            g = Math.round(g / count);
+            b = Math.round(b / count);
+            for (let ty = 0; ty < tileH; ty++) {
+              for (let tx = 0; tx < tileW; tx++) {
+                const idx = ((my + ty) * w + (mx + tx)) * 4;
+                imageData.data[idx] = r;
+                imageData.data[idx + 1] = g;
+                imageData.data[idx + 2] = b;
+              }
+            }
+          }
+        }
+        ctx.putImageData(imageData, a.startX, a.startY);
       }
     }
   };
 
   const handleUndo = () => {
-    setAnnotations(prev => prev.slice(0, -1));
-    setTimeout(drawAllAnnotations, 0);
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    setAnnotations(prev);
+  };
+
+  const handleRedo = () => {
+    if (annotations.length === 0 || undoStack.length === 0) return;
+    setUndoStack(prev => [...prev, annotations]);
+    setAnnotations([]);
+  };
+
+  const handleReset = () => {
+    setAnnotations([]);
+    setUndoStack([]);
   };
 
   const handleDownload = () => {
@@ -189,24 +349,53 @@ export default function InteractiveImageEditor() {
   };
 
   const handleCrop = () => {
-    if (currentTool !== 'crop' || !imageRef.current) return;
+    if (currentTool !== 'crop') return;
+    const img = imageRef.current;
+    if (!img) return;
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
     const w = Math.abs(drawCurrent.x - drawStart.x);
     const h = Math.abs(drawCurrent.y - drawStart.y);
     if (w < 10 || h < 10) return;
-    const img = imageRef.current;
+
     const oc = document.createElement('canvas');
     oc.width = w;
     oc.height = h;
     const octx = oc.getContext('2d');
     if (!octx) return;
     octx.drawImage(img, x, y, w, h, 0, 0, w, h);
-    const link = document.createElement('a');
-    link.download = 'cropped.png';
-    link.href = oc.toDataURL('image/png');
-    link.click();
+
+    setImage(oc.toDataURL('image/png'));
+    imageRef.current = new Image();
+    imageRef.current.src = oc.toDataURL('image/png');
+    imageRef.current.width = w;
+    imageRef.current.height = h;
+
+    setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.drawImage(imageRef.current!, 0, 0);
+    }, 50);
+
+    setAnnotations([]);
+    setUndoStack([]);
+    setCurrentTool('arrow');
   };
+
+  const toolButton = (tool: ToolType, icon: React.ReactNode, label: string) => (
+    <button
+      onClick={() => setCurrentTool(tool)}
+      className={`p-2 rounded-lg transition-all ${
+        currentTool === tool ? 'bg-accent/20 text-accent ring-1 ring-accent/30' : 'text-gray-400 hover:text-white hover:bg-white/5'
+      }`}
+      title={label}
+    >
+      {icon}
+    </button>
+  );
 
   return (
     <div className="space-y-4">
@@ -232,36 +421,17 @@ export default function InteractiveImageEditor() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap bg-surface border border-white/5 rounded-xl p-3">
-            <button
-              onClick={() => setCurrentTool('arrow')}
-              className={`p-2 rounded-lg transition-all ${currentTool === 'arrow' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-              title="箭头"
-            >
-              <MinusIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setCurrentTool('rectangle')}
-              className={`p-2 rounded-lg transition-all ${currentTool === 'rectangle' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-              title="矩形"
-            >
-              <SquareIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setCurrentTool('circle')}
-              className={`p-2 rounded-lg transition-all ${currentTool === 'circle' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-              title="椭圆"
-            >
-              <MoveIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setCurrentTool('crop')}
-              className={`p-2 rounded-lg transition-all ${currentTool === 'crop' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-              title="裁剪"
-            >
-              <CropIcon className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-1.5 flex-wrap bg-surface border border-white/5 rounded-xl p-2.5">
+            {toolButton('arrow', <MinusIcon className="w-4 h-4" />, '箭头')}
+            {toolButton('rectangle', <SquareIcon className="w-4 h-4" />, '矩形')}
+            {toolButton('circle', <CircleIcon className="w-4 h-4" />, '椭圆')}
+            {toolButton('freehand', <PencilIcon className="w-4 h-4" />, '画笔')}
+            {toolButton('text', <TypeIcon className="w-4 h-4" />, '文字')}
+            {toolButton('mosaic', <EraserIcon className="w-4 h-4" />, '马赛克')}
+            {toolButton('crop', <CropIcon className="w-4 h-4" />, '裁剪')}
+
             <div className="w-px h-6 bg-white/10 mx-1" />
+
             <input
               type="color"
               value={selectedColor}
@@ -269,20 +439,58 @@ export default function InteractiveImageEditor() {
               className="w-7 h-7 rounded cursor-pointer bg-transparent border-0"
               title="颜色"
             />
+
+            <div className="flex items-center gap-1">
+              <span className="text-gray-500 text-[10px]">线宽</span>
+              <input
+                type="range"
+                min="1"
+                max="12"
+                value={lineWidth}
+                onChange={(e) => setLineWidth(Number(e.target.value))}
+                className="w-16 h-1 accent-accent"
+                title={`线宽: ${lineWidth}px`}
+              />
+              <span className="text-gray-400 text-[10px] w-4">{lineWidth}</span>
+            </div>
+
+            <div className="w-px h-6 bg-white/10 mx-1" />
+
             <button
               onClick={handleUndo}
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+              disabled={undoStack.length === 0}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               title="撤销"
             >
               <Undo2Icon className="w-4 h-4" />
             </button>
-            <div className="flex-1" />
             <button
-              onClick={handleCrop}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${currentTool === 'crop' ? 'bg-accent text-white' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+              onClick={handleRedo}
+              disabled={undoStack.length === 0 && annotations.length === 0}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              title="重做"
             >
-              执行裁剪
+              <Redo2Icon className="w-4 h-4" />
             </button>
+            <button
+              onClick={handleReset}
+              disabled={annotations.length === 0}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              title="清除全部标注"
+            >
+              <span className="text-xs">清除</span>
+            </button>
+
+            <div className="flex-1" />
+
+            {currentTool === 'crop' && (
+              <button
+                onClick={handleCrop}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent text-white hover:bg-accent/90 transition-all"
+              >
+                确认裁剪
+              </button>
+            )}
             <button
               onClick={handleDownload}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/20 text-accent text-xs font-medium hover:bg-accent/30 transition-all"
@@ -292,15 +500,15 @@ export default function InteractiveImageEditor() {
             </button>
           </div>
 
-          <div ref={containerRef} className="relative bg-surface rounded-2xl overflow-hidden border border-white/5 flex items-center justify-center p-2">
+          <div className="relative bg-surface rounded-2xl overflow-hidden border border-white/5 flex items-center justify-center p-2">
             <canvas
               ref={canvasRef}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              className="max-w-full max-h-[70vh] cursor-crosshair"
-              style={currentTool === 'none' ? { cursor: 'default' } : undefined}
+              className="max-w-full max-h-[70vh]"
+              style={{ cursor: currentTool === 'none' ? 'default' : 'crosshair' }}
             />
             {image && (
               <img
@@ -319,6 +527,19 @@ export default function InteractiveImageEditor() {
                   ctx.drawImage(img, 0, 0);
                 }}
               />
+            )}
+          </div>
+
+          <div className="text-gray-500 text-xs text-center">
+            标注数：{annotations.length}
+            {undoStack.length > 0 && ` · 可撤销：${undoStack.length}步`}
+            {currentTool !== 'none' && (
+              <span className="ml-2 text-accent/70">
+                当前工具：{
+                  { arrow: '箭头', rectangle: '矩形', circle: '椭圆', freehand: '画笔', text: '文字', mosaic: '马赛克', crop: '裁剪' }[currentTool]
+                }
+                {currentTool === 'text' ? '（点击画布添加文字）' : '（拖拽绘制）'}
+              </span>
             )}
           </div>
         </div>
