@@ -105,22 +105,6 @@ export const pdfTools: ToolRecord[] = [
     tips: '取消勾选对应的操作即可限制，请妥善保管权限密码',
   },
   {
-    id: 'image-table-to-excel',
-    name: '图片表格转Excel',
-    description: 'OCR识别图片中的表格结构并导出为Excel或CSV',
-    category: 'image',
-    icon: 'FileDownIcon',
-    version: '1.0.0',
-    source: 'builtin',
-    permissions: [],
-    inputSchema: [
-      { key: 'file', label: '选择表格图片', type: 'file', accept: 'image/*', required: true },
-      { key: 'saveType', label: '导出格式', type: 'select', defaultValue: 'xlsx', options: [{ label: 'Excel (.xlsx)', value: 'xlsx' }, { label: 'CSV (.csv)', value: 'csv' }] },
-    ],
-    outputFormat: 'blob',
-    tips: '表格结构为自动识别，复杂的合并单元格可能无法完美还原',
-  },
-  {
     id: 'pdf-to-word',
     name: 'PDF转Word',
     description: '提取PDF中的文字内容并导出为Word文档(.docx)或纯文本(.txt)',

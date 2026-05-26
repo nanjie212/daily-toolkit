@@ -31,16 +31,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/cdn\.jsdelivr\.net/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'cdn-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-        ],
       },
     }),
     traeBadgePlugin({
@@ -59,7 +49,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'tesseract': ['tesseract.js'],
           'lucide': ['lucide-react'],
           'opencc': ['opencc-js'],
           'qrcode': ['qrcode'],

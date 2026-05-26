@@ -2,45 +2,6 @@ import type { ToolRecord } from '@/types';
 
 export const aiTools: ToolRecord[] = [
   {
-    id: 'text-translate',
-    name: '文本翻译',
-    description: '使用 MyMemory 翻译引擎进行多语言文本翻译',
-    category: 'everyday',
-    icon: 'LanguagesIcon',
-    version: '1.0.0',
-    source: 'builtin',
-    permissions: [],
-    inputSchema: [
-      { key: 'text', label: '文本内容', type: 'textarea', placeholder: '输入需要翻译的文本...', required: true },
-      {
-        key: 'sourceLang',
-        label: '源语言',
-        type: 'select',
-        defaultValue: 'zh',
-        options: [
-          { label: '中文', value: 'zh' },
-          { label: '英语', value: 'en' },
-          { label: '日语', value: 'ja' },
-          { label: '韩语', value: 'ko' },
-        ],
-      },
-      {
-        key: 'targetLang',
-        label: '目标语言',
-        type: 'select',
-        defaultValue: 'en',
-        options: [
-          { label: '中文', value: 'zh' },
-          { label: '英语', value: 'en' },
-          { label: '日语', value: 'ja' },
-          { label: '韩语', value: 'ko' },
-        ],
-      },
-    ],
-    outputFormat: 'text',
-    tips: '支持中英日韩等语言互译，每天免费5000字',
-  },
-  {
     id: 'e-signature',
     name: '电子签名',
     description: '在画板上手写签名，生成透明背景签名图片',
@@ -82,32 +43,6 @@ export const aiTools: ToolRecord[] = [
     ],
     outputFormat: 'text',
     tips: '自动提取文本核心内容，支持简短/适中/详细三种摘要长度',
-  },
-  {
-    id: 'speech-to-text',
-    name: '语音转文字',
-    description: '使用浏览器原生语音识别API将语音转换为文字',
-    category: 'everyday',
-    icon: 'MicIcon',
-    version: '1.0.0',
-    source: 'builtin',
-    permissions: ['microphone'],
-    inputSchema: [
-      {
-        key: 'language',
-        label: '识别语言',
-        type: 'select',
-        defaultValue: 'zh-CN',
-        options: [
-          { label: '中文普通话', value: 'zh-CN' },
-          { label: '英语(美国)', value: 'en-US' },
-          { label: '日语', value: 'ja-JP' },
-          { label: '韩语', value: 'ko-KR' },
-        ],
-      },
-    ],
-    outputFormat: 'html',
-    tips: '使用浏览器原生Web Speech API，需授权麦克风权限',
   },
   {
     id: 'text-to-speech',

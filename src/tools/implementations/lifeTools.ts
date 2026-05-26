@@ -465,49 +465,6 @@ export async function passwordGenerator(input: Record<string, unknown>): Promise
   }
 }
 
-export async function exchangeRate(input: Record<string, unknown>): Promise<ToolOutput> {
-  try {
-    const amount = Number(input.amount);
-    const from = (input.from as string) || 'USD';
-    const to = (input.to as string) || 'CNY';
-
-    if (!amount || amount <= 0) return { success: false, error: '请输入有效的金额' };
-
-    const response = await fetch(
-      `https://api.exchangerate-api.com/v4/latest/${from}`
-    );
-    if (!response.ok) return { success: false, error: '无法获取汇率数据，请稍后重试' };
-
-    const data = await response.json();
-    const rate = data.rates?.[to];
-
-    if (!rate) return { success: false, error: `不支持该货币: ${to}` };
-
-    const result = (amount * rate).toFixed(2);
-    const currencyNames: Record<string, string> = {
-      USD: '美元', CNY: '人民币', EUR: '欧元', GBP: '英镑',
-      JPY: '日元', KRW: '韩元', HKD: '港币', TWD: '新台币',
-      AUD: '澳元', CAD: '加元', SGD: '新加坡元', THB: '泰铢',
-    };
-
-    return {
-      success: true,
-      data: {
-        换算结果: `${amount} ${currencyNames[from] || from} = ${result} ${currencyNames[to] || to}`,
-        汇率: `1 ${from} = ${rate.toFixed(4)} ${to}`,
-        更新时间: data.date || '未知',
-        提示: '汇率数据仅供参考，实际交易以银行汇率为准',
-      },
-    };
-  } catch (e) {
-    const msg = (e as Error).message;
-    if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
-      return { success: false, error: '汇率查询需要联网使用，请检查网络连接后重试' };
-    }
-    return { success: false, error: `汇率查询失败: ${msg}` };
-  }
-}
-
 export async function sensitiveMask(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const text = input.text as string;

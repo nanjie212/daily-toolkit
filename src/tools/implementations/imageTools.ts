@@ -1,4 +1,3 @@
-import Tesseract from 'tesseract.js';
 import type { ToolOutput } from '@/types';
 
 function loadImage(file: File): Promise<HTMLImageElement> {
@@ -658,60 +657,6 @@ export async function imageStitch(input: Record<string, unknown>): Promise<ToolO
     };
   } catch (e) {
     return { success: false, error: (e as Error).message };
-  }
-}
-
-export async function imageOcr(input: Record<string, unknown>): Promise<ToolOutput> {
-  try {
-    const file = input.file as File;
-    const lang = (input.lang as string) || 'chi_sim+eng';
-
-    if (!file) return { success: false, error: '请选择图片文件' };
-
-    const imageUrl = URL.createObjectURL(file);
-
-    const langMap: Record<string, string> = {
-      'chi_sim': 'chi_sim',
-      'eng': 'eng',
-      'chi_sim+eng': 'chi_sim+eng',
-    };
-    const tesseractLang = langMap[lang] || 'chi_sim+eng';
-
-    const result = await Tesseract.recognize(imageUrl, tesseractLang, {
-      logger: (info) => {
-        if (info.status === 'recognizing text') {
-          console.log(`OCR进度: ${Math.round((info.progress || 0) * 100)}%`);
-        }
-      },
-    });
-
-    URL.revokeObjectURL(imageUrl);
-
-    if (!result.data || !result.data.text) {
-      return { success: false, error: 'OCR识别失败，请确认图片中包含文字' };
-    }
-
-    const text = result.data.text.trim();
-    if (!text) {
-      return { success: true, data: '未识别到文字内容，请确认图片中包含清晰的文字' };
-    }
-
-    const confidence = result.data.confidence;
-    const words = result.data.words;
-
-    return {
-      success: true,
-      data: {
-        识别结果: text,
-        置信度: `${confidence.toFixed(1)}%`,
-        识别词数: words?.length || 0,
-        识别语言: lang === 'chi_sim' ? '中文' : lang === 'eng' ? '英文' : '中英混合',
-        图片尺寸: `${(result.data as unknown as Record<string, unknown>).imageWidth || '?'} x ${(result.data as unknown as Record<string, unknown>).imageHeight || '?'}`,
-        提示: '首次使用OCR需下载语言模型(约10MB)，请耐心等待',
-      },
-    };
-  } catch (e) {
-    return { success: false, error: `OCR识别失败: ${(e as Error).message}` };
   }
 }
 

@@ -31,67 +31,6 @@ const marketTools: ToolRecord[] = [
     ],
     outputFormat: 'text', tips: '支持整数和小数，大写模式可用于发票金额',
   },
-  {
-    id: 'text-counter', name: '文本统计', description: '自动统计字符数、词数、行数和段落数',
-    category: 'market', icon: 'FileTextIcon', version: '1.0.0', source: 'community', permissions: [],
-    inputSchema: [
-      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '粘贴或输入文本...', required: true },
-    ],
-    outputFormat: 'text', tips: '支持中英文混合统计',
-  },
-  {
-    id: 'traditional-simplified', name: '繁简转换', description: '繁体简体中文互转，基于OpenCC引擎',
-    category: 'market', icon: 'LanguagesIcon', version: '1.0.0', source: 'community', permissions: [],
-    inputSchema: [
-      { key: 'text', label: '输入文字', type: 'textarea', placeholder: '输入要转换的文字...', required: true },
-      { key: 'mode', label: '转换方向', type: 'select', defaultValue: 't2s', options: [{ label: '繁体→简体', value: 't2s' }, { label: '简体→繁体', value: 's2t' }] },
-    ],
-    outputFormat: 'text', tips: '基于OpenCC引擎，全字符集覆盖',
-  },
-  {
-    id: 'case-converter', name: '大小写转换', description: '支持大写、小写、首字母大写、句首大写等5种模式',
-    category: 'market', icon: 'TypeIcon', version: '1.0.0', source: 'community', permissions: [],
-    inputSchema: [
-      { key: 'text', label: '输入文字', type: 'textarea', placeholder: '输入要转换的文字...', required: true },
-      { key: 'mode', label: '转换模式', type: 'select', defaultValue: 'upper', options: [{ label: '全部大写', value: 'upper' }, { label: '全部小写', value: 'lower' }, { label: '首字母大写', value: 'capitalize' }, { label: '反转大小写', value: 'toggle' }] },
-    ],
-    outputFormat: 'text', tips: '适用于英文文本的快速格式化',
-  },
-  {
-    id: 'text-dedup', name: '文本去重', description: '去除重复行、空白行和排序去重',
-    category: 'market', icon: 'ListFilterIcon', version: '1.0.0', source: 'community', permissions: [],
-    inputSchema: [
-      { key: 'text', label: '输入文本', type: 'textarea', placeholder: '每行一条数据...', required: true },
-      { key: 'mode', label: '处理方式', type: 'select', defaultValue: 'dedup', options: [{ label: '去重复行', value: 'dedup' }, { label: '删空白行', value: 'removeBlank' }, { label: '排序去重', value: 'sortDedup' }] },
-    ],
-    outputFormat: 'text', tips: '每行作为独立单元处理',
-  },
-  {
-    id: 'text-summary', name: '文章摘要', description: '本地算法提取关键句，快速了解长文要点',
-    category: 'market', icon: 'BookOpenIcon', version: '1.0.0', source: 'community', permissions: [],
-    inputSchema: [
-      { key: 'text', label: '输入文章', type: 'textarea', placeholder: '粘贴文章内容...', required: true },
-      { key: 'length', label: '摘要长度', type: 'select', defaultValue: 'medium', options: [{ label: '简短', value: 'short' }, { label: '中等', value: 'medium' }, { label: '详细', value: 'long' }] },
-    ],
-    outputFormat: 'text', tips: '基于关键词密度抽取关键句',
-  },
-  {
-    id: 'speech-to-text', name: '语音转文字', description: '浏览器语音识别，将你说的话转为文字',
-    category: 'market', icon: 'MicIcon', version: '1.0.0', source: 'community', permissions: ['microphone'],
-    inputSchema: [
-      { key: 'lang', label: '识别语言', type: 'select', defaultValue: 'zh-CN', options: [{ label: '中文', value: 'zh-CN' }, { label: 'English', value: 'en-US' }] },
-    ],
-    outputFormat: 'text', tips: '需浏览器支持Web Speech API，需授权麦克风',
-  },
-  {
-    id: 'text-to-speech', name: '文字转语音', description: '将文字转为语音朗读，调节语速',
-    category: 'market', icon: 'Volume2Icon', version: '1.0.0', source: 'community', permissions: [],
-    inputSchema: [
-      { key: 'text', label: '输入文字', type: 'textarea', placeholder: '输入要朗读的文字...', required: true },
-      { key: 'rate', label: '朗读速度', type: 'select', defaultValue: '1', options: [{ label: '慢速', value: '0.7' }, { label: '正常', value: '1' }, { label: '快速', value: '1.3' }] },
-    ],
-    outputFormat: 'text', tips: '使用浏览器内置语音合成引擎',
-  },
 ];
 
 type Tab = 'all' | 'installed' | 'hot';

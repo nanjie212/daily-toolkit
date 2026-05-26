@@ -195,32 +195,6 @@ export const imageTools: ToolRecord[] = [
     tips: '支持纵向和横向拼接，可设置图片间距',
   },
   {
-    id: 'image-ocr',
-    name: '图片提取文字',
-    description: '从图片中识别和提取文字内容(OCR)',
-    category: 'image',
-    icon: 'ScanTextIcon',
-    version: '1.0.0',
-    source: 'builtin',
-    permissions: [],
-    inputSchema: [
-      { key: 'file', label: '选择图片', type: 'file', accept: 'image/*', required: true },
-      {
-        key: 'lang',
-        label: '识别语言',
-        type: 'select',
-        defaultValue: 'chi_sim+eng',
-        options: [
-          { label: '中文', value: 'chi_sim' },
-          { label: '英文', value: 'eng' },
-          { label: '中英混合', value: 'chi_sim+eng' },
-        ],
-      },
-    ],
-    outputFormat: 'json',
-    tips: '支持中文、英文及中英混合识别',
-  },
-  {
     id: 'image-to-pdf',
     name: '图片转PDF',
     description: '将图片转换为PDF文件，支持多张图片合并',
