@@ -99,7 +99,11 @@ export async function textTranslate(input: Record<string, unknown>): Promise<Too
 
     return { success: false, error: `翻译失败: ${data.responseDetails || '未知错误'}` };
   } catch (e) {
-    return { success: false, error: `翻译失败: ${(e as Error).message}` };
+    const msg = (e as Error).message;
+    if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+      return { success: false, error: '翻译功能需要联网使用，请检查网络连接后重试' };
+    }
+    return { success: false, error: `翻译失败: ${msg}` };
   }
 }
 

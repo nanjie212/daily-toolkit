@@ -500,7 +500,11 @@ export async function exchangeRate(input: Record<string, unknown>): Promise<Tool
       },
     };
   } catch (e) {
-    return { success: false, error: `汇率查询失败: ${(e as Error).message}` };
+    const msg = (e as Error).message;
+    if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+      return { success: false, error: '汇率查询需要联网使用，请检查网络连接后重试' };
+    }
+    return { success: false, error: `汇率查询失败: ${msg}` };
   }
 }
 

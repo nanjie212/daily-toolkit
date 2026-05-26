@@ -1,5 +1,6 @@
 import type { ToolOutput } from '@/types';
 import { PDFDocument, StandardFonts, rgb, PDFName, PDFCheckBox } from 'pdf-lib';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 function downloadBlob(blob: Blob, filename: string): string {
   const url = URL.createObjectURL(blob);
@@ -466,7 +467,7 @@ export async function pdfToWord(input: Record<string, unknown>): Promise<ToolOut
     if (!file) return { success: false, error: '请选择PDF文件' };
 
     const pdfjsLib = await import('pdfjs-dist');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
     const pdfData = await fileToUint8Array(file);
     const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() });
     const pdfDoc = await loadingTask.promise;
