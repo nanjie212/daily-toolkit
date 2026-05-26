@@ -32,6 +32,9 @@ html.light {
 }
 
 html.light .text-white,
+html.light .text-white\/90,
+html.light .text-white\/80,
+html.light .text-white\/70,
 html.light h1, html.light h2, html.light h3, html.light h4 {
   color: var(--text) !important;
 }
