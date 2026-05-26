@@ -141,3 +141,17 @@ export async function textDedup(input: Record<string, unknown>): Promise<ToolOut
     return { success: false, error: `去重失败: ${(e as Error).message}` };
   }
 }
+
+export async function textProcessor(input: Record<string, unknown>): Promise<ToolOutput> {
+  const mode = (input.mode as string) || 'text-counter';
+  switch (mode) {
+    case 'traditional-simplified':
+      return traditionalSimplified(input);
+    case 'case-converter':
+      return caseConverter(input);
+    case 'text-dedup':
+      return textDedup(input);
+    default:
+      return textCounter(input);
+  }
+}

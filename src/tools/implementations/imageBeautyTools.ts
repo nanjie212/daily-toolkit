@@ -45,6 +45,31 @@ export async function imageGrayscale(input: Record<string, unknown>): Promise<To
   }
 }
 
+export async function imageBeautify(input: Record<string, unknown>): Promise<ToolOutput> {
+  try {
+    const mode = input.mode as string;
+    if (!mode) return { success: false, error: '请指定美化模式 (mode)' };
+
+    switch (mode) {
+      case 'grayscale':
+        return imageGrayscale(input);
+      case 'mirror':
+        return imageMirror(input);
+      case 'rounded-corners':
+        return imageRoundedCorners(input);
+      case 'brightness-contrast':
+        return imageBrightnessContrast(input);
+      default:
+        return {
+          success: false,
+          error: `不支持的美化模式: ${mode}，可选值: grayscale, mirror, rounded-corners, brightness-contrast`,
+        };
+    }
+  } catch (e) {
+    return { success: false, error: `处理失败: ${(e as Error).message}` };
+  }
+}
+
 export async function imageMirror(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const file = input.file as File;

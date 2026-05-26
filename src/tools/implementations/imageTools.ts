@@ -1270,3 +1270,15 @@ export async function pdfMerge(input: Record<string, unknown>): Promise<ToolOutp
     return { success: false, error: `合并失败: ${(e as Error).message}` };
   }
 }
+
+export async function imageProcessor(input: Record<string, unknown>): Promise<ToolOutput> {
+  const mode = (input.mode as string) || 'compress';
+  switch (mode) {
+    case 'convert':
+      return imageConvert(input);
+    case 'resize':
+      return imageResize(input);
+    default:
+      return imageCompress(input);
+  }
+}

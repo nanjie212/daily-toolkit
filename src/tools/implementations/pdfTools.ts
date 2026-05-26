@@ -1,6 +1,8 @@
 import type { ToolOutput } from '@/types';
 import { PDFDocument, StandardFonts, rgb, PDFName, PDFCheckBox } from 'pdf-lib';
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
+import { decryptPDF } from '@pdfsmaller/pdf-decrypt';
 
 function downloadBlob(blob: Blob, filename: string): string {
   const url = URL.createObjectURL(blob);
@@ -175,201 +177,6 @@ export async function pdfCompress(input: Record<string, unknown>): Promise<ToolO
   } catch (e) { return { success: false, error: `PDF压缩失败: ${(e as Error).message}` }; }
 }
 
-export async function pdfEncrypt(input: Record<string, unknown>): Promise<ToolOutput> {
-  try {
-    const file = input.file as File;
-    const password = (input.password as string) || '';
-    if (!file) return { success: false, error: '请选择PDF文件' };
-    if (!password || password.length < 4) return { success: false, error: '密码至少4位' };
-
-    // 检查文件类型
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      return { success: false, error: '请选择PDF文件' };
-    }
-
-    // 检查文件大小（限制50MB）
-    if (file.size > 50 * 1024 * 1024) {
-      return { success: false, error: 'PDF文件过大，请选择小于50MB的文件' };
-    }
-
-    const pdfBytes = await fileToUint8Array(file);
-    
-    // 验证PDF文件头
-    const header = new TextDecoder().decode(pdfBytes.slice(0, 5));
-    if (header !== '%PDF-') {
-      return { success: false, error: '文件不是有效的PDF格式' };
-    }
-
-    let doc: PDFDocument;
-    try {
-      // 尝试加载PDF，忽略可能的加密
-      doc = await PDFDocument.load(pdfBytes, { 
-        ignoreEncryption: true,
-        updateMetadata: false,
-      });
-    } catch (loadError) {
-      const errMsg = (loadError as Error).message;
-      if (errMsg.includes('encrypted') || errMsg.includes('password')) {
-        return { success: false, error: '该PDF已被加密，请先解密后再重新加密' };
-      }
-      if (errMsg.includes('Invalid PDF')) {
-        return { success: false, error: 'PDF文件格式无效或已损坏，请检查文件' };
-      }
-      return { success: false, error: `PDF加载失败: ${errMsg}` };
-    }
-
-    // 检查PDF是否已经有内容
-    const pageCount = doc.getPageCount();
-    if (pageCount === 0) {
-      return { success: false, error: 'PDF文件没有页面内容' };
-    }
-
-    // 设置加密并保存
-    let resultBytes: Uint8Array;
-    try {
-      // pdf-lib 1.17.1 使用 save 时传入加密参数，而不是单独的 encrypt 方法
-      resultBytes = await doc.save({
-        encrypt: {
-          userPassword: password,
-          ownerPassword: password + '_owner_' + Date.now(),
-          permissions: {
-            printing: 'highResolution',
-            modifying: false,
-            copying: false,
-            annotating: true,
-            fillingForms: true,
-            contentAccessibility: true,
-            documentAssembly: false,
-          },
-        },
-      } as any);
-    } catch (encryptError) {
-      const errMsg = (encryptError as Error).message;
-      if (errMsg.includes('encrypt') || errMsg.includes('Encrypt')) {
-        return {
-          success: false,
-          error: '当前浏览器环境暂不支持PDF加密，请尝试使用Chrome或Edge浏览器',
-        };
-      }
-      return { success: false, error: `PDF加密失败: ${errMsg}` };
-    }
-
-    const blob = new Blob([resultBytes], { type: 'application/pdf' });
-    const downloadUrl = downloadBlob(blob, 'encrypted.pdf');
-
-    return {
-      success: true,
-      data: {
-        状态: '✅ 已加密',
-        页数: `${pageCount} 页`,
-        密码: password,
-        权限设置: '禁止修改、禁止复制、允许打印、允许填写表单',
-        提示: '请妥善保管密码，丢失后无法恢复',
-      },
-      downloadUrl,
-      filename: 'encrypted.pdf',
-    };
-  } catch (e) { 
-    return { success: false, error: `PDF加密失败: ${(e as Error).message}` }; 
-  }
-}
-
-export async function pdfDecrypt(input: Record<string, unknown>): Promise<ToolOutput> {
-  try {
-    const file = input.file as File;
-    const password = (input.password as string) || '';
-    if (!file) return { success: false, error: '请选择PDF文件' };
-    if (!password) return { success: false, error: '请输入PDF密码' };
-
-    const pdfBytes = await fileToUint8Array(file);
-    let doc: PDFDocument;
-
-    try {
-      doc = await PDFDocument.load(pdfBytes, { password } as any);
-    } catch (e) {
-      return { success: false, error: '密码错误或PDF文件损坏，请重试' };
-    }
-
-    doc.setTitle('');
-    doc.setAuthor('');
-    doc.setSubject('');
-    doc.setKeywords([]);
-    doc.setProducer('pdf-lib');
-    doc.setCreator('pdf-lib');
-
-    const resultBytes = await doc.save({ useObjectStreams: true });
-    const blob = new Blob([resultBytes], { type: 'application/pdf' });
-    const downloadUrl = downloadBlob(blob, 'decrypted.pdf');
-
-    return {
-      success: true,
-      data: {
-        状态: '已解密',
-        原始大小: `${(file.size / 1024).toFixed(1)} KB`,
-        提示: '解密后请保存文件，原加密文件不会自动删除',
-      },
-      downloadUrl,
-      filename: 'decrypted.pdf',
-    };
-  } catch (e) { return { success: false, error: `PDF解密失败: ${(e as Error).message}` }; }
-}
-
-export async function pdfPermissions(input: Record<string, unknown>): Promise<ToolOutput> {
-  try {
-    const file = input.file as File;
-    const password = (input.password as string) || '';
-    const allowPrint = input.allowPrint !== false;
-    const allowCopy = input.allowCopy !== false;
-    const allowModify = input.allowModify !== false;
-    const allowAnnotate = input.allowAnnotate !== false;
-
-    if (!file) return { success: false, error: '请选择PDF文件' };
-    if (!password || password.length < 4) return { success: false, error: '请设置权限密码（至少4位）' };
-
-    const pdfBytes = await fileToUint8Array(file);
-    const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-
-    const resultBytes = await (doc as any).save({
-      encrypt: {
-        userPassword: password,
-        ownerPassword: password + '_admin',
-        permissions: {
-          printing: allowPrint ? 'highResolution' : 'none',
-          modifying: allowModify,
-          copying: allowCopy,
-          annotating: allowAnnotate,
-          fillingForms: allowModify,
-          contentAccessibility: allowCopy,
-          documentAssembly: allowModify,
-        },
-      },
-    });
-    const blob = new Blob([resultBytes], { type: 'application/pdf' });
-    const downloadUrl = downloadBlob(blob, 'protected.pdf');
-
-    const perms: string[] = [];
-    if (allowPrint) perms.push('允许打印');
-    else perms.push('禁止打印');
-    if (allowCopy) perms.push('允许复制');
-    else perms.push('禁止复制');
-    if (allowModify) perms.push('允许修改');
-    else perms.push('禁止修改');
-    if (allowAnnotate) perms.push('允许批注');
-    else perms.push('禁止批注');
-
-    return {
-      success: true,
-      data: {
-        权限密码: password,
-        权限设置: perms.join('、'),
-        提示: '请妥善保管密码，忘记后无法恢复修改权限',
-      },
-      downloadUrl,
-      filename: 'protected.pdf',
-    };
-  } catch (e) { return { success: false, error: `权限设置失败: ${(e as Error).message}` }; }
-}
-
 export async function pdfToWord(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const file = input.file as File;
@@ -447,4 +254,151 @@ export async function pdfToWord(input: Record<string, unknown>): Promise<ToolOut
       filename: 'extracted.docx',
     };
   } catch (e) { return { success: false, error: `PDF提取失败: ${(e as Error).message}` }; }
+}
+
+export async function pdfEncryptNew(input: Record<string, unknown>): Promise<ToolOutput> {
+  try {
+    const file = input.file as File;
+    const password = (input.password as string) || '';
+    const ownerPassword = (input.ownerPassword as string) || password;
+    const algorithm = (input.algorithm as 'AES-256' | 'RC4') || 'AES-256';
+    const allowPrint = input.allowPrint !== false;
+    const allowCopy = input.allowCopy !== false;
+    const allowModify = input.allowModify !== false;
+    const allowAnnotate = input.allowAnnotate !== false;
+
+    if (!file) return { success: false, error: '请选择PDF文件' };
+    if (!password) return { success: false, error: '请输入密码' };
+
+    const pdfBytes = await fileToUint8Array(file);
+    const encryptedBytes = await encryptPDF(pdfBytes, password, {
+      ownerPassword,
+      algorithm,
+      allowPrinting: allowPrint,
+      allowCopying: allowCopy,
+      allowModifying: allowModify,
+      allowAnnotating: allowAnnotate,
+    });
+
+    const blob = new Blob([encryptedBytes], { type: 'application/pdf' });
+    const downloadUrl = downloadBlob(blob, 'encrypted.pdf');
+    const originalSize = file.size;
+    const newSize = blob.size;
+
+    return {
+      success: true,
+      data: {
+        加密算法: algorithm,
+        密码: '***已设置***',
+        原文件大小: `${(originalSize / 1024).toFixed(1)} KB`,
+        加密后大小: `${(newSize / 1024).toFixed(1)} KB`,
+        打印权限: allowPrint ? '允许' : '禁止',
+        复制权限: allowCopy ? '允许' : '禁止',
+        修改权限: allowModify ? '允许' : '禁止',
+        注释权限: allowAnnotate ? '允许' : '禁止',
+      },
+      downloadUrl,
+      filename: 'encrypted.pdf',
+    };
+  } catch (e) { return { success: false, error: `PDF加密失败: ${(e as Error).message}` }; }
+}
+
+export async function pdfDecryptNew(input: Record<string, unknown>): Promise<ToolOutput> {
+  try {
+    const file = input.file as File;
+    const password = (input.password as string) || '';
+
+    if (!file) return { success: false, error: '请选择PDF文件' };
+    if (!password) return { success: false, error: '请输入密码' };
+
+    const pdfBytes = await fileToUint8Array(file);
+    const decryptedBytes = await decryptPDF(pdfBytes, password);
+
+    const blob = new Blob([decryptedBytes], { type: 'application/pdf' });
+    const downloadUrl = downloadBlob(blob, 'decrypted.pdf');
+    const originalSize = file.size;
+    const newSize = blob.size;
+
+    return {
+      success: true,
+      data: {
+        原文件大小: `${(originalSize / 1024).toFixed(1)} KB`,
+        解密后大小: `${(newSize / 1024).toFixed(1)} KB`,
+        提示: 'PDF已成功解密，移除所有密码保护',
+      },
+      downloadUrl,
+      filename: 'decrypted.pdf',
+    };
+  } catch (e) { return { success: false, error: `PDF解密失败: ${(e as Error).message}` }; }
+}
+
+export async function pdfPermissionsNew(input: Record<string, unknown>): Promise<ToolOutput> {
+  try {
+    const file = input.file as File;
+    const password = (input.password as string) || 'permissions';
+    const allowPrint = input.allowPrint !== false;
+    const allowCopy = input.allowCopy !== false;
+    const allowModify = input.allowModify !== false;
+    const allowAnnotate = input.allowAnnotate !== false;
+    const allowFillForms = input.allowFillForms !== false;
+    const allowExtract = input.allowExtract !== false;
+    const allowAssembly = input.allowAssembly !== false;
+    const allowHighQualityPrint = input.allowHighQualityPrint !== false;
+
+    if (!file) return { success: false, error: '请选择PDF文件' };
+
+    const pdfBytes = await fileToUint8Array(file);
+    const permissionBytes = await encryptPDF(pdfBytes, password, {
+      allowPrinting: allowPrint,
+      allowCopying: allowCopy,
+      allowModifying: allowModify,
+      allowAnnotating: allowAnnotate,
+      allowFillingForms: allowFillForms,
+      allowExtraction: allowExtract,
+      allowAssembly: allowAssembly,
+      allowHighQualityPrint: allowHighQualityPrint,
+    });
+
+    const blob = new Blob([permissionBytes], { type: 'application/pdf' });
+    const downloadUrl = downloadBlob(blob, 'permissions.pdf');
+
+    return {
+      success: true,
+      data: {
+        打印权限: allowPrint ? '允许' : '禁止',
+        复制权限: allowCopy ? '允许' : '禁止',
+        修改权限: allowModify ? '允许' : '禁止',
+        注释权限: allowAnnotate ? '允许' : '禁止',
+        填写表单: allowFillForms ? '允许' : '禁止',
+        内容提取: allowExtract ? '允许' : '禁止',
+        页面组装: allowAssembly ? '允许' : '禁止',
+        高质量打印: allowHighQualityPrint ? '允许' : '禁止',
+        提示: '权限已通过加密方式写入PDF，打开时需输入密码',
+      },
+      downloadUrl,
+      filename: 'permissions.pdf',
+    };
+  } catch (e) { return { success: false, error: `PDF权限设置失败: ${(e as Error).message}` }; }
+}
+
+export async function pdfToolbox(input: Record<string, unknown>): Promise<ToolOutput> {
+  const mode = (input.mode as string) || '';
+  switch (mode) {
+    case 'split':
+      return pdfSplit(input);
+    case 'sign':
+      return pdfSign(input);
+    case 'compress':
+      return pdfCompress(input);
+    case 'to-word':
+      return pdfToWord(input);
+    case 'encrypt':
+      return pdfEncryptNew(input);
+    case 'decrypt':
+      return pdfDecryptNew(input);
+    case 'permissions':
+      return pdfPermissionsNew(input);
+    default:
+      return { success: false, error: `未知的PDF功能模式: ${mode}，支持的模式: split, sign, compress, to-word, encrypt, decrypt, permissions` };
+  }
 }
