@@ -96,7 +96,9 @@ async function replyMessage(msgId: string, reply: Reply): Promise<boolean> {
 
 export default function Community() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [nickname, setNickname] = useState(() => safeStorage.getJSON<string>('toolbox_community_nickname', '') || genNickname());
   const [content, setContent] = useState('');
   const [nickEditing, setNickEditing] = useState(false);
@@ -106,16 +108,16 @@ export default function Community() {
   const [showSuccess, setShowSuccess] = useState(false);
   const msgListRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = useCallback(async () => {
-    setLoading(true);
+  const loadMessages = useCallback(async (showLoading = false) => {
+    if (showLoading) setInitialLoading(true);
     const msgs = await fetchMessages();
     setMessages(msgs);
-    setLoading(false);
+    setInitialLoading(false);
   }, []);
 
   useEffect(() => {
-    loadMessages();
-    const interval = setInterval(loadMessages, 30000);
+    loadMessages(true);
+    const interval = setInterval(() => loadMessages(), 30000);
     return () => clearInterval(interval);
   }, [loadMessages]);
 
@@ -128,6 +130,10 @@ export default function Community() {
     const trimmed = content.trim();
     if (!trimmed) return;
     if (trimmed.length > 500) return;
+    if (sending) return;
+
+    setSending(true);
+    setSendError('');
 
     const msg: Message = {
       id: crypto.randomUUID(),
@@ -145,7 +151,10 @@ export default function Community() {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
       loadMessages();
+    } else {
+      setSendError('发送失败，可能是数据库还未初始化，请检查 D1 控制台是否已运行建表 SQL');
     }
+    setSending(false);
   };
 
   const handleLike = async (msgId: string) => {
@@ -280,7 +289,7 @@ export default function Community() {
             </span>
             <button
               onClick={handleSend}
-              disabled={!content.trim()}
+              disabled={!content.trim() || sending}
               className="p-2 rounded-lg bg-accent text-black disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/90 transition-all active:scale-95"
             >
               <SendIcon className="w-4 h-4" />
@@ -290,17 +299,20 @@ export default function Community() {
         {showSuccess && (
           <div className="text-center text-accent text-sm animate-fade-in">✨ 发送成功！</div>
         )}
+        {sendError && (
+          <div className="text-center text-red-400 text-sm">{sendError}</div>
+        )}
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
           <MessageCircleIcon className="w-4 h-4" />
           <span>
-            {loading ? '加载中...' : `共 ${messages.length} 条留言`}
+            {initialLoading ? '加载中...' : `共 ${messages.length} 条留言`}
           </span>
         </div>
 
-        {loading ? (
+        {initialLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-card border border-white/5 rounded-2xl p-4 animate-pulse">
