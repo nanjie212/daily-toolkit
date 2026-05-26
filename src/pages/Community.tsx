@@ -190,12 +190,7 @@ export default function Community() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  // 移除 Enter 发送功能，防止打字时误触
 
   const sorted = [...messages].sort((a, b) => {
     if (sortOrder === 'hottest') return (b.likes || 0) - (a.likes || 0) || b.timestamp - a.timestamp;
@@ -278,8 +273,7 @@ export default function Community() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value.slice(0, 500))}
-            onKeyDown={handleKeyDown}
-            placeholder="写下你想说的话...（按 Enter 发送，Shift+Enter 换行）"
+            placeholder="写下你想说的话...（点击发送按钮发布）"
             rows={3}
             className="w-full px-4 py-3 bg-surface border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent/50 resize-none text-sm"
           />
