@@ -19,6 +19,7 @@ interface Message {
   replies: Reply[];
 }
 
+const API_BASE = '/api/messages';
 const randomNicks = ['快乐的小鸟', '阳光下的猫', '随风而行', '星空漫步者', '午后红茶', '薄荷糖', '蔚蓝海岸', '竹林听雨', '晨曦微露', '北方的狼', '小鱼儿', '追风少年'];
 
 function genNickname(): string {
@@ -35,28 +36,62 @@ function formatTime(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function getLocalMessages(): Message[] {
+async function fetchMessages(): Promise<Message[]> {
   try {
-    return JSON.parse(localStorage.getItem('toolbox_community_messages') || '[]');
+    const res = await fetch(API_BASE);
+    if (!res.ok) return [];
+    return await res.json();
   } catch {
     return [];
   }
 }
 
-function saveLocalMessages(msgs: Message[]) {
-  localStorage.setItem('toolbox_community_messages', JSON.stringify(msgs));
-}
-
-function getLocalReplies(): Record<string, Reply[]> {
+async function postMessage(msg: Message): Promise<boolean> {
   try {
-    return JSON.parse(localStorage.getItem('toolbox_community_replies') || '{}');
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(msg),
+    });
+    return res.ok;
   } catch {
-    return {};
+    return false;
   }
 }
 
-function saveLocalReplies(replies: Record<string, Reply[]>) {
-  localStorage.setItem('toolbox_community_replies', JSON.stringify(replies));
+async function deleteMessage(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}?id=${id}`, { method: 'DELETE' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function likeMessage(id: string, nickname: string, liked: boolean): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: liked ? 'unlike' : 'like', nickname }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function replyMessage(msgId: string, reply: Reply): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}?id=${msgId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reply', ...reply }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export default function Community() {
@@ -73,19 +108,9 @@ export default function Community() {
 
   const loadMessages = useCallback(async () => {
     setLoading(true);
-    try {
-      const msgs = getLocalMessages();
-      const replies = getLocalReplies();
-      const enriched = msgs.map((msg) => ({
-        ...msg,
-        replies: replies[msg.id] || [],
-      }));
-      setMessages(enriched);
-    } catch {
-      setMessages([]);
-    } finally {
-      setLoading(false);
-    }
+    const msgs = await fetchMessages();
+    setMessages(msgs);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -114,40 +139,27 @@ export default function Community() {
       replies: [],
     };
 
-    const msgs = getLocalMessages();
-    msgs.unshift(msg);
-    saveLocalMessages(msgs);
-
-    setContent('');
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
-    loadMessages();
+    const ok = await postMessage(msg);
+    if (ok) {
+      setContent('');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+      loadMessages();
+    }
   };
 
   const handleLike = async (msgId: string) => {
-    const msgs = getLocalMessages();
-    const msg = msgs.find((m) => m.id === msgId);
+    const msg = messages.find((m) => m.id === msgId);
     if (!msg) return;
-
     const currentNick = nickname || '匿名用户';
     const alreadyLiked = (msg.liked_by || []).includes(currentNick);
-    if (alreadyLiked) {
-      msg.liked_by = (msg.liked_by || []).filter((n) => n !== currentNick);
-      msg.likes = Math.max(0, (msg.likes || 0) - 1);
-    } else {
-      if (!msg.liked_by) msg.liked_by = [];
-      msg.liked_by.push(currentNick);
-      msg.likes = (msg.likes || 0) + 1;
-    }
-
-    saveLocalMessages(msgs);
-    loadMessages();
+    const ok = await likeMessage(msgId, currentNick, alreadyLiked);
+    if (ok) loadMessages();
   };
 
-  const handleDelete = (msgId: string) => {
-    const msgs = getLocalMessages().filter((m) => m.id !== msgId);
-    saveLocalMessages(msgs);
-    loadMessages();
+  const handleDelete = async (msgId: string) => {
+    const ok = await deleteMessage(msgId);
+    if (ok) loadMessages();
   };
 
   const handleReply = async (msgId: string) => {
@@ -161,14 +173,12 @@ export default function Community() {
       timestamp: Date.now(),
     };
 
-    const replies = getLocalReplies();
-    if (!replies[msgId]) replies[msgId] = [];
-    replies[msgId].push(reply);
-    saveLocalReplies(replies);
-
-    setReplyTo(null);
-    setReplyContent('');
-    loadMessages();
+    const ok = await replyMessage(msgId, reply);
+    if (ok) {
+      setReplyTo(null);
+      setReplyContent('');
+      loadMessages();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -209,7 +219,7 @@ export default function Community() {
           </button>
           <div>
             <h1 className="text-3xl font-heading font-bold text-white mb-1">社区留言板</h1>
-            <p className="text-gray-400 text-sm">留言仅保存在本地，刷新页面不会丢失</p>
+            <p className="text-gray-400 text-sm">所有设备共享留言，数据存储在云端</p>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-surface rounded-xl p-1">
