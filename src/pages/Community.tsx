@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon, ArrowLeftIcon } from 'lucide-react';
 import { safeStorage } from '@/lib/safeStorage';
-import { fetchMessages, addMessage, toggleLike, addReply, isNicknameLiked, isConfigured } from '@/lib/supabase';
 
 interface Reply {
   id: string;
@@ -36,6 +35,30 @@ function formatTime(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function getLocalMessages(): Message[] {
+  try {
+    return JSON.parse(localStorage.getItem('toolbox_community_messages') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalMessages(msgs: Message[]) {
+  localStorage.setItem('toolbox_community_messages', JSON.stringify(msgs));
+}
+
+function getLocalReplies(): Record<string, Reply[]> {
+  try {
+    return JSON.parse(localStorage.getItem('toolbox_community_replies') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalReplies(replies: Record<string, Reply[]>) {
+  localStorage.setItem('toolbox_community_replies', JSON.stringify(replies));
+}
+
 export default function Community() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +74,11 @@ export default function Community() {
   const loadMessages = useCallback(async () => {
     setLoading(true);
     try {
-      const msgs = await fetchMessages() as Message[];
-      const enriched = await Promise.all(msgs.map(async (msg) => {
-        if (!msg.replies) {
-          const { fetchReplies } = await import('@/lib/supabase');
-          msg.replies = await fetchReplies(msg.id) as Reply[];
-        }
-        return msg;
+      const msgs = getLocalMessages();
+      const replies = getLocalReplies();
+      const enriched = msgs.map((msg) => ({
+        ...msg,
+        replies: replies[msg.id] || [],
       }));
       setMessages(enriched);
     } catch {
@@ -83,7 +104,20 @@ export default function Community() {
     if (!trimmed) return;
     if (trimmed.length > 500) return;
 
-    await addMessage(nickname || '匿名用户', trimmed);
+    const msg: Message = {
+      id: crypto.randomUUID(),
+      nickname: nickname || '匿名用户',
+      content: trimmed,
+      timestamp: Date.now(),
+      likes: 0,
+      liked_by: [],
+      replies: [],
+    };
+
+    const msgs = getLocalMessages();
+    msgs.unshift(msg);
+    saveLocalMessages(msgs);
+
     setContent('');
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 2000);
@@ -91,21 +125,47 @@ export default function Community() {
   };
 
   const handleLike = async (msgId: string) => {
-    await toggleLike(msgId);
+    const msgs = getLocalMessages();
+    const msg = msgs.find((m) => m.id === msgId);
+    if (!msg) return;
+
+    const currentNick = nickname || '匿名用户';
+    const alreadyLiked = (msg.liked_by || []).includes(currentNick);
+    if (alreadyLiked) {
+      msg.liked_by = (msg.liked_by || []).filter((n) => n !== currentNick);
+      msg.likes = Math.max(0, (msg.likes || 0) - 1);
+    } else {
+      if (!msg.liked_by) msg.liked_by = [];
+      msg.liked_by.push(currentNick);
+      msg.likes = (msg.likes || 0) + 1;
+    }
+
+    saveLocalMessages(msgs);
     loadMessages();
   };
 
   const handleDelete = (msgId: string) => {
-    if (isConfigured) return;
-    setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    const local = safeStorage.getJSON<Message[]>('toolbox_community_messages', []);
-    safeStorage.setJSON('toolbox_community_messages', local.filter((m) => m.id !== msgId));
+    const msgs = getLocalMessages().filter((m) => m.id !== msgId);
+    saveLocalMessages(msgs);
+    loadMessages();
   };
 
   const handleReply = async (msgId: string) => {
     const trimmed = replyContent.trim();
     if (!trimmed || trimmed.length > 300) return;
-    await addReply(msgId, nickname || '匿名用户', trimmed);
+
+    const reply: Reply = {
+      id: crypto.randomUUID(),
+      nickname: nickname || '匿名用户',
+      content: trimmed,
+      timestamp: Date.now(),
+    };
+
+    const replies = getLocalReplies();
+    if (!replies[msgId]) replies[msgId] = [];
+    replies[msgId].push(reply);
+    saveLocalReplies(replies);
+
     setReplyTo(null);
     setReplyContent('');
     loadMessages();
@@ -131,6 +191,11 @@ export default function Community() {
     return nickColors[Math.abs(hash) % nickColors.length];
   };
 
+  const isLiked = (msg: Message) => {
+    const currentNick = nickname || '匿名用户';
+    return (msg.liked_by || []).includes(currentNick);
+  };
+
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -144,9 +209,7 @@ export default function Community() {
           </button>
           <div>
             <h1 className="text-3xl font-heading font-bold text-white mb-1">社区留言板</h1>
-            <p className="text-gray-400 text-sm">
-              {isConfigured ? '留言已同步到云端，所有用户可见' : '留言仅保存在本地（配置云存储后可全网可见）'}
-            </p>
+            <p className="text-gray-400 text-sm">留言仅保存在本地，刷新页面不会丢失</p>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-surface rounded-xl p-1">
@@ -224,7 +287,6 @@ export default function Community() {
           <MessageCircleIcon className="w-4 h-4" />
           <span>
             {loading ? '加载中...' : `共 ${messages.length} 条留言`}
-            {isConfigured && <span className="text-[10px] text-accent/60 ml-2">· 云端同步中</span>}
           </span>
         </div>
 
@@ -245,7 +307,7 @@ export default function Community() {
         ) : sorted.length > 0 ? (
           <div ref={msgListRef} className="space-y-3">
             {sorted.map((msg) => {
-              const liked = isNicknameLiked(msg);
+              const liked = isLiked(msg);
               return (
                 <div key={msg.id} className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10 group">
                   <div className="flex items-start justify-between mb-2">
@@ -258,15 +320,13 @@ export default function Community() {
                       </span>
                       <span className="text-xs text-gray-600">{formatTime(msg.timestamp)}</span>
                     </div>
-                    {!isConfigured && (
-                      <button
-                        onClick={() => handleDelete(msg.id)}
-                        className="p-1 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                        title="删除"
-                      >
-                        <TrashIcon className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleDelete(msg.id)}
+                      className="p-1 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      title="删除"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   <p className="text-gray-200 text-sm whitespace-pre-wrap break-words mb-3">{msg.content}</p>

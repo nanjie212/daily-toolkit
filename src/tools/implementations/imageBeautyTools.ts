@@ -1,33 +1,5 @@
 import type { ToolOutput } from '@/types';
 
-export async function imageToBase64(input: Record<string, unknown>): Promise<ToolOutput> {
-  try {
-    const file = input.file as File;
-    if (!file) return { success: false, error: '请上传图片' };
-    const reader = new FileReader();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    const base64 = dataUrl.split(',')[1];
-    const preview = base64.length > 150 ? base64.substring(0, 150) + '...' : base64;
-    return {
-      success: true,
-      data: {
-        文件名: file.name,
-        大小: `${(file.size / 1024).toFixed(1)} KB`,
-        格式: `data:${file.type};base64`,
-        Base64长度: `${base64.length} 字符`,
-        Base64预览: preview,
-        提示: '已生成完整Base64代码，可点击复制后用于HTML的img标签src属性',
-      },
-    };
-  } catch (e) {
-    return { success: false, error: `转换失败: ${(e as Error).message}` };
-  }
-}
-
 export async function imageGrayscale(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const file = input.file as File;
