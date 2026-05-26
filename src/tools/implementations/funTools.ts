@@ -251,17 +251,16 @@ export async function kinshipCalculator(input: Record<string, unknown>): Promise
           ? Object.keys(map).map((k) => `${k}→${map[k]}`).join('、')
           : '暂无可用关系';
 
-        const availableRelatives = map ? Object.keys(map).join('、') : '—';
+        const joker = randomKinshipJoke(current, part);
 
         return {
           success: true,
           data: {
             关系路径: path,
-            计算结果: `在"${current}"处没有找到"${part}"的关系`,
-            建议: `从"${current}"可查找的关系有：${suggestions}`,
+            计算结果: joker,
+            建议: map ? `从"${current}"可继续的关系有：${Object.keys(map).join('、')}` : '暂无可用关系',
             当前节点: current,
-            可继续的关系: availableRelatives,
-            提示: '试试选择上面列出的可用关系继续',
+            提示: '选一个上面列出的关系继续试试',
           },
         };
       }
@@ -300,6 +299,44 @@ function classifyRelation(start: string, end: string): string {
 
 function buildPathDisplay(parts: string[]): string {
   return parts.join(' → ');
+}
+
+const kinshipJokes = [
+  (c: string, p: string) => `从"${c}"到"${p}"？直接叫名字就好啦，反正也不常见`,
+  (c: string, p: string) => `"${c}"没有"${p}"？交个朋友吧，亲戚不亲戚的随缘`,
+  (c: string, p: string) => `"${c}的${p}"这个关系有点绕，微信备注一下比较靠谱`,
+  (c: string, p: string) => `咱家${c}族还没发展到"${p}"这么远的关系`,
+  (c: string, p: string) => `建议直接问妈妈"${c}的${p}"怎么叫，她肯定知道`,
+  (c: string, p: string) => `"${c}的${p}"辈分太乱，建议各论各的`,
+  (c: string, p: string) => `这个问题把族谱都难倒了：${c} → ${p}`,
+  (c: string, p: string) => `连算法都算不出来的"${c}的${p}"，建议请客吃饭搞定`,
+  (c: string, p: string) => `"${c}的${p}"这个亲戚可能住在"朋友圈"里`,
+  (c: string, p: string) => `"${c}的${p}"关系太远，一声'嘿'就够了`,
+  (c: string, p: string) => `科学家暂时还无法计算从"${c}"到"${p}"的关系`,
+  (c: string, p: string) => `"${c}的${p}"这个称呼还没被发明出来`,
+  (c: string, p: string) => `"${c}的${p}"比双十一的满减规则还复杂`,
+  (c: string, p: string) => `从"${c}"到"${p}"？叫大哥准没错，万能称呼`,
+  (c: string, p: string) => `"${c}的${p}" → 见着面了微笑点头即可`,
+  (c: string, p: string) => `这就是传说中的"${c}的${p}？八竿子打不着"`,
+  (c: string, p: string) => `系统提示：从"${c}"找"${p}"关系链过长，建议充值VIP解锁`,
+  (c: string, p: string) => `"${c}的${p}"可能需要先加个微信再论亲戚`,
+  (c: string, p: string) => `从"${c}"到"${p}"？叫叔叔阿姨永远不出错`,
+  (c: string, p: string) => `别算了，"${c}的${p}"见面直接说'新年好'最安全`,
+  (c: string, p: string) => `"${c}的${p}"这个关系大概存在于平行宇宙`,
+  (c: string, p: string) => `从"${c}"找到"${p}"？建议双方互相介绍一下`,
+  (c: string, p: string) => `"${c}的${p}"已经超出了本计算器的认知范围`,
+  (c: string, p: string) => `从"${c}"到"${p}"？叫什么都行，一起吃过饭就是好亲戚`,
+  (c: string, p: string) => `"${c}的${p}"这个关系链需要额外付版权费`,
+  (c: string, p: string) => `不如直接问"${c}"：'我应该怎么称呼${p}？'`,
+  (c: string, p: string) => `"${c}的${p}"关系太复杂，喝顿酒就熟了`,
+  (c: string, p: string) => `"${c}的${p}"可能需要查一下家谱才知道怎么叫`,
+  (c: string, p: string) => `从"${c}"到"${p}"？建议使用通用称呼：这位亲戚`,
+  (c: string, p: string) => `连AI都算不明白"${c}的${p}"，你俩就随缘吧`,
+];
+
+function randomKinshipJoke(current: string, part: string): string {
+  const idx = Math.floor(Math.random() * kinshipJokes.length);
+  return kinshipJokes[idx](current, part);
 }
 
 export async function idiomChain(input: Record<string, unknown>): Promise<ToolOutput> {
