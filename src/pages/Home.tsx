@@ -6,10 +6,11 @@ import {
   ClockIcon,
   PinIcon,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
 import type { ToolRecord } from '@/types';
+import { matchPinyin } from '@/lib/pinyinSearch';
 import ThemeToggle from '@/components/ThemeToggle';
 import ToolGrid from '@/components/ToolGrid';
 import OnboardingModal from '@/components/OnboardingModal';
@@ -18,6 +19,16 @@ import DonateSection from '@/components/DonateSection';
 export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, pinnedToolIds, searchQuery } = useStore();
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-done'));
+  const [scrolledLeft, setScrolledLeft] = useState(false);
+  const [scrolledRight, setScrolledRight] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setScrolledLeft(el.scrollLeft > 0);
+    setScrolledRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
+  };
 
   useEffect(() => {
     if (selectedCategory || searchQuery) {
@@ -29,11 +40,17 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll);
+    return () => el.removeEventListener('scroll', checkScroll);
+  }, []);
+
   const filteredTools = tools.filter((tool) => {
     const matchCategory = !selectedCategory || tool.category === selectedCategory;
-    const matchSearch = !searchQuery ||
-      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = !searchQuery || matchPinyin(`${tool.name} ${tool.description}`, searchQuery);
     return matchCategory && matchSearch;
   });
 
@@ -84,35 +101,42 @@ export default function Home() {
           </div>
 
           {/* 分类标签 - 横向滚动 */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            <button
-              onClick={() => useStore.getState().setSelectedCategory(null)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                !selectedCategory
-                  ? 'bg-accent/20 text-accent border border-accent/30'
-                  : 'bg-card text-gray-400 border border-white/5 hover:text-white'
-              }`}
+          <div className="relative">
+            <div
+              ref={scrollRef}
+              className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
             >
-              <LayoutGridIcon className="w-4 h-4" />
-              全部
-            </button>
-            {categories.map((cat) => {
-              const catTools = tools.filter(t => t.category === cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => useStore.getState().setSelectedCategory(cat.id)}
-                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    selectedCategory === cat.id
-                      ? 'bg-accent/20 text-accent border border-accent/30'
-                      : 'bg-card text-gray-400 border border-white/5 hover:text-white'
-                  }`}
-                >
-                  {cat.name}
-                  <span className="text-gray-500">({catTools.length})</span>
-                </button>
-              );
-            })}
+              <button
+                onClick={() => useStore.getState().setSelectedCategory(null)}
+                className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  !selectedCategory
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : 'bg-card text-gray-400 border border-white/5 hover:text-white'
+                }`}
+              >
+                <LayoutGridIcon className="w-4 h-4" />
+                全部
+              </button>
+              {categories.map((cat) => {
+                const catTools = tools.filter(t => t.category === cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => useStore.getState().setSelectedCategory(cat.id)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      selectedCategory === cat.id
+                        ? 'bg-accent/20 text-accent border border-accent/30'
+                        : 'bg-card text-gray-400 border border-white/5 hover:text-white'
+                    }`}
+                  >
+                    {cat.name}
+                    <span className="text-gray-500">({catTools.length})</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className={`absolute right-0 top-0 bottom-1 w-10 bg-gradient-to-l from-bg to-transparent pointer-events-none transition-opacity duration-300 ${scrolledRight ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`absolute left-0 top-0 bottom-1 w-10 bg-gradient-to-r from-bg to-transparent pointer-events-none transition-opacity duration-300 ${scrolledLeft ? 'opacity-100' : 'opacity-0'}`} />
           </div>
         </div>
       </div>

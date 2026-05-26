@@ -5,6 +5,7 @@ import { useStore } from '@/store';
 import { executeTool } from '@/engine/ToolExecutor';
 import DynamicForm from '@/components/DynamicForm';
 import OutputPanel from '@/components/OutputPanel';
+import OutputModal from '@/components/OutputModal';
 import ToolFeedback from '@/components/ToolFeedback';
 import CalculatorUI from '@/components/CalculatorUI';
 import PomodoroTimerUI from '@/components/PomodoroTimerUI';
@@ -22,7 +23,9 @@ export default function ToolWorkspace() {
   const { tools, selectTool, setDetailOpen, updateRecentUse } = useStore();
   const [output, setOutput] = useState<ToolOutput | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showMobileOutput, setShowMobileOutput] = useState(false);
   const [kinshipPath, setKinshipPath] = useState('');
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   const tool = tools.find((t) => t.id === id);
 
@@ -266,6 +269,7 @@ export default function ToolWorkspace() {
     try {
       const result = await executeTool(tool.id, values);
       setOutput(result);
+      if (isMobile) setShowMobileOutput(true);
       updateRecentUse(tool.id);
     } catch {
       setOutput({ success: false, error: '执行出错' });
@@ -359,6 +363,13 @@ export default function ToolWorkspace() {
           <ToolFeedback toolId={tool.id} />
         </div>
       </div>
+
+      {showMobileOutput && output && (
+        <OutputModal
+          output={output}
+          onClose={() => setShowMobileOutput(false)}
+        />
+      )}
     </div>
   );
 }
