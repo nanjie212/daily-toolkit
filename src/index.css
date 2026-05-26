@@ -21,14 +21,14 @@ html {
 }
 
 html.light {
-  --bg: #f0f0f3;
+  --bg: #f2f2f5;
   --card: #ffffff;
-  --surface: #e8e8ed;
-  --text: #1c1c1e;
-  --text-secondary: #636366;
-  --border: #d1d1d6;
-  --accent: #0d9e6a;
-  --accent-secondary: #5a4fcf;
+  --surface: #ebebf0;
+  --text: #1d1d1f;
+  --text-secondary: #6b6b70;
+  --border: #c6c6cc;
+  --accent: #0071e3;
+  --accent-secondary: #5e5ce6;
 }
 
 html.light .text-white,
@@ -40,11 +40,11 @@ html.light h1, html.light h2, html.light h3, html.light h4 {
 }
 
 html.light .text-white\/70 {
-  opacity: 0.65;
+  opacity: 0.6;
 }
 
 html.light .text-white\/80 {
-  opacity: 0.78;
+  opacity: 0.75;
 }
 
 html.light .text-white\/90 {
@@ -57,10 +57,16 @@ html.light .border-white\/20 {
   border-color: var(--border) !important;
 }
 
-html.light .bg-white\/5,
-html.light .bg-white\/10,
-html.light .bg-white\/20 {
+html.light .bg-white\/5 {
   background-color: rgba(0,0,0,0.04) !important;
+}
+
+html.light .bg-white\/10 {
+  background-color: rgba(0,0,0,0.07) !important;
+}
+
+html.light .bg-white\/20 {
+  background-color: rgba(0,0,0,0.10) !important;
 }
 
 html.light .hover\:bg-white\/5:hover {
@@ -75,20 +81,16 @@ html.light .hover\:text-white:hover {
   color: var(--text) !important;
 }
 
-html.light .from-accent\/10 {
-  --tw-gradient-from: rgba(13, 158, 106, 0.1);
-}
-
 html.light .text-gray-200 {
   color: #2c2c2e !important;
 }
 
 html.light .text-gray-300 {
-  color: #3a3a3c !important;
+  color: #48484a !important;
 }
 
 html.light .text-gray-400 {
-  color: #636366 !important;
+  color: #6b6b70 !important;
 }
 
 html.light .text-gray-500 {
@@ -131,19 +133,19 @@ html.light select option {
 }
 
 html.light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 html.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 html.light .shadow-glow {
-  box-shadow: 0 0 30px rgba(13, 158, 106, 0.12);
+  box-shadow: 0 0 30px rgba(0, 113, 227, 0.1);
 }
 
 html.light .shadow-glow-lg {
-  box-shadow: 0 0 60px rgba(13, 158, 106, 0.08);
+  box-shadow: 0 0 60px rgba(0, 113, 227, 0.06);
 }
 
 * {
