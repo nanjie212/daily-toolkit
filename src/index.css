@@ -39,6 +39,18 @@ html.light h1, html.light h2, html.light h3, html.light h4 {
   color: var(--text) !important;
 }
 
+html.light .text-white\/70 {
+  opacity: 0.65;
+}
+
+html.light .text-white\/80 {
+  opacity: 0.78;
+}
+
+html.light .text-white\/90 {
+  opacity: 0.88;
+}
+
 html.light .border-white\/5,
 html.light .border-white\/10,
 html.light .border-white\/20 {
