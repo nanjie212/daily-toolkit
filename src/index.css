@@ -15,21 +15,20 @@
   --font-body: 'DM Sans', sans-serif;
 }
 
-/* 主题切换平滑过渡 */
+/* 主题切换平滑过渡 - 只在根元素和直接子元素上 */
 html {
-  transition: background-color 0.4s ease, color 0.4s ease;
-}
-
-html *,
-html *::before,
-html *::after {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  transition: background-color 0.35s ease;
 }
 
 html.light {
-  --bg: #f5f5f7;
-  --text: #1d1d1f;
-  --border: #e5e5ea;
+  --bg: #f0f0f3;
+  --card: #ffffff;
+  --surface: #e8e8ed;
+  --text: #1c1c1e;
+  --text-secondary: #636366;
+  --border: #d1d1d6;
+  --accent: #0d9e6a;
+  --accent-secondary: #5a4fcf;
 }
 
 html.light .text-white,
@@ -46,23 +45,15 @@ html.light .border-white\/20 {
 html.light .bg-white\/5,
 html.light .bg-white\/10,
 html.light .bg-white\/20 {
-  background-color: rgba(0,0,0,0.05) !important;
+  background-color: rgba(0,0,0,0.04) !important;
 }
 
 html.light .hover\:bg-white\/5:hover {
-  background-color: rgba(0,0,0,0.05) !important;
+  background-color: rgba(0,0,0,0.04) !important;
 }
 
 html.light .hover\:bg-white\/10:hover {
-  background-color: rgba(0,0,0,0.08) !important;
-}
-
-html.light .bg-surface {
-  background-color: #f0f0f2 !important;
-}
-
-html.light .bg-card {
-  background-color: #ffffff !important;
+  background-color: rgba(0,0,0,0.07) !important;
 }
 
 html.light .hover\:text-white:hover {
@@ -70,21 +61,27 @@ html.light .hover\:text-white:hover {
 }
 
 html.light .from-accent\/10 {
-  --tw-gradient-from: rgba(0, 122, 255, 0.08);
+  --tw-gradient-from: rgba(13, 158, 106, 0.1);
 }
 
 html.light .text-gray-200 {
-  color: #3a3a3c !important;
+  color: #2c2c2e !important;
 }
 
 html.light .text-gray-300 {
-  color: #48484a !important;
+  color: #3a3a3c !important;
 }
 
-html.light .text-gray-400,
-html.light .text-gray-500,
-html.light .text-gray-600 {
+html.light .text-gray-400 {
+  color: #636366 !important;
+}
+
+html.light .text-gray-500 {
   color: #8e8e93 !important;
+}
+
+html.light .text-gray-600 {
+  color: #aeaeb2 !important;
 }
 
 html.light button.text-gray-400:hover {
@@ -96,33 +93,42 @@ html.light .placeholder-gray-500::placeholder {
 }
 
 html.light .bg-glass {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(12px);
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-html.light .sidebar-tool-name {
-  color: var(--text);
-}
-
-html.light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-}
-
-html.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  border-color: var(--border) !important;
 }
 
 html.light input,
 html.light textarea,
 html.light select {
-  background: var(--surface);
+  background: #ffffff;
   color: var(--text);
-  border-color: rgba(0, 0, 0, 0.1);
+  border-color: var(--border);
 }
 
 html.light input[type="color"]::-webkit-color-swatch {
-  border: 2px solid rgba(0, 0, 0, 0.1);
+  border: 2px solid var(--border);
+}
+
+html.light select option {
+  background: #ffffff;
+  color: var(--text);
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+html.light .shadow-glow {
+  box-shadow: 0 0 30px rgba(13, 158, 106, 0.12);
+}
+
+html.light .shadow-glow-lg {
+  box-shadow: 0 0 60px rgba(13, 158, 106, 0.08);
 }
 
 * {
