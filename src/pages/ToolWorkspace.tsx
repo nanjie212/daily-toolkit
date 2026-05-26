@@ -243,12 +243,9 @@ export default function ToolWorkspace() {
           <h1 className="text-2xl font-heading font-bold text-white">{tool.name}</h1>
         </div>
         <KinshipCalculator
-          onPathChange={(path) => {
-            setKinshipPath(path);
-          }}
-          onExecute={() => {
-            if (!kinshipPath) return;
-            executeTool(tool.id, { path: kinshipPath }).then((result) => {
+          onExecute={(path: string) => {
+            if (!path) return;
+            executeTool(tool.id, { path }).then((result) => {
               setOutput(result);
               updateRecentUse(tool.id);
             }).catch(() => {
