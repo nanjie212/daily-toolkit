@@ -191,6 +191,7 @@ export default function Community() {
   };
 
   // 移除 Enter 发送功能，防止打字时误触
+  // 注意：昵称输入框和回复输入框的 Enter 发送也一并移除了
 
   const sorted = [...messages].sort((a, b) => {
     if (sortOrder === 'hottest') return (b.likes || 0) - (a.likes || 0) || b.timestamp - a.timestamp;
@@ -377,7 +378,6 @@ export default function Community() {
                         <input
                           value={replyContent}
                           onChange={(e) => setReplyContent(e.target.value.slice(0, 300))}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(msg.id); } }}
                           placeholder="写下回复..."
                           className="flex-1 px-3 py-2 bg-surface border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent/50"
                           autoFocus

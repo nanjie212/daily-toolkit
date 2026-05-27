@@ -165,7 +165,7 @@ export default function ToolWorkspace() {
   }
 
   // AI抠图 - 使用增强版组件
-  if (tool.id === 'ai-background-remove') {
+  if (tool.id === 'ai-bg-remove') {
     return (
       <div className="min-h-full p-6 lg:p-8">
         <div className="flex items-center gap-4 mb-6">

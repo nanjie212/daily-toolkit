@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { HomeIcon, ImageIcon, MenuIcon, XIcon, SparklesIcon, MessageCircleIcon, StoreIcon, HeartIcon, DollarSignIcon, Gamepad2Icon } from 'lucide-react';
 
@@ -11,12 +11,22 @@ export default function MobileNav() {
   const currentCategory = searchParams.get('category');
   const isCommunity = location.pathname === '/community';
 
-  const msgCount = (() => {
-    try {
-      const msgs = JSON.parse(localStorage.getItem('toolbox_community_messages') || '[]');
-      return Array.isArray(msgs) ? msgs.length : 0;
-    } catch { return 0; }
-  })();
+  const [msgCount, setMsgCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/messages');
+        if (res.ok) {
+          const data = await res.json();
+          setMsgCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const tabs = [
     { icon: HomeIcon, label: '首页', path: '/', active: isHome && !currentCategory },

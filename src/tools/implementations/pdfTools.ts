@@ -1,5 +1,5 @@
 import type { ToolOutput } from '@/types';
-import { PDFDocument, StandardFonts, rgb, PDFName, PDFCheckBox } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
 import { decryptPDF } from '@pdfsmaller/pdf-decrypt';
