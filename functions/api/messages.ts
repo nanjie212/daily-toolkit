@@ -60,6 +60,7 @@ export async function onRequestGet(context: { request: Request; env: Env }): Pro
     const enriched = msgs.results.map((msg) => ({
       ...msg,
       liked_by: JSON.parse(msg.liked_by || '[]'),
+      encouraged_by: JSON.parse((msg as any).encouraged_by || '[]'),
       replies: replyMap[msg.id] || [],
     }));
 
@@ -133,25 +134,44 @@ export async function onRequestPut(context: { request: Request; env: Env }): Pro
       return json({ success: true });
     }
 
-    if (action === 'like' || action === 'unlike') {
-      const row = await env.DB.prepare('SELECT likes, liked_by FROM messages WHERE id = ?1').bind(id).first<{ likes: number; liked_by: string }>();
+    if (action === 'like' || action === 'unlike' || action === 'encourage' || action === 'unencourage') {
+      const isEncourage = action === 'encourage' || action === 'unencourage';
+      const countField = isEncourage ? 'encourages, encouraged_by' : 'likes, liked_by';
+      const row = await env.DB.prepare(`SELECT ${countField} FROM messages WHERE id = ?1`).bind(id).first<{ likes?: number; encourages?: number; liked_by?: string; encouraged_by?: string }>();
       if (!row) return json({ error: '留言不存在' }, 404);
 
       const currentNick = body.nickname as string;
-      const likedBy: string[] = JSON.parse(row.liked_by || '[]');
-
-      if (action === 'like') {
-        if (!likedBy.includes(currentNick)) {
-          likedBy.push(currentNick);
-          await env.DB.prepare('UPDATE messages SET likes = likes + 1, liked_by = ?1 WHERE id = ?2')
-            .bind(JSON.stringify(likedBy), id).run();
+      if (isEncourage) {
+        const encouragedBy: string[] = JSON.parse(row.encouraged_by || '[]');
+        if (action === 'encourage') {
+          if (!encouragedBy.includes(currentNick)) {
+            encouragedBy.push(currentNick);
+            await env.DB.prepare('UPDATE messages SET encourages = encourages + 1, encouraged_by = ?1 WHERE id = ?2')
+              .bind(JSON.stringify(encouragedBy), id).run();
+          }
+        } else {
+          const idx = encouragedBy.indexOf(currentNick);
+          if (idx !== -1) {
+            encouragedBy.splice(idx, 1);
+            await env.DB.prepare('UPDATE messages SET encourages = MAX(0, encourages - 1), encouraged_by = ?1 WHERE id = ?2')
+              .bind(JSON.stringify(encouragedBy), id).run();
+          }
         }
       } else {
-        const idx = likedBy.indexOf(currentNick);
-        if (idx !== -1) {
-          likedBy.splice(idx, 1);
-          await env.DB.prepare('UPDATE messages SET likes = MAX(0, likes - 1), liked_by = ?1 WHERE id = ?2')
-            .bind(JSON.stringify(likedBy), id).run();
+        const likedBy: string[] = JSON.parse(row.liked_by || '[]');
+        if (action === 'like') {
+          if (!likedBy.includes(currentNick)) {
+            likedBy.push(currentNick);
+            await env.DB.prepare('UPDATE messages SET likes = likes + 1, liked_by = ?1 WHERE id = ?2')
+              .bind(JSON.stringify(likedBy), id).run();
+          }
+        } else {
+          const idx = likedBy.indexOf(currentNick);
+          if (idx !== -1) {
+            likedBy.splice(idx, 1);
+            await env.DB.prepare('UPDATE messages SET likes = MAX(0, likes - 1), liked_by = ?1 WHERE id = ?2')
+              .bind(JSON.stringify(likedBy), id).run();
+          }
         }
       }
       return json({ success: true });

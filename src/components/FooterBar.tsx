@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/store';
 import ThemeToggle from '@/components/ThemeToggle';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export default function FooterBar() {
   const navigate = useNavigate();
@@ -21,6 +21,8 @@ export default function FooterBar() {
   const [weekMinutes, setWeekMinutes] = useState(0);
 
   const [msgCount, setMsgCount] = useState(0);
+  const [visitCount, setVisitCount] = useState<number | null>(null);
+  const countedRef = useRef(false);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -32,9 +34,26 @@ export default function FooterBar() {
         }
       } catch { /* ignore */ }
     };
+    const fetchVisitCount = async () => {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setVisitCount(data.total_visits);
+        }
+      } catch { /* ignore */ }
+    };
     fetchCount();
+    fetchVisitCount();
     const interval = setInterval(fetchCount, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  // 每次会话只计一次访问
+  useEffect(() => {
+    if (countedRef.current) return;
+    countedRef.current = true;
+    fetch('/api/stats', { method: 'POST' }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -149,6 +168,9 @@ export default function FooterBar() {
         <div className="text-center text-gray-600 text-[10px] space-y-1">
           <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 数据不上传服务器</p>
           <p>v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</p>
+            {visitCount !== null && (
+              <p className="text-gray-600 text-xs">👁️ 本站已被访问 {visitCount} 次</p>
+            )}
         </div>
       </div>
     </footer>

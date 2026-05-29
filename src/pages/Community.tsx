@@ -16,6 +16,8 @@ interface Message {
   timestamp: number;
   likes: number;
   liked_by: string[];
+  encourages: number;
+  encouraged_by: string[];
   replies: Reply[];
 }
 
@@ -74,6 +76,19 @@ async function likeMessage(id: string, nickname: string, liked: boolean): Promis
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: liked ? 'unlike' : 'like', nickname }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function encourageMessage(id: string, nickname: string, encouraged: boolean): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: encouraged ? 'unencourage' : 'encourage', nickname }),
     });
     return res.ok;
   } catch {
@@ -142,6 +157,8 @@ export default function Community() {
       timestamp: Date.now(),
       likes: 0,
       liked_by: [],
+      encourages: 0,
+      encouraged_by: [],
       replies: [],
     };
 
@@ -163,6 +180,15 @@ export default function Community() {
     const currentNick = nickname || '匿名用户';
     const alreadyLiked = (msg.liked_by || []).includes(currentNick);
     const ok = await likeMessage(msgId, currentNick, alreadyLiked);
+    if (ok) loadMessages();
+  };
+
+  const handleEncourage = async (msgId: string) => {
+    const msg = messages.find((m) => m.id === msgId);
+    if (!msg) return;
+    const currentNick = nickname || '匿名用户';
+    const already = (msg.encouraged_by || []).includes(currentNick);
+    const ok = await encourageMessage(msgId, currentNick, already);
     if (ok) loadMessages();
   };
 
@@ -209,6 +235,11 @@ export default function Community() {
   const isLiked = (msg: Message) => {
     const currentNick = nickname || '匿名用户';
     return (msg.liked_by || []).includes(currentNick);
+  };
+
+  const isEncouraged = (msg: Message) => {
+    const currentNick = nickname || '匿名用户';
+    return (msg.encouraged_by || []).includes(currentNick);
   };
 
   return (
@@ -325,6 +356,7 @@ export default function Community() {
           <div ref={msgListRef} className="space-y-3">
             {sorted.map((msg) => {
               const liked = isLiked(msg);
+              const encouraged = isEncouraged(msg);
               return (
                 <div key={msg.id} className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10 group">
                   <div className="flex items-start justify-between mb-2">
@@ -357,6 +389,15 @@ export default function Community() {
                     >
                       <HeartIcon className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
                       <span>{(msg.likes || 0) > 0 ? msg.likes : '赞'}</span>
+                    </button>
+                    <button
+                      onClick={() => handleEncourage(msg.id)}
+                      className={`flex items-center gap-1.5 text-xs transition-all active:scale-125 ${
+                        encouraged ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'
+                      }`}
+                    >
+                      <span className="text-base leading-none">{encouraged ? '🌟' : '⭐'}</span>
+                      <span>{(msg.encourages || 0) > 0 ? msg.encourages : '鼓励'}</span>
                     </button>
                     <button
                       onClick={() => {
