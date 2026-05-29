@@ -88,9 +88,16 @@ export async function executeTool(
   try {
     return await executor(input);
   } catch (e) {
+    const message = (e as Error).message;
+    if (message.includes('dynamically imported module') || message.includes('Loading chunk') || message.includes('import')) {
+      return {
+        success: false,
+        error: '模块加载失败，请刷新页面（或按 Ctrl+Shift+R 强制刷新）后再试',
+      };
+    }
     return {
       success: false,
-      error: `执行失败: ${(e as Error).message}`,
+      error: `执行失败: ${message}`,
     };
   }
 }
