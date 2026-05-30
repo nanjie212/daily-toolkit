@@ -7,6 +7,7 @@ import {
   PinIcon,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useStore } from '@/store';
 import { categories } from '@/tools/categories';
 import type { ToolRecord } from '@/types';
@@ -18,10 +19,12 @@ import DonateSection from '@/components/DonateSection';
 
 export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, pinnedToolIds, searchQuery } = useStore();
+  const location = useLocation();
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-done'));
   const [scrolledLeft, setScrolledLeft] = useState(false);
   const [scrolledRight, setScrolledRight] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const checkScroll = () => {
     const el = scrollRef.current;
@@ -48,9 +51,28 @@ export default function Home() {
     return () => el.removeEventListener('scroll', checkScroll);
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const catParam = params.get('category');
+    if (catParam) {
+      useStore.getState().setSelectedCategory(catParam);
+    }
+  }, [location.search]);
+
   const filteredTools = tools.filter((tool) => {
     const matchCategory = !selectedCategory || tool.category === selectedCategory;
-    const matchSearch = !searchQuery || matchPinyin(`${tool.name} ${tool.description}`, searchQuery);
+    const matchSearch = !searchQuery || matchPinyin(`${tool.name} ${tool.description} ${tool.id}`, searchQuery);
     return matchCategory && matchSearch;
   });
 
@@ -84,10 +106,11 @@ export default function Home() {
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
+              ref={searchRef}
               type="text"
               value={searchQuery}
               onChange={(e) => useStore.getState().setSearchQuery(e.target.value)}
-              placeholder="搜索工具..."
+              placeholder="搜索工具... (Ctrl+K)"
               className="w-full pl-10 pr-4 py-2 bg-card border border-white/5 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent/50 transition-all"
             />
             {searchQuery && (

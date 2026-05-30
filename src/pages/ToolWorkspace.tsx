@@ -32,7 +32,8 @@ export default function ToolWorkspace() {
   const hasAutoExecutedRef = useRef(false);
 
   useEffect(() => {
-    if (tool && !hasAutoExecutedRef.current) {
+    if (tool) {
+      hasAutoExecutedRef.current = false;
       const inputSchema = tool.inputSchema;
       const hasRequired = inputSchema.some(f => f.required);
       const hasNoInput = inputSchema.length === 0;

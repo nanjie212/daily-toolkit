@@ -23,6 +23,7 @@ export default function InteractiveImageEditor() {
   const [currentTool, setCurrentTool] = useState<ToolType>('none');
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [undoStack, setUndoStack] = useState<Annotation[][]>([]);
+  const [redoStack, setRedoStack] = useState<Annotation[][]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
   const [drawCurrent, setDrawCurrent] = useState({ x: 0, y: 0 });
@@ -43,6 +44,7 @@ export default function InteractiveImageEditor() {
         imageRef.current = img;
         setAnnotations([]);
         setUndoStack([]);
+        setRedoStack([]);
         setCurrentTool('arrow');
       };
       img.src = reader.result as string;
@@ -95,6 +97,7 @@ export default function InteractiveImageEditor() {
     setIsDrawing(false);
     if (currentTool !== 'crop' && currentTool !== 'text') {
       setUndoStack(prev => [...prev, annotations]);
+      setRedoStack([]);
       setAnnotations(prev => [...prev, {
         type: currentTool,
         startX: Math.min(drawStart.x, drawCurrent.x),
@@ -111,6 +114,7 @@ export default function InteractiveImageEditor() {
       const text = prompt('请输入标注文字：', '');
       if (!text) return;
       setUndoStack(prev => [...prev, annotations]);
+      setRedoStack([]);
       setAnnotations(prev => [...prev, {
         type: 'text',
         startX: drawStart.x,
@@ -175,7 +179,9 @@ export default function InteractiveImageEditor() {
       ctx.fillStyle = selectedColor;
       ctx.font = `${Math.max(14, lineWidth * 5)}px sans-serif`;
       ctx.textBaseline = 'bottom';
-      ctx.fillText('文字', end.x, end.y);
+      ctx.globalAlpha = 0.5;
+      ctx.fillText('T', end.x, end.y);
+      ctx.globalAlpha = 1;
     } else if (currentTool === 'mosaic') {
       const x = Math.min(start.x, end.x);
       const y = Math.min(start.y, end.y);
@@ -324,19 +330,23 @@ export default function InteractiveImageEditor() {
   const handleUndo = () => {
     if (undoStack.length === 0) return;
     const prev = undoStack[undoStack.length - 1];
-    setUndoStack(prev => prev.slice(0, -1));
+    setUndoStack(stack => stack.slice(0, -1));
+    setRedoStack(stack => [...stack, annotations]);
     setAnnotations(prev);
   };
 
   const handleRedo = () => {
-    if (annotations.length === 0 || undoStack.length === 0) return;
-    setUndoStack(prev => [...prev, annotations]);
-    setAnnotations([]);
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack(stack => stack.slice(0, -1));
+    setUndoStack(stack => [...stack, annotations]);
+    setAnnotations(next);
   };
 
   const handleReset = () => {
     setAnnotations([]);
     setUndoStack([]);
+    setRedoStack([]);
   };
 
   const handleDownload = () => {

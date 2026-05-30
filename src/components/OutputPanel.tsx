@@ -299,6 +299,20 @@ function DataGrid({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+function isPrintableGrapheme(char: string): boolean {
+  if (char.length === 0) return false;
+  const cp = char.codePointAt(0)!;
+  if (cp <= 0x1F || (cp >= 0x7F && cp <= 0x9F)) return false;
+  if (cp >= 0xFE00 && cp <= 0xFE0F) return false;
+  if (cp >= 0xE0100 && cp <= 0xE01EF) return false;
+  if (cp === 0x200B || cp === 0x200C || cp === 0x200D || cp === 0xFEFF || cp === 0x00AD) return false;
+  if (cp >= 0xE000 && cp <= 0xF8FF) return false;
+  if (cp >= 0xF0000 && cp <= 0xFFFFD) return false;
+  if (cp >= 0x100000 && cp <= 0x10FFFD) return false;
+  if (cp >= 0xE0000 && cp <= 0xE007F) return false;
+  return char.trim().length > 0;
+}
+
 function EmojiGridDisplay({ data }: { data: Record<string, string> }) {
   const [copiedEmoji, setCopiedEmoji] = useState('');
 
@@ -316,7 +330,10 @@ function EmojiGridDisplay({ data }: { data: Record<string, string> }) {
           <div key={category}>
             <h4 className="text-gray-400 text-xs font-medium mb-2">{category}</h4>
             <div className="flex flex-wrap gap-1">
-              {Array.from(symbols).map((char, i) => (
+              {[...new Intl.Segmenter().segment(symbols)]
+                .map(({ segment }) => segment)
+                .filter(isPrintableGrapheme)
+                .map((char, i) => (
                 <button
                   key={`${char}-${i}`}
                   onClick={() => handleCopy(char)}

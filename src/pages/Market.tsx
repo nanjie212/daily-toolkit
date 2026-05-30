@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { SearchIcon, DownloadIcon, TrashIcon, TrendingUpIcon, SparklesIcon } from 'lucide-react';
 import { useStore } from '@/store';
 import { saveCustomTool, removeCustomTool } from '@/engine/ToolLoader';
+import { matchPinyin } from '@/lib/pinyinSearch';
 import type { ToolRecord } from '@/types';
 
 const marketTools: ToolRecord[] = [
@@ -51,7 +52,7 @@ export default function Market() {
     if (activeTab === 'installed') list = installedTools;
     else if (activeTab === 'hot') list = hotTools;
     else list = marketTools;
-    if (searchQuery) list = list.filter(t => t.name.includes(searchQuery) || t.description.includes(searchQuery));
+    if (searchQuery) list = list.filter(t => matchPinyin(`${t.name} ${t.description} ${t.id}`, searchQuery));
     return list;
   }, [activeTab, searchQuery, installedTools, hotTools]);
 
