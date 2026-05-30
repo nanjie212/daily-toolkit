@@ -103,13 +103,14 @@ export default function Home() {
           </div>
 
           {/* 搜索框 */}
-          <div className="relative">
+          <div className={`relative ${showOnboarding ? 'z-[60]' : ''}`}>
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               ref={searchRef}
               type="text"
               value={searchQuery}
               onChange={(e) => useStore.getState().setSearchQuery(e.target.value)}
+              onFocus={() => { if (showOnboarding) { setShowOnboarding(false); localStorage.setItem('onboarding-done', '1'); } }}
               placeholder="搜索工具... (Ctrl+K)"
               className="w-full pl-10 pr-4 py-2 bg-card border border-white/5 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent/50 transition-all"
             />
