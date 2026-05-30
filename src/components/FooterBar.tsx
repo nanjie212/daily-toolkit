@@ -156,7 +156,7 @@ export default function FooterBar() {
 
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-400">
             <ShieldCheckIcon className="w-4 h-4 text-accent" />
-            <span className="text-xs">数据仅保存在本地，不会上传任何服务器</span>
+            <span className="text-xs">留言同步云端，工具数据本地处理</span>
           </div>
 
           <div className="ml-auto">
@@ -166,7 +166,7 @@ export default function FooterBar() {
 
         {/* 底部版权 */}
         <div className="text-center text-gray-600 text-[10px] space-y-1">
-          <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 数据不上传服务器</p>
+          <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 工具数据本地处理</p>
           <p>v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</p>
             {visitCount !== null && (
               <p className="text-gray-600 text-xs">👁️ 本站已被访问 {visitCount} 次</p>

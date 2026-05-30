@@ -220,7 +220,11 @@ export default function Community() {
   // 注意：昵称输入框和回复输入框的 Enter 发送也一并移除了
 
   const sorted = [...messages].sort((a, b) => {
-    if (sortOrder === 'hottest') return (b.likes || 0) - (a.likes || 0) || b.timestamp - a.timestamp;
+    if (sortOrder === 'hottest') {
+      const heatA = (a.likes || 0) + (a.encourages || 0);
+      const heatB = (b.likes || 0) + (b.encourages || 0);
+      return heatB - heatA || b.timestamp - a.timestamp;
+    }
     return b.timestamp - a.timestamp;
   });
 
