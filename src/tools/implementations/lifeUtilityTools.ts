@@ -362,6 +362,8 @@ export async function periodTrackerCalc(input: Record<string, unknown>): Promise
     const cycleDays = Number(input.cycleDays) || 28;
     const periodDays = Number(input.periodDays) || 5;
     if (!lastDate) return { success: false, error: '请输入上次经期开始日期' };
+    if (cycleDays < 15 || cycleDays > 60) return { success: false, error: '周期天数应在15~60天之间' };
+    if (periodDays < 1 || periodDays > 15) return { success: false, error: '经期天数应在1~15天之间' };
     const last = new Date(lastDate);
     if (isNaN(last.getTime())) return { success: false, error: '日期格式无效' };
     const now = new Date();

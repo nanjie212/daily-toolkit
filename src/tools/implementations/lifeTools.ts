@@ -450,7 +450,7 @@ export async function timezoneConverter(input: Record<string, unknown>): Promise
 
 export async function passwordGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const length = Math.max(4, Number(input.length ?? 16));
+    const length = Math.max(4, Math.min(256, Number(input.length ?? 16)));
     const count = Math.min(20, Math.max(1, Number(input.count ?? 5)));
     const includeUpper = input.includeUpper !== false;
     const includeLower = input.includeLower !== false;

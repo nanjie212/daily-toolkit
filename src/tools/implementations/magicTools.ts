@@ -48,8 +48,9 @@ function clamp(v: number, min: number, max: number): number {
 export async function photoRestore(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const file = input.file as File;
-    const intensity = Number(input.intensity ?? 1.0); // 修复强度 0.5-2.0
+    const intensity = Number(input.intensity ?? 1.0);
     if (!file) return { success: false, error: '请选择照片' };
+    if (intensity <= 0 || intensity > 5) return { success: false, error: '修复强度应在0.1~5之间' };
 
     const img = await loadImageFromFile(file);
     const canvas = document.createElement('canvas');
@@ -200,10 +201,10 @@ export async function aiBackgroundRemove(input: Record<string, unknown>): Promis
     const file = input.file as File;
     if (!file) return { success: false, error: '请选择图片' };
 
-    // 阈值：颜色距离小于此值视为背景（默认35）
     const threshold = Number(input.threshold ?? 35);
-    // 羽化：边缘过渡范围（默认3像素）
     const feather = Number(input.feather ?? 3);
+    if (threshold <= 0 || threshold > 255) return { success: false, error: '阈值应在1~255之间' };
+    if (feather < 0 || feather > 50) return { success: false, error: '羽化应在0~50之间' };
 
     const img = await loadImageFromFile(file);
 
@@ -591,10 +592,11 @@ export async function pixelArtConvert(input: Record<string, unknown>): Promise<T
     const file = input.file as File;
     const pixelSize = Number(input.pixelSize ?? 8);
     if (!file) return { success: false, error: '请选择图片' };
+    if (pixelSize <= 0 || pixelSize > 64) return { success: false, error: '像素尺寸应在1~64之间' };
 
     const img = await loadImageFromFile(file);
     const smallW = Math.max(8, Math.round(Math.min(img.width, 200) / pixelSize));
-    const smallH = Math.round(smallW * (img.height / img.width));
+    const smallH = Math.max(1, Math.round(smallW * (img.height / img.width)));
     const smallCanvas = document.createElement('canvas');
     smallCanvas.width = smallW;
     smallCanvas.height = smallH;
@@ -602,7 +604,7 @@ export async function pixelArtConvert(input: Record<string, unknown>): Promise<T
     sCtx.imageSmoothingEnabled = false;
     sCtx.drawImage(img, 0, 0, smallW, smallH);
 
-    const colorCount = Number(input.colorCount ?? 16);
+    const colorCount = Math.max(2, Math.min(256, Number(input.colorCount ?? 16)));
     const smallData = sCtx.getImageData(0, 0, smallW, smallH).data;
 
     // 颜色量化
@@ -658,6 +660,7 @@ export async function photoToSketch(input: Record<string, unknown>): Promise<Too
     const file = input.file as File;
     const intensity = Number(input.intensity ?? 1.0);
     if (!file) return { success: false, error: '请选择图片' };
+    if (intensity <= 0 || intensity > 5) return { success: false, error: '强度应在0.1~5之间' };
 
     const img = await loadImageFromFile(file);
     const maxW = 1024;
@@ -731,7 +734,7 @@ export async function ledMarquee(input: Record<string, unknown>): Promise<ToolOu
 
     const speedMs = speed === 'fast' ? 3000 : speed === 'slow' ? 10000 : 6000;
     const fontSizeCss = fontSize === 'auto' ? 'clamp(32px,8vw,120px)' : fontSize;
-    const bgAlpha = Number(bgOpacity) / 100;
+    const bgAlpha = Math.max(0, Math.min(100, Number(bgOpacity))) / 100;
     const bgColor = `rgba(0,0,0,${bgAlpha})`;
 
     const dirKeyframes: Record<string, string> = {

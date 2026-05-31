@@ -34,7 +34,9 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (selectedCategory || searchQuery) {
+    const params = new URLSearchParams(location.search);
+    const hasUrlParam = params.has('category') || params.has('q');
+    if ((selectedCategory || searchQuery) && !hasUrlParam) {
       const timer = setTimeout(() => {
         useStore.getState().setSelectedCategory(null);
         useStore.getState().setSearchQuery('');
