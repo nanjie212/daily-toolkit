@@ -253,10 +253,10 @@ export const lifeTools: ToolRecord[] = [
         options: [
           { label: '北京时间 (UTC+8)', value: 'Asia/Shanghai' },
           { label: '东京时间 (UTC+9)', value: 'Asia/Tokyo' },
-          { label: '纽约时间 (UTC-5)', value: 'America/New_York' },
-          { label: '伦敦时间 (UTC+0)', value: 'Europe/London' },
-          { label: '洛杉矶时间 (UTC-8)', value: 'America/Los_Angeles' },
-          { label: '悉尼时间 (UTC+11)', value: 'Australia/Sydney' },
+          { label: '纽约时间 (UTC-5/夏令时-4)', value: 'America/New_York' },
+          { label: '伦敦时间 (UTC+0/夏令时+1)', value: 'Europe/London' },
+          { label: '洛杉矶时间 (UTC-8/夏令时-7)', value: 'America/Los_Angeles' },
+          { label: '悉尼时间 (UTC+11/夏令时+10)', value: 'Australia/Sydney' },
         ],
       },
       {
@@ -267,10 +267,10 @@ export const lifeTools: ToolRecord[] = [
         options: [
           { label: '北京时间 (UTC+8)', value: 'Asia/Shanghai' },
           { label: '东京时间 (UTC+9)', value: 'Asia/Tokyo' },
-          { label: '纽约时间 (UTC-5)', value: 'America/New_York' },
-          { label: '伦敦时间 (UTC+0)', value: 'Europe/London' },
-          { label: '洛杉矶时间 (UTC-8)', value: 'America/Los_Angeles' },
-          { label: '悉尼时间 (UTC+11)', value: 'Australia/Sydney' },
+          { label: '纽约时间 (UTC-5/夏令时-4)', value: 'America/New_York' },
+          { label: '伦敦时间 (UTC+0/夏令时+1)', value: 'Europe/London' },
+          { label: '洛杉矶时间 (UTC-8/夏令时-7)', value: 'America/Los_Angeles' },
+          { label: '悉尼时间 (UTC+11/夏令时+10)', value: 'Australia/Sydney' },
         ],
       },
     ],
@@ -618,7 +618,7 @@ export const lifeTools: ToolRecord[] = [
     permissions: [],
     inputSchema: [
       { key: 'principal', label: '初始本金', type: 'number', placeholder: '初始本金(元)', required: true, defaultValue: 10000 },
-      { key: 'monthly', label: '每月定投', type: 'number', placeholder: '每月定投(元)', required: true, defaultValue: 2000 },
+      { key: 'monthly', label: '每月定投', type: 'number', placeholder: '每月定投(元)', required: true, defaultValue: 0 },
       { key: 'rate', label: '年化收益率', type: 'number', placeholder: '年化收益率(%)', required: true, defaultValue: 4 },
       { key: 'years', label: '投资年限', type: 'number', placeholder: '投资年限', required: true, defaultValue: 5 },
     ],

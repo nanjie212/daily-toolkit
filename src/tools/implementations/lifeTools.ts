@@ -142,6 +142,9 @@ export async function taxCalculator(input: Record<string, unknown>): Promise<Too
     const threshold = Number(input.threshold) || 5000;
     const deductions = Number(input.deductions) || 0;
 
+    if (salary <= 0) return { success: false, error: '请输入有效的税前月薪' };
+    if (socialInsurance > salary) return { success: false, error: '五险一金不应超过税前月薪' };
+
     const taxableIncome = salary - socialInsurance - threshold - deductions;
 
     if (taxableIncome <= 0) {
@@ -450,8 +453,13 @@ export async function timezoneConverter(input: Record<string, unknown>): Promise
 
 export async function passwordGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const length = Math.max(4, Math.min(256, Number(input.length ?? 16)));
-    const count = Math.min(20, Math.max(1, Number(input.count ?? 5)));
+    const rawLength = Number(input.length ?? 16);
+    const length = Math.max(4, Math.min(256, rawLength));
+    const rawCount = Number(input.count ?? 5);
+    const count = Math.min(20, Math.max(1, rawCount));
+    const lengthAdjusted = rawLength !== length;
+    const countAdjusted = rawCount !== count || (rawCount === 0 && count === 1);
+
     const includeUpper = input.includeUpper !== false;
     const includeLower = input.includeLower !== false;
     const includeNumbers = input.includeNumbers !== false;
@@ -479,6 +487,7 @@ export async function passwordGenerator(input: Record<string, unknown>): Promise
     return {
       success: true,
       data: passwords.join('\n'),
+      ...(lengthAdjusted || countAdjusted ? { warning: `${lengthAdjusted ? `长度已自动调整为 ${length}（范围 4-256）` : ''}${lengthAdjusted && countAdjusted ? '；' : ''}${countAdjusted ? `数量已自动调整为 ${count}（范围 1-20）` : ''}` } : {}),
     };
   } catch (e) {
     return { success: false, error: (e as Error).message };

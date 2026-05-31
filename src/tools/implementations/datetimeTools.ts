@@ -60,8 +60,9 @@ export async function zodiacQuery(input: Record<string, unknown>): Promise<ToolO
   try {
     const birth = input.birth as string;
     if (!birth) return { success: false, error: '请输入出生日期' };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
     const birthDate = new Date(birth);
-    if (isNaN(birthDate.getTime())) return { success: false, error: '日期格式无效' };
+    if (isNaN(birthDate.getTime()) || birthDate.toISOString().slice(0, 10) !== birth) return { success: false, error: '日期格式无效或日期不存在' };
     const zodiacAnimals = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
     const zodiac = zodiacAnimals[(birthDate.getFullYear() - 4) % 12];
     const month = birthDate.getMonth() + 1;
@@ -95,8 +96,10 @@ export async function anniversaryTracker(input: Record<string, unknown>): Promis
       const name = parts[0] || '';
       const dateStr = parts[1] || '';
       if (!name || !dateStr) continue;
-      let target = new Date(dateStr);
-      if (isNaN(target.getTime())) { results.push(`${name}: 日期格式无效`); continue; }
+      const dateParts = dateStr.split('-').map(Number);
+      if (dateParts.length !== 3 || dateParts.some(isNaN)) { results.push(`${name}: 日期格式无效`); continue; }
+      let target = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+      if (isNaN(target.getTime()) || target.getDate() !== dateParts[2]) { results.push(`${name}: 日期格式无效`); continue; }
       while (target.getFullYear() < today.getFullYear()) target.setFullYear(target.getFullYear() + 1);
       const t = new Date(target.getFullYear(), target.getMonth(), target.getDate());
       const diff = Math.ceil((t.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));

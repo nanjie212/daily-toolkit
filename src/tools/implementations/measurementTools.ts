@@ -16,6 +16,7 @@ export async function fractionCalculator(input: Record<string, unknown>): Promis
     const [n1, d1] = parseFraction(fraction1);
     const [n2, d2] = op !== 'simplify' ? parseFraction(fraction2) : [0, 1];
     if (d1 === 0 || d2 === 0) return { success: false, error: '分母不能为零' };
+    if (op === 'divide' && n2 === 0) return { success: false, error: '除法运算中第二个分数的分子不能为零（相当于除零）' };
     let num = 0, den = 1;
     if (op === 'add') { num = n1 * d2 + n2 * d1; den = d1 * d2; }
     else if (op === 'subtract') { num = n1 * d2 - n2 * d1; den = d1 * d2; }

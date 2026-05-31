@@ -564,8 +564,27 @@ export async function idiomChain(input: Record<string, unknown>): Promise<ToolOu
 
     // 如果用户输入了新的起始成语
     if (start && start.trim()) {
-      usedIdioms.add(start.trim());
-      lastChar = start.trim().slice(-1);
+      const trimmed = start.trim();
+      const isFourChar = trimmed.length === 4;
+      const isInDb = Object.values(idiomDB).some(arr => arr.includes(trimmed));
+      if (!isFourChar) {
+        return { success: false, error: `"${trimmed}" 不是四字成语，请输入正确的成语` };
+      }
+      if (!isInDb) {
+        return { success: false, error: `"${trimmed}" 不在成语库中，请换一个成语试试` };
+      }
+      if (history) {
+        const histList = history.split(/[,，、\s]+/).filter(Boolean);
+        if (histList.length > 0) {
+          const lastIdiom = histList[histList.length - 1];
+          const expectedFirst = lastIdiom.slice(-1);
+          if (trimmed[0] !== expectedFirst) {
+            return { success: false, error: `接龙不匹配：需要以"${expectedFirst}"开头，但"${trimmed}"以"${trimmed[0]}"开头` };
+          }
+        }
+      }
+      usedIdioms.add(trimmed);
+      lastChar = trimmed.slice(-1);
     }
 
     if (!lastChar) {
