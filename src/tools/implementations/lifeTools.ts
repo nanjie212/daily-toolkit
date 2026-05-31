@@ -56,7 +56,9 @@ function convertTemperature(value: number, from: string, to: string): number {
 
 export async function unitConverter(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const value = Number(input.value);
+    const rawValue = input.value;
+    if (rawValue === '' || rawValue === null || rawValue === undefined) return { success: false, error: '请输入数值' };
+    const value = Number(rawValue);
     const category = (input.category as string) || 'length';
     const fromUnit = input.fromUnit as string;
     const toUnit = input.toUnit as string;
@@ -92,12 +94,15 @@ export async function unitConverter(input: Record<string, unknown>): Promise<Too
 
 export async function mortgageCalculator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const principalWan = Number(input.principal) || 100;
+    const principal = Number(input.principal) || 1000000;
     const annualRate = Number(input.rate) || 3.5;
     const years = Number(input.years) || 30;
     const method = (input.method as string) || 'equal-payment';
 
-    const principal = principalWan * 10000;
+    if (principal <= 0) return { success: false, error: '贷款金额必须大于0' };
+    if (annualRate < 0 || annualRate > 100) return { success: false, error: '年利率应在0~100%之间' };
+    if (years <= 0 || years > 100) return { success: false, error: '贷款年限应在1~100年之间' };
+
     const monthlyRate = annualRate / 100 / 12;
     const totalMonths = years * 12;
 
@@ -108,7 +113,7 @@ export async function mortgageCalculator(input: Record<string, unknown>): Promis
 
       return {
         success: true,
-        data: `【等额本息】\n贷款金额: ${principalWan}万元 (${principal.toLocaleString()}元)\n年利率: ${annualRate}%\n贷款年限: ${years}年 (${totalMonths}期)\n\n每月还款: ${monthly.toFixed(2)}元\n还款总额: ${totalPayment.toFixed(2)}元\n利息总额: ${totalInterest.toFixed(2)}元`,
+        data: `【等额本息】\n贷款金额: ${principal.toLocaleString()}元\n年利率: ${annualRate}%\n贷款年限: ${years}年 (${totalMonths}期)\n\n每月还款: ${monthly.toFixed(2)}元\n还款总额: ${totalPayment.toFixed(2)}元\n利息总额: ${totalInterest.toFixed(2)}元`,
       };
     } else {
       const monthlyPrincipal = principal / totalMonths;
@@ -122,7 +127,7 @@ export async function mortgageCalculator(input: Record<string, unknown>): Promis
 
       return {
         success: true,
-        data: `【等额本金】\n贷款金额: ${principalWan}万元 (${principal.toLocaleString()}元)\n年利率: ${annualRate}%\n贷款年限: ${years}年 (${totalMonths}期)\n\n首月还款: ${firstMonthPayment.toFixed(2)}元\n末月还款: ${lastMonthPayment.toFixed(2)}元\n每月递减: ${monthlyPrincipal * monthlyRate < 0.01 ? monthlyPrincipal * monthlyRate : (monthlyPrincipal * monthlyRate).toFixed(2)}元\n还款总额: ${totalPayment.toFixed(2)}元\n利息总额: ${totalInterest.toFixed(2)}元`,
+        data: `【等额本金】\n贷款金额: ${principal.toLocaleString()}元\n年利率: ${annualRate}%\n贷款年限: ${years}年 (${totalMonths}期)\n\n首月还款: ${firstMonthPayment.toFixed(2)}元\n末月还款: ${lastMonthPayment.toFixed(2)}元\n每月递减: ${monthlyPrincipal * monthlyRate < 0.01 ? monthlyPrincipal * monthlyRate : (monthlyPrincipal * monthlyRate).toFixed(2)}元\n还款总额: ${totalPayment.toFixed(2)}元\n利息总额: ${totalInterest.toFixed(2)}元`,
       };
     }
   } catch (e) {
@@ -185,6 +190,8 @@ export async function bmiCalculator(input: Record<string, unknown>): Promise<Too
     const height = Number(input.height);
 
     if (!weight || !height) return { success: false, error: '请输入有效的体重和身高' };
+    if (weight <= 0 || weight > 500) return { success: false, error: '体重应在0~500kg之间' };
+    if (height <= 0 || height > 300) return { success: false, error: '身高应在0~300cm之间' };
 
     const heightM = height / 100;
     const bmi = weight / (heightM * heightM);
@@ -220,9 +227,17 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
     const date1Str = input.date1 as string;
     const date2Str = (input.date2 as string) || '';
 
+    const isValidDate = (s: string) => {
+      if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+      const d = new Date(s);
+      return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+    };
+
     if (!date1Str) return { success: false, error: '请输入日期' };
 
     if (mode === 'diff') {
+      if (!isValidDate(date1Str)) return { success: false, error: `"${date1Str}" 不是有效日期` };
+      if (!isValidDate(date2Str)) return { success: false, error: `"${date2Str}" 不是有效日期` };
       const d1 = new Date(date1Str);
       const d2 = new Date(date2Str);
       if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
@@ -236,6 +251,7 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
         data: `【日期差计算】\n日期1: ${date1Str}\n日期2: ${date2Str}\n\n相差: ${diffDays}天 (${diffWeeks}周${diffDays % 7}天)`,
       };
     } else if (mode === 'add') {
+      if (!isValidDate(date1Str)) return { success: false, error: `"${date1Str}" 不是有效日期` };
       const d1 = new Date(date1Str);
       const days = parseInt(date2Str, 10);
       if (isNaN(d1.getTime())) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
@@ -249,6 +265,7 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
         data: `【日期推算】\n起始日期: ${date1Str}\n推算天数: ${days > 0 ? '+' : ''}${days}天\n\n结果日期: ${result}`,
       };
     } else {
+      if (!isValidDate(date1Str)) return { success: false, error: `"${date1Str}" 不是有效日期` };
       const target = new Date(date1Str);
       if (isNaN(target.getTime())) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
 

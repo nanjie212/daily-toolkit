@@ -48,7 +48,11 @@ export async function discountCalc(input: Record<string, unknown>): Promise<Tool
 
     switch (discountType) {
       case 'simple': {
-        const discount = Number(input.discount) || 0;
+        if (input.discount === undefined || input.discount === null || input.discount === '') {
+          return { success: false, error: '请输入折扣值' };
+        }
+        const discount = Number(input.discount);
+        if (isNaN(discount) || discount <= 0) return { success: false, error: '请输入有效折扣值（例如8折输入8，85折输入8.5，立减输入金额）' };
         let final: number;
         if (discount > 0 && discount <= 10) {
           final = price * discount / 10;

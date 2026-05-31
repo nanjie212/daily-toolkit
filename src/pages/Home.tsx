@@ -135,7 +135,7 @@ export default function Home() {
                 className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   !selectedCategory
                     ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'bg-card text-gray-400 border border-white/5 hover:text-white'
+                    : 'bg-card text-gray-300 border border-white/5 hover:text-white'
                 }`}
               >
                 <LayoutGridIcon className="w-4 h-4" />
@@ -150,11 +150,11 @@ export default function Home() {
                     className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                       selectedCategory === cat.id
                         ? 'bg-accent/20 text-accent border border-accent/30'
-                        : 'bg-card text-gray-400 border border-white/5 hover:text-white'
+                        : 'bg-card text-gray-300 border border-white/5 hover:text-white'
                     }`}
                   >
                     {cat.name}
-                    <span className="text-gray-500">({catTools.length})</span>
+                    <span className="text-gray-400">({catTools.length})</span>
                   </button>
                 );
               })}

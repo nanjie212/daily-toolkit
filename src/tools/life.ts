@@ -106,7 +106,7 @@ export const lifeTools: ToolRecord[] = [
     source: 'builtin',
     permissions: [],
     inputSchema: [
-      { key: 'principal', label: '贷款金额', type: 'number', placeholder: '贷款金额(万元)', required: true, defaultValue: 100 },
+      { key: 'principal', label: '贷款金额(元)', type: 'number', placeholder: '贷款金额(元)', required: true, defaultValue: 1000000 },
       { key: 'rate', label: '年利率', type: 'number', placeholder: '年利率(%)', required: true, defaultValue: 3.5 },
       { key: 'years', label: '贷款年限', type: 'number', placeholder: '贷款年限', required: true, defaultValue: 30 },
       {
