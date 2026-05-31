@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   WrenchIcon,
+  HomeIcon,
   ClockIcon,
   MessageCircleIcon,
   TerminalIcon,
@@ -16,6 +17,7 @@ export default function FooterBar() {
 
   const isDev = location.pathname === '/developer';
   const isCommunity = location.pathname === '/community';
+  const isHome = location.pathname === '/';
 
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [weekMinutes, setWeekMinutes] = useState(0);
@@ -123,6 +125,18 @@ export default function FooterBar() {
 
         {/* 导航链接 */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => navigate('/')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
+              isHome
+                ? 'text-accent bg-accent/10'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <HomeIcon className="w-4 h-4" />
+            首页
+          </button>
+
           <button
             onClick={() => navigate('/community')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${

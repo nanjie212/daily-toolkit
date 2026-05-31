@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon, ArrowLeftIcon } from 'lucide-react';
 import { safeStorage } from '@/lib/safeStorage';
 
@@ -110,6 +111,7 @@ async function replyMessage(msgId: string, reply: Reply): Promise<boolean> {
 }
 
 export default function Community() {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -251,7 +253,7 @@ export default function Community() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => navigate('/')}
             aria-label="返回"
             className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
           >

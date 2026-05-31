@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { SearchIcon, DownloadIcon, TrashIcon, TrendingUpIcon, SparklesIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { SearchIcon, DownloadIcon, TrashIcon, TrendingUpIcon, SparklesIcon, ArrowLeftIcon } from 'lucide-react';
 import { useStore } from '@/store';
 import { saveCustomTool, removeCustomTool } from '@/engine/ToolLoader';
 import { matchPinyin } from '@/lib/pinyinSearch';
@@ -37,6 +38,7 @@ const marketTools: ToolRecord[] = [
 type Tab = 'all' | 'installed' | 'hot';
 
 export default function Market() {
+  const navigate = useNavigate();
   const { tools, reloadTools, toolLikes } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('all');
@@ -75,9 +77,18 @@ export default function Market() {
 
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-heading font-bold text-white mb-2">工具市场</h1>
-        <p className="text-gray-400">发现更多实用工具，点击安装即可加入你的工具箱</p>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate('/')}
+          aria-label="返回"
+          className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        >
+          <ArrowLeftIcon className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-heading font-bold text-white mb-2">工具市场</h1>
+          <p className="text-gray-400">发现更多实用工具，点击安装即可加入你的工具箱</p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

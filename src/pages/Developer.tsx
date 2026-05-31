@@ -1,16 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, BookIcon, CodeIcon, FlaskConicalIcon, PlayIcon, CopyIcon, CheckIcon } from 'lucide-react';
 import AIPromptGenerator from '@/components/AIPromptGenerator';
 
 export default function Developer() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'sdk' | 'wizard' | 'sandbox'>('sdk');
-  const [sandboxCode, setSandboxCode] = useState(`// 在此编写测试代码
-function greet(name) {
-  return "你好, " + name + "!";
-}
-
-const result = greet("ToolBox");
-console.log(result);`);
+  const [sandboxCode, setSandboxCode] = useState('// 在此编写并测试你的工具代码\n// 使用 console.log() 输出调试信息\n\nconst name = "World";\nconsole.log(`Hello, ${name}!`);\n');
   const [sandboxOutput, setSandboxOutput] = useState('');
   const [sandboxError, setSandboxError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -55,7 +51,7 @@ console.log(result);`);
     <div className="min-h-full p-6 lg:p-8 space-y-6">
       <div className="flex items-center gap-4">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => navigate('/')}
             aria-label="返回"
             className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
           >
