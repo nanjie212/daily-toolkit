@@ -24,23 +24,24 @@ console.log(result);`);
   const handleRunSandbox = () => {
     setSandboxOutput('');
     setSandboxError('');
+    const logs: string[] = [];
+    const originalLog = console.log;
     try {
-      const logs: string[] = [];
-      const originalLog = console.log;
       console.log = (...args) => {
         logs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
       };
 
-      const fn = new Function(sandboxCode);
+      const fn = new Function(`"use strict"; ${sandboxCode}`);
       const result = fn();
       if (result !== undefined) {
         logs.push(`返回值: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
       }
 
-      console.log = originalLog;
       setSandboxOutput(logs.join('\n') || '执行成功，无输出');
     } catch (e) {
       setSandboxError((e as Error).message);
+    } finally {
+      console.log = originalLog;
     }
   };
 

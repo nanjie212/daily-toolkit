@@ -70,7 +70,7 @@ export async function textSummary(input: Record<string, unknown>): Promise<ToolO
 export async function textToSpeech(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const text = input.text as string;
-    const rate = Number(input.rate ?? 1);
+    const rate = Math.min(10, Math.max(0.1, Number(input.rate ?? 1)));
 
     if (!text?.trim()) return { success: false, error: '请输入要朗读的文字' };
 

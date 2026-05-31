@@ -31,6 +31,7 @@ export default function IdiomChainGame() {
   const [showHint, setShowHint] = useState(false);
   const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
   const inputRef = useRef<HTMLInputElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // 初始化 - 加载数据
   useEffect(() => {
@@ -195,7 +196,11 @@ export default function IdiomChainGame() {
 
   // 播放音效
   const playSound = (type: 'correct' | 'wrong') => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    const audioContext = audioCtxRef.current;
+    if (audioContext.state === 'suspended') audioContext.resume();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 

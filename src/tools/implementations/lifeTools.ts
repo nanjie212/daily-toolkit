@@ -368,6 +368,9 @@ export async function pomodoroTimer(input: Record<string, unknown>): Promise<Too
     const breakMinutes = Number(input.breakMinutes) || 5;
     const rounds = Number(input.rounds) || 4;
 
+    if (workMinutes <= 0 || breakMinutes <= 0 || rounds <= 0) return { success: false, error: '时长和轮数必须大于0' };
+    if (workMinutes > 480 || breakMinutes > 120 || rounds > 50) return { success: false, error: '请输入合理的时长和轮数' };
+
     const totalMinutes = (workMinutes + breakMinutes) * rounds - breakMinutes;
 
     const lines: string[] = [];
@@ -606,9 +609,10 @@ export async function countdown(input: Record<string, unknown>): Promise<ToolOut
     const eventName = (input.eventName as string) || '目标';
 
     if (!targetDate) return { success: false, error: '请输入目标日期' };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return { success: false, error: `"${targetDate}" 不是有效日期` };
 
     const target = new Date(`${targetDate}T${targetTime}:00`);
-    if (isNaN(target.getTime())) return { success: false, error: '日期格式不正确' };
+    if (isNaN(target.getTime()) || target.toISOString().slice(0, 10) !== targetDate) return { success: false, error: `"${targetDate}" 不是有效日期` };
 
     const now = new Date();
     const diff = target.getTime() - now.getTime();
