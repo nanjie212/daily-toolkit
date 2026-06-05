@@ -28,7 +28,8 @@ export async function videoToGif(input: Record<string, unknown>): Promise<ToolOu
     canvas.height = Math.round(width * aspectRatio);
     const ctx = canvas.getContext('2d')!;
 
-    const frameCount = fps * duration;
+    const actualDuration = Math.min(duration, video.duration);
+    const frameCount = Math.floor(fps * actualDuration);
     const frameInterval = 1 / fps;
     const frames: string[] = [];
 
@@ -50,7 +51,7 @@ export async function videoToGif(input: Record<string, unknown>): Promise<ToolOu
     return {
       success: true,
       data: {
-        视频时长: `${Math.min(duration, video.duration).toFixed(1)} 秒`,
+        视频时长: `${actualDuration.toFixed(1)} 秒`,
         GIF尺寸: `${canvas.width} x ${canvas.height}`,
         帧数: frameCount,
         帧率: `${fps} FPS`,

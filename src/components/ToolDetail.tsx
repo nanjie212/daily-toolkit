@@ -4,15 +4,22 @@ import { useStore } from '@/store';
 
 export default function ToolDetail() {
   const { selectedTool, detailOpen, setDetailOpen, favoriteToolIds, toggleFavorite } = useStore();
-  const [copied, setCopied] = useState(false);
+  const [copiedJson, setCopiedJson] = useState(false);
+  const [copiedEntry, setCopiedEntry] = useState(false);
   const isFavorite = selectedTool ? favoriteToolIds.includes(selectedTool.id) : false;
 
   if (!detailOpen || !selectedTool) return null;
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyJson = () => {
+    navigator.clipboard.writeText(toolJson).catch(() => {});
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
+  };
+
+  const handleCopyEntry = () => {
+    navigator.clipboard.writeText(entryCode).catch(() => {});
+    setCopiedEntry(true);
+    setTimeout(() => setCopiedEntry(false), 2000);
   };
 
   const toolJson = JSON.stringify(
@@ -111,10 +118,10 @@ export default function ToolDetail() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-400">tool.json</span>
                   <button
-                    onClick={() => handleCopy(toolJson)}
+                    onClick={handleCopyJson}
                     className="p-1 rounded text-gray-500 hover:text-accent transition-colors"
                   >
-                    {copied ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
+                    {copiedJson ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   </button>
                 </div>
                 <pre className="bg-surface rounded-xl p-3 text-xs text-gray-300 overflow-x-auto max-h-48 overflow-y-auto">
@@ -125,10 +132,10 @@ export default function ToolDetail() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-400">执行入口</span>
                   <button
-                    onClick={() => handleCopy(entryCode)}
+                    onClick={handleCopyEntry}
                     className="p-1 rounded text-gray-500 hover:text-accent transition-colors"
                   >
-                    {copied ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
+                    {copiedEntry ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   </button>
                 </div>
                 <pre className="bg-surface rounded-xl p-3 text-xs text-gray-300 overflow-x-auto max-h-48 overflow-y-auto">

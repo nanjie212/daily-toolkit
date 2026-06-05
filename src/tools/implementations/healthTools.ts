@@ -41,9 +41,11 @@ export async function dueDateCalc(input: Record<string, unknown>): Promise<ToolO
     if (!lmp) return { success: false, error: '请输入末次月经日期' };
     const lmpDate = new Date(lmp);
     if (isNaN(lmpDate.getTime())) return { success: false, error: '日期格式无效' };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (lmpDate > today) return { success: false, error: '末次月经日期不能晚于今天' };
     const dueDate = new Date(lmpDate);
     dueDate.setDate(dueDate.getDate() + 280);
-    const today = new Date();
     const weeks = Math.floor((today.getTime() - lmpDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
     const days = Math.floor((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
     const trimester = weeks <= 13 ? '孕早期' : weeks <= 28 ? '孕中期' : '孕晚期';
@@ -109,7 +111,8 @@ export async function heartRateZoneCalc(input: Record<string, unknown>): Promise
   try {
     const age = Number(input.age) || 30;
     const restHR = Number(input.restHR) || 70;
-    if (age <= 0) return { success: false, error: '请输入有效年龄' };
+    if (age <= 0 || age > 120) return { success: false, error: '请输入有效年龄' };
+    if (restHR < 30 || restHR > 200) return { success: false, error: '安静心率应在30~200次/分之间' };
     const maxHR = 220 - age;
     const reserveHR = maxHR - restHR;
     return { success: true, data: { 最大心率: `${maxHR} 次/分`, 安静心率: `${restHR} 次/分`, 热身区间: `${Math.round(restHR + reserveHR * 0.5)}-${Math.round(restHR + reserveHR * 0.6)} 次/分`, 燃脂区间: `${Math.round(restHR + reserveHR * 0.6)}-${Math.round(restHR + reserveHR * 0.7)} 次/分`, 有氧区间: `${Math.round(restHR + reserveHR * 0.7)}-${Math.round(restHR + reserveHR * 0.8)} 次/分`, 无氧区间: `${Math.round(restHR + reserveHR * 0.8)}-${Math.round(restHR + reserveHR * 0.9)} 次/分`, 极限区间: `${Math.round(restHR + reserveHR * 0.9)}-${maxHR} 次/分`, 提示: '220-年龄公式估算最大心率，心率区间采用Karvonen储备心率法' } };

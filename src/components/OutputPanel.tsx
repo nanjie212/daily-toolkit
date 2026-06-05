@@ -73,7 +73,7 @@ export default function OutputPanel({ output }: OutputPanelProps) {
     const text = typeof output.data === 'string'
       ? output.data
       : JSON.stringify(output.data, null, 2);
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -317,7 +317,7 @@ function EmojiGridDisplay({ data }: { data: Record<string, string> }) {
   const [copiedEmoji, setCopiedEmoji] = useState('');
 
   const handleCopy = (emoji: string) => {
-    navigator.clipboard.writeText(emoji);
+    navigator.clipboard.writeText(emoji).catch(() => {});
     setCopiedEmoji(emoji);
     setTimeout(() => setCopiedEmoji(''), 1500);
   };
