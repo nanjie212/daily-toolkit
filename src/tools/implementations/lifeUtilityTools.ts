@@ -1,4 +1,5 @@
 import type { ToolOutput } from '@/types';
+import { toLocalDateStr } from '@/lib/date';
 
 export async function petAgeCalc(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
@@ -383,9 +384,9 @@ export async function periodTrackerCalc(input: Record<string, unknown>): Promise
     return {
       success: true,
       data: {
-        下次经期: nextDate.toISOString().split('T')[0],
-        经期结束: endDate.toISOString().split('T')[0],
-        排卵期: `${safeStart.toISOString().split('T')[0]} ~ ${safeEnd.toISOString().split('T')[0]}`,
+        下次经期: toLocalDateStr(nextDate),
+        经期结束: toLocalDateStr(endDate),
+        排卵期: `${toLocalDateStr(safeStart)} ~ ${toLocalDateStr(safeEnd)}`,
         当前状态: isInPeriod ? '经期中' : daysUntil > 0 ? `距下次经期 ${daysUntil} 天` : `经期已过 ${Math.abs(daysUntil)} 天`,
         周期: `${cycleDays} 天`,
         提示: '结果基于标准28天周期估算，个体差异较大仅供参考',

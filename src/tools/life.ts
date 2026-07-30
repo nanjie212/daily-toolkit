@@ -145,7 +145,7 @@ export const lifeTools: ToolRecord[] = [
     id: 'bmi-calculator',
     name: 'BMI计算器',
     description: '计算身体质量指数，评估健康状态',
-    category: 'everyday',
+    category: 'health',
     icon: 'HeartIcon',
     version: '1.0.0',
     source: 'builtin',

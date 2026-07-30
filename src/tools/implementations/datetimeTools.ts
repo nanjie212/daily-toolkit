@@ -1,4 +1,5 @@
 import type { ToolOutput } from '@/types';
+import { toLocalDateStr } from '@/lib/date';
 
 const chinaHolidays2026: Record<string, string> = {
   '2026-01-01': '元旦', '2026-01-28': '除夕', '2026-01-29': '春节', '2026-01-30': '春节', '2026-01-31': '春节', '2026-02-01': '春节', '2026-02-02': '春节', '2026-02-03': '春节',
@@ -104,7 +105,7 @@ export async function anniversaryTracker(input: Record<string, unknown>): Promis
       const t = new Date(target.getFullYear(), target.getMonth(), target.getDate());
       const diff = Math.ceil((t.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
       const yearsElapsed = target.getFullYear() - new Date(dateStr).getFullYear();
-      results.push(`${name}: ${t.toISOString().split('T')[0]} ${diff > 0 ? `还有${diff}天` : diff === 0 ? '就是今天!' : `已过${Math.abs(diff)}天`} | 第${yearsElapsed}年`);
+      results.push(`${name}: ${toLocalDateStr(t)} ${diff > 0 ? `还有${diff}天` : diff === 0 ? '就是今天!' : `已过${Math.abs(diff)}天`} | 第${yearsElapsed}年`);
     }
     return { success: true, data: { 纪念日列表: results.join('\n'), 提示: '每行格式：名称,日期（如：生日,2010-01-01），支持多个纪念日' } };
   } catch (e) { return { success: false, error: `计算失败: ${(e as Error).message}` }; }

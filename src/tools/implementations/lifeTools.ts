@@ -1,5 +1,6 @@
 import QRCode from 'qrcode';
 import type { ToolOutput } from '@/types';
+import { toLocalDateStr } from '@/lib/date';
 
 export async function qrcodeGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
@@ -261,7 +262,7 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
       if (isNaN(days)) return { success: false, error: '请输入有效的天数' };
 
       d1.setDate(d1.getDate() + days);
-      const result = d1.toISOString().split('T')[0];
+      const result = toLocalDateStr(d1);
 
       return {
         success: true,

@@ -106,7 +106,7 @@ export default function Home() {
 
           {/* 搜索框 */}
           <div className={`relative ${showOnboarding ? 'z-[60]' : ''}`}>
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
             <input
               ref={searchRef}
               type="text"
@@ -114,12 +114,12 @@ export default function Home() {
               onChange={(e) => useStore.getState().setSearchQuery(e.target.value)}
               onFocus={() => { if (showOnboarding) { setShowOnboarding(false); localStorage.setItem('onboarding-done', '1'); } }}
               placeholder="搜索工具... (Ctrl+K)"
-              className="w-full pl-10 pr-4 py-2 bg-card border border-white/5 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent/50 transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-card border border-white/5 rounded-xl text-white text-sm placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:border-accent/50 transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => useStore.getState().setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-white text-xs"
               >
                 ✕
               </button>
@@ -156,7 +156,7 @@ export default function Home() {
                     }`}
                   >
                     {cat.name}
-                    <span className="text-gray-400">({catTools.length})</span>
+                    <span className="text-gray-500 dark:text-gray-300">({catTools.length})</span>
                   </button>
                 );
               })}
@@ -172,7 +172,7 @@ export default function Home() {
         <div className="p-4 space-y-4">
           {/* 搜索结果提示 */}
           {searchQuery && (
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-gray-500 dark:text-gray-300">
               搜索 "<span className="text-white">{searchQuery}</span>" 找到 {filteredTools.length} 个工具
             </div>
           )}
@@ -183,7 +183,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-3">
                 <PinIcon className="w-4 h-4 text-accent" />
                 <h2 className="text-white font-heading font-semibold text-sm">已固定</h2>
-                <span className="text-xs text-gray-500">({pinnedTools.length})</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">({pinnedTools.length})</span>
               </div>
               <div className="bg-card rounded-xl border border-white/5 p-3">
                 <ToolGrid tools={pinnedTools} />
@@ -197,7 +197,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-3">
                 <StarIcon className="w-4 h-4 text-amber-400" />
                 <h2 className="text-white font-heading font-semibold text-sm">收藏</h2>
-                <span className="text-xs text-gray-500">({favoriteTools.length})</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">({favoriteTools.length})</span>
               </div>
               <div className="bg-card rounded-xl border border-white/5 p-3">
                 <ToolGrid tools={favoriteTools} />
@@ -209,9 +209,9 @@ export default function Home() {
           {recentTools.length > 0 && !selectedCategory && !searchQuery && (
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <ClockIcon className="w-4 h-4 text-gray-400" />
+                <ClockIcon className="w-4 h-4 text-gray-500 dark:text-gray-300" />
                 <h2 className="text-white font-heading font-semibold text-sm">最近</h2>
-                <span className="text-xs text-gray-500">({recentTools.length})</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">({recentTools.length})</span>
               </div>
               <div className="bg-card rounded-xl border border-white/5 p-3">
                 <ToolGrid tools={recentTools.slice(0, 10)} />
@@ -229,7 +229,7 @@ export default function Home() {
                   ? categories.find(c => c.id === selectedCategory)?.name
                   : '全部工具'}
               </h2>
-              <span className="text-xs text-gray-500">{filteredTools.length}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{filteredTools.length}</span>
             </div>
             <div className="bg-card rounded-xl border border-white/5 p-3">
               <ToolGrid tools={filteredTools} />

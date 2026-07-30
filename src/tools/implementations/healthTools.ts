@@ -1,4 +1,5 @@
 import type { ToolOutput } from '@/types';
+import { toLocalDateStr } from '@/lib/date';
 
 const foodCalorieDB: Record<string, number> = {
   米饭: 116, 馒头: 223, 面条: 110, 鸡蛋: 144, 牛奶: 54, 苹果: 53, 香蕉: 93,
@@ -53,7 +54,7 @@ export async function dueDateCalc(input: Record<string, unknown>): Promise<ToolO
       success: true,
       data: {
         末次月经: lmp,
-        预产期: dueDate.toISOString().split('T')[0],
+        预产期: toLocalDateStr(dueDate),
         当前孕周: `第${weeks}周`,
         当前阶段: trimester,
         距离预产期: `${days} 天`,
