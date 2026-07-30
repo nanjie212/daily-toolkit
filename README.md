@@ -1,57 +1,26 @@
-# React + TypeScript + Vite
+# 普通日常工具箱
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🌐 **在线使用：** https://nanjie212.github.io/daily-toolkit/
 
-Currently, two official plugins are available:
+本地优先的纯前端工具集合网站。无需注册、零数据上传、可完全离线运行，永久免费。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 特性
+- **66 个实用工具**，覆盖日常、图片、趣味、金融、健康等分类
+- **100% 浏览器内运行**，隐私优先，不上传任何数据
+- **PWA 支持**，可安装到桌面 / 手机主屏，离线也能用
 
-## Expanding the ESLint configuration
+## 技术栈
+React 18 · TypeScript · Vite 6 · Tailwind CSS 3 · Zustand
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## 本地开发
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  extends: [
-    // other configs...
-    // Enable lint rules for React
-    reactX.configs['recommended-typescript'],
-    // Enable lint rules for React DOM
-    reactDom.configs.recommended,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## 部署
+```bash
+npm run deploy   # 自动构建并发布到 GitHub Pages（gh-pages 分支），已配置 SSH，无需 token
 ```
+
+> 部署前请先确认 `ssh -T git@github.com` 返回成功（已通过 SSH over HTTPS/443 配置，绕开 22 端口封锁）。
