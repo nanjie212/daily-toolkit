@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
+  base: '/daily-toolkit/',
   define: {
     __APP_VERSION__: JSON.stringify('1.2.1'),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
