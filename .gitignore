@@ -25,3 +25,15 @@ dist-ssr
 
 # Trae
 .trae/
+
+# WorkBuddy 本地会话记忆（私密，勿提交）
+.workbuddy/
+
+# AI 工具缓存
+.superpowers/
+
+# 用户上传目录（运行时数据）
+.uploads/
+
+# 本地备份压缩包（不应进 git，用网盘/Releases 存）
+*.zip

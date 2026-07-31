@@ -1,6 +1,8 @@
 # 普通日常工具箱
 
-🌐 **在线使用：** https://nanjie212.github.io/daily-toolkit/
+🌐 **在线使用（WorkBuddy 云端）：** https://6c9131a380b24cd08741384565831c9b.bj9.agentos-app.net
+
+> 站点部署在 WorkBuddy 云端工作空间（CloudStudio，腾讯云节点），国内访问稳定，关电脑也照常在线。
 
 本地优先的纯前端工具集合网站。无需注册、零数据上传、可完全离线运行，永久免费。
 
@@ -18,9 +20,12 @@ npm install
 npm run dev
 ```
 
-## 部署
-```bash
-npm run deploy   # 自动构建并发布到 GitHub Pages（gh-pages 分支），已配置 SSH，无需 token
-```
+## 开发与部署（WorkBuddy 云端，无需 GitHub）
 
-> 部署前请先确认 `ssh -T git@github.com` 返回成功（已通过 SSH over HTTPS/443 配置，绕开 22 端口封锁）。
+本项目**完全在 WorkBuddy 云端环境中开发并发布**，不依赖 GitHub 或其他第三方代码托管平台：
+
+- **开发**：通过 WorkBuddy（桌面端 / 移动端 App）把需求告诉云端代理，由代理在云端完成编码、构建与发布。
+- **托管**：构建产物由 WorkBuddy 云端工作空间（CloudStudio）静态托管，手机浏览器直接打开上面的在线地址即用。
+- **关电脑续操作**：站点本身在云端运行，关机照常在线；需要改功能时，用手机打开 WorkBuddy App 提需求，代理在云端改完即重新发布。
+
+> 说明：本地 `npm run dev` 仍可用于本机调试，但正式发布统一走 WorkBuddy 云端，不再使用 GitHub Pages / `npm run deploy`。
