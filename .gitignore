@@ -37,3 +37,6 @@ dist-ssr
 
 # 本地备份压缩包（不应进 git，用网盘/Releases 存）
 *.zip
+
+# 损坏的 git 备份残留（沙箱事故产生，勿提交）
+.git.broken/
