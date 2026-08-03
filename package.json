@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc -b --noEmit",
-    "deploy": "npm run build && gh-pages -d dist"
+    "deploy": "npm run build && gh-pages -d dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "worker:typecheck": "tsc --noEmit -p worker/tsconfig.json"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.2.8",

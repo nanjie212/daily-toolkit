@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { HomeIcon, ImageIcon, MenuIcon, XIcon, SparklesIcon, MessageCircleIcon, StoreIcon, HeartIcon, DollarSignIcon, Gamepad2Icon } from 'lucide-react';
+import { safeStorage } from '@/lib/safeStorage';
 
 export default function MobileNav() {
   const navigate = useNavigate();
@@ -14,17 +15,12 @@ export default function MobileNav() {
   const [msgCount, setMsgCount] = useState(0);
 
   useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const res = await fetch('/api/messages');
-        if (res.ok) {
-          const data = await res.json();
-          setMsgCount(Array.isArray(data) ? data.length : 0);
-        }
-      } catch { /* ignore */ }
+    const updateMsgCount = () => {
+      const list = safeStorage.getJSON<unknown[]>('toolbox_community_messages', []);
+      setMsgCount(Array.isArray(list) ? list.length : 0);
     };
-    fetchCount();
-    const interval = setInterval(fetchCount, 60000);
+    updateMsgCount();
+    const interval = setInterval(updateMsgCount, 60000);
     return () => clearInterval(interval);
   }, []);
 

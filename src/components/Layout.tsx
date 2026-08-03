@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import ToolDetail from './ToolDetail';
 import MobileNav from './MobileNav';
 import FooterBar from './FooterBar';
+import ShareButton from './ShareButton';
 
 export default function Layout() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -37,6 +38,7 @@ export default function Layout() {
       </div>
       <ToolDetail />
       <MobileNav />
+      <ShareButton />
     </div>
   );
 }

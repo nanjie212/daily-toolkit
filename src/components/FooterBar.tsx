@@ -4,18 +4,17 @@ import {
   HomeIcon,
   ClockIcon,
   MessageCircleIcon,
-  TerminalIcon,
   ShieldCheckIcon,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import ThemeToggle from '@/components/ThemeToggle';
+import { safeStorage } from '@/lib/safeStorage';
 import { useEffect, useState, useRef } from 'react';
 
 export default function FooterBar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isDev = location.pathname === '/developer';
   const isCommunity = location.pathname === '/community';
   const isHome = location.pathname === '/';
 
@@ -27,14 +26,9 @@ export default function FooterBar() {
   const countedRef = useRef(false);
 
   useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const res = await fetch('/api/messages');
-        if (res.ok) {
-          const data = await res.json();
-          setMsgCount(Array.isArray(data) ? data.length : 0);
-        }
-      } catch { /* ignore */ }
+    const updateMsgCount = () => {
+      const list = safeStorage.getJSON<unknown[]>('toolbox_community_messages', []);
+      setMsgCount(Array.isArray(list) ? list.length : 0);
     };
     const fetchVisitCount = async () => {
       try {
@@ -45,9 +39,9 @@ export default function FooterBar() {
         }
       } catch { /* ignore */ }
     };
-    fetchCount();
+    updateMsgCount();
     fetchVisitCount();
-    const interval = setInterval(fetchCount, 60000);
+    const interval = setInterval(updateMsgCount, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -156,21 +150,9 @@ export default function FooterBar() {
             社区留言
           </button>
 
-          <button
-            onClick={() => navigate('/developer')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
-              isDev
-                ? 'text-accent bg-accent/10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <TerminalIcon className="w-4 h-4" />
-            开发者中心
-          </button>
-
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-400">
             <ShieldCheckIcon className="w-4 h-4 text-accent" />
-            <span className="text-xs">留言同步云端，工具数据本地处理</span>
+            <span className="text-xs">留言与工具数据均本地处理</span>
           </div>
 
           <div className="ml-auto">

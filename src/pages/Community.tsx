@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon, ArrowLeftIcon } from 'lucide-react';
 import { safeStorage } from '@/lib/safeStorage';
+import {
+  listMessages as apiListMessages,
+  createMessage as apiCreateMessage,
+  likeMessage as apiLikeMessage,
+  encourageMessage as apiEncourageMessage,
+  replyMessage as apiReplyMessage,
+  getDeviceId,
+} from '@/lib/communityApi';
 
 interface Reply {
   id: string;
@@ -20,9 +28,11 @@ interface Message {
   encourages: number;
   encouraged_by: string[];
   replies: Reply[];
+  /** 离线草稿标记：联网后由 fetchMessages 自动同步到云端 */
+  pendingSync?: boolean;
 }
 
-const API_BASE = '/api/messages';
+const STORAGE_KEY = 'toolbox_community_messages';
 const randomNicks = ['快乐的小鸟', '阳光下的猫', '随风而行', '星空漫步者', '午后红茶', '薄荷糖', '蔚蓝海岸', '竹林听雨', '晨曦微露', '北方的狼', '小鱼儿', '追风少年'];
 
 function genNickname(): string {
@@ -39,74 +49,133 @@ function formatTime(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * 云端留言板数据层（调用 Worker / D1 后端，封装于 @/lib/communityApi）。
+ * 函数签名与原 localStorage 版保持一致（async / 返回 Promise），组件侧逻辑无需改动。
+ * 容错降级：后端不可用时，回退到 safeStorage 本地缓存 / 离线草稿。
+ */
+function loadMessages(): Message[] {
+  const list = safeStorage.getJSON<Message[]>(STORAGE_KEY, []);
+  return Array.isArray(list) ? list : [];
+}
+
+function saveMessages(list: Message[]): void {
+  safeStorage.setJSON(STORAGE_KEY, list);
+}
+
+/**
+ * 拉取留言列表。
+ * 成功：缓存到本地并合并未同步的离线草稿（联网后自动重试同步）。
+ * 失败（后端不可用）：回退到本地缓存，保证可见可降级。
+ */
 async function fetchMessages(): Promise<Message[]> {
   try {
-    const res = await fetch(API_BASE);
-    if (!res.ok) return [];
-    return await res.json();
+    const serverItems = await apiListMessages();
+    const cached = loadMessages();
+    const drafts = cached.filter((m) => m.pendingSync);
+    const keep = new Set<string>();
+    for (const d of drafts) {
+      try {
+        await apiCreateMessage({ nickname: d.nickname, content: d.content });
+      } catch {
+        keep.add(d.id);
+      }
+    }
+    const remainingDrafts = drafts
+      .filter((d) => keep.has(d.id))
+      .map((d) => ({ ...d, pendingSync: undefined }));
+    const merged = [...serverItems, ...remainingDrafts];
+    saveMessages(merged);
+    return merged.slice().sort((a, b) => b.timestamp - a.timestamp);
   } catch {
-    return [];
+    return loadMessages().slice().sort((a, b) => b.timestamp - a.timestamp);
   }
 }
 
+/** 发布新留言；离线时写入本地草稿（pendingSync），联网后自动同步。 */
 async function postMessage(msg: Message): Promise<boolean> {
   try {
-    const res = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(msg),
-    });
-    return res.ok;
+    await apiCreateMessage({ nickname: msg.nickname, content: msg.content });
+    return true;
   } catch {
-    return false;
+    const list = loadMessages();
+    list.push({ ...msg, pendingSync: true });
+    saveMessages(list);
+    return true;
   }
 }
 
+/**
+ * 用户侧删除：仅隐藏本机本地草稿 / 缓存（一般用户走「隐藏本地草稿」）。
+ * 云端隐藏 / 删除属管理行为（需 adminKey → moderateMessage），不在普通访客 UI 暴露。
+ */
 async function deleteMessage(id: string): Promise<boolean> {
+  saveMessages(loadMessages().filter((m) => m.id !== id));
+  return true;
+}
+
+/** 点赞：按 deviceId 去重（服务端 toggle）；离线时本地切换 deviceId。 */
+async function likeMessage(id: string, _nickname: string, _liked: boolean): Promise<boolean> {
+  const deviceId = getDeviceId();
   try {
-    const res = await fetch(`${API_BASE}?id=${id}`, { method: 'DELETE' });
-    return res.ok;
+    await apiLikeMessage(id, deviceId);
+    return true;
   } catch {
-    return false;
+    const list = loadMessages();
+    const msg = list.find((m) => m.id === id);
+    if (!msg) return false;
+    const likedBy = msg.liked_by || [];
+    if (likedBy.includes(deviceId)) {
+      msg.likes = Math.max(0, (msg.likes || 0) - 1);
+      msg.liked_by = likedBy.filter((n) => n !== deviceId);
+    } else {
+      msg.likes = (msg.likes || 0) + 1;
+      msg.liked_by = [...likedBy, deviceId];
+    }
+    saveMessages(list);
+    return true;
   }
 }
 
-async function likeMessage(id: string, nickname: string, liked: boolean): Promise<boolean> {
+/** 鼓励：按 deviceId 去重（服务端 toggle）；离线时本地切换 deviceId。 */
+async function encourageMessage(
+  id: string,
+  _nickname: string,
+  _encouraged: boolean,
+): Promise<boolean> {
+  const deviceId = getDeviceId();
   try {
-    const res = await fetch(`${API_BASE}?id=${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: liked ? 'unlike' : 'like', nickname }),
-    });
-    return res.ok;
+    await apiEncourageMessage(id, deviceId);
+    return true;
   } catch {
-    return false;
+    const list = loadMessages();
+    const msg = list.find((m) => m.id === id);
+    if (!msg) return false;
+    const encouragedBy = msg.encouraged_by || [];
+    if (encouragedBy.includes(deviceId)) {
+      msg.encourages = Math.max(0, (msg.encourages || 0) - 1);
+      msg.encouraged_by = encouragedBy.filter((n) => n !== deviceId);
+    } else {
+      msg.encourages = (msg.encourages || 0) + 1;
+      msg.encouraged_by = [...encouragedBy, deviceId];
+    }
+    saveMessages(list);
+    return true;
   }
 }
 
-async function encourageMessage(id: string, nickname: string, encouraged: boolean): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}?id=${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: encouraged ? 'unencourage' : 'encourage', nickname }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
+/** 回复：离线时追加到本地缓存。 */
 async function replyMessage(msgId: string, reply: Reply): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}?id=${msgId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reply', ...reply }),
-    });
-    return res.ok;
+    await apiReplyMessage(msgId, { nickname: reply.nickname, content: reply.content });
+    return true;
   } catch {
-    return false;
+    const list = loadMessages();
+    const msg = list.find((m) => m.id === msgId);
+    if (!msg) return false;
+    msg.replies = [...(msg.replies || []), reply];
+    saveMessages(list);
+    return true;
   }
 }
 
@@ -171,7 +240,7 @@ export default function Community() {
       setTimeout(() => setShowSuccess(false), 2000);
       loadMessages();
     } else {
-      setSendError('发送失败，可能是数据库还未初始化，请检查 D1 控制台是否已运行建表 SQL');
+      setSendError('发送失败，请稍后重试');
     }
     setSending(false);
   };
@@ -179,18 +248,16 @@ export default function Community() {
   const handleLike = async (msgId: string) => {
     const msg = messages.find((m) => m.id === msgId);
     if (!msg) return;
-    const currentNick = nickname || '匿名用户';
-    const alreadyLiked = (msg.liked_by || []).includes(currentNick);
-    const ok = await likeMessage(msgId, currentNick, alreadyLiked);
+    const alreadyLiked = isLiked(msg);
+    const ok = await likeMessage(msgId, nickname || '匿名用户', alreadyLiked);
     if (ok) loadMessages();
   };
 
   const handleEncourage = async (msgId: string) => {
     const msg = messages.find((m) => m.id === msgId);
     if (!msg) return;
-    const currentNick = nickname || '匿名用户';
-    const already = (msg.encouraged_by || []).includes(currentNick);
-    const ok = await encourageMessage(msgId, currentNick, already);
+    const already = isEncouraged(msg);
+    const ok = await encourageMessage(msgId, nickname || '匿名用户', already);
     if (ok) loadMessages();
   };
 
@@ -238,14 +305,15 @@ export default function Community() {
     return nickColors[Math.abs(hash) % nickColors.length];
   };
 
+  // 点赞/鼓励去重改用 deviceId（与云端一致），而非昵称，避免不同用户昵称相同误 toggle
   const isLiked = (msg: Message) => {
-    const currentNick = nickname || '匿名用户';
-    return (msg.liked_by || []).includes(currentNick);
+    const deviceId = getDeviceId();
+    return (msg.liked_by || []).includes(deviceId);
   };
 
   const isEncouraged = (msg: Message) => {
-    const currentNick = nickname || '匿名用户';
-    return (msg.encouraged_by || []).includes(currentNick);
+    const deviceId = getDeviceId();
+    return (msg.encouraged_by || []).includes(deviceId);
   };
 
   return (
@@ -261,7 +329,7 @@ export default function Community() {
           </button>
           <div>
             <h1 className="text-3xl font-heading font-bold text-white mb-1">社区留言板</h1>
-            <p className="text-gray-400 text-sm">所有设备共享留言，数据存储在云端</p>
+            <p className="text-gray-400 text-sm">公开留言，所有人可见</p>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-surface rounded-xl p-1">

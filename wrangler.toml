@@ -1,0 +1,26 @@
+name = "daily-toolkit-community"
+main = "worker/index.ts"
+compatibility_date = "2024-09-23"
+
+# ---------------------------------------------------------------------------
+# D1 数据库绑定：token 由 Cloudflare 在部署时注入 Worker 运行时，
+# 绝不进前端 bundle，也绝不写进任何前端代码或环境变量给浏览器读取。
+# ---------------------------------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "daily_toolkit_community"
+# 部署前请先执行：wrangler d1 create daily_toolkit_community
+# 拿到 database_id 后替换下面的占位符（形如 32 位十六进制 UUID）。
+database_id = "16f14ff3-c823-4f69-a303-695be2348399"
+
+# ---------------------------------------------------------------------------
+# 管理员密钥（用于隐藏/删除留言的软删除操作）：
+#   通过 `wrangler secret put COMMUNITY_ADMIN_KEY` 设置，运行时从
+#   env.COMMUNITY_ADMIN_KEY 读取。不写进代码、不进前端。
+# ---------------------------------------------------------------------------
+
+# 前端通过该 Worker 的 *.workers.dev 子域或自定义域调用，例如：
+#   https://daily-toolkit-community.<your-subdomain>.workers.dev
+# 部署完成后，把该地址配置到前端环境变量：
+#   VITE_COMMUNITY_API=https://daily-toolkit-community.<your-subdomain>.workers.dev
+# 详见 docs/云端留言板部署指南.md
