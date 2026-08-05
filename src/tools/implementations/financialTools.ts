@@ -68,15 +68,29 @@ export async function earlyRepaymentCalc(input: Record<string, unknown>): Promis
     const remainYears = Number(input.remainYears) || 0;
     const prepay = Number(input.prepay) || 0;
     if (remaining <= 0 || prepay <= 0) return { success: false, error: '请输入有效的贷款余额和提前还款金额' };
+    if (rate < 0 || rate > 100) return { success: false, error: '年利率应在 0~100% 之间' };
+    if (remainYears <= 0 || remainYears > 100) return { success: false, error: '剩余年限应在 1~100 年之间' };
+
     const monthlyRate = rate / 100 / 12;
     const totalMonths = remainYears * 12;
-    const monthlyPayment = remaining * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+
+    /**
+     * 等额本息月供。利率为 0 时 `Math.pow(1+0, n) - 1 === 0`，
+     * 原写法会直接除以 0 得到 Infinity / NaN；此处退化为「本金均摊」。
+     */
+    const equalPayment = (loan: number): number => {
+      if (monthlyRate === 0) return loan / totalMonths;
+      const factor = Math.pow(1 + monthlyRate, totalMonths);
+      return (loan * monthlyRate * factor) / (factor - 1);
+    };
+
+    const monthlyPayment = equalPayment(remaining);
     const totalInterestOld = monthlyPayment * totalMonths - remaining;
     const newRemaining = remaining - prepay;
     if (newRemaining <= 0) {
       return { success: true, data: { 提前还款金额: `¥${prepay.toFixed(2)}`, 省利息: `¥${totalInterestOld.toFixed(2)}`, 提示: '恭喜，可还清所有贷款！' } };
     }
-    const monthlyPaymentNew = newRemaining * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+    const monthlyPaymentNew = equalPayment(newRemaining);
     const totalInterestNew = monthlyPaymentNew * totalMonths - newRemaining;
     const savedInterest = totalInterestOld - totalInterestNew;
     return {
@@ -129,15 +143,21 @@ export async function investmentReturnCalc(input: Record<string, unknown>): Prom
     const rate = Number(input.rate) || 4;
     const years = Number(input.years) || 5;
     if (principal < 0) return { success: false, error: '请输入有效的金额' };
+    if (monthly < 0) return { success: false, error: '每月定投金额不能为负数' };
+    if (years <= 0 || years > 100) return { success: false, error: '投资年限应在 1~100 年之间' };
+    if (principal === 0 && monthly === 0) return { success: false, error: '初始本金与每月定投不能同时为 0' };
+
     let total = principal;
     let totalInvested = principal;
     const monthlyRate = rate / 100 / 12;
-    const months = years * 12;
+    const months = Math.round(years * 12);
     for (let i = 0; i < months; i++) {
       total = total * (1 + monthlyRate) + monthly;
       totalInvested += monthly;
     }
     const pureReturn = total - totalInvested;
+    // 双保险：上面已排除 principal / monthly 同时为 0，这里再兜一次除零
+    if (totalInvested === 0) return { success: false, error: '投入总额为 0，无法计算收益率' };
     return {
       success: true,
       data: {

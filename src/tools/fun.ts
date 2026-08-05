@@ -50,12 +50,16 @@ export const funTools: ToolRecord[] = [
         label: '文字风格',
         type: 'select',
         defaultValue: 'bubbles',
+        // 注意：下拉 label 必须只使用 BMP（码位 <= U+FFFF）且不含组合附加符号的字符。
+        // 原实现里的方形框字母属于 SMP 平面（U+1F130 起），Windows 常见字体缺字形会渲染成豆腐块；
+        // 而 U+033E / U+0336 这类组合附加符号会让 label 在 select 控件里错位。
+        // 回归测试见 src/tools/implementations/__tests__/fancyText.test.ts。
         options: [
-          { label: '气泡圈ⓔ', value: 'bubbles' },
-          { label: '方形框🄰', value: 'squares' },
-          { label: '混乱体z̾a̾l̾g̾o̾', value: 'zalgo' },
-          { label: '删除线̶', value: 'strikethrough' },
-          { label: '翻转文', value: 'flip' },
+          { label: '气泡圈 ⓔ', value: 'bubbles' },
+          { label: '方形框', value: 'squares' },
+          { label: '混乱体 zalgo', value: 'zalgo' },
+          { label: '删除线', value: 'strikethrough' },
+          { label: '翻转文字', value: 'flip' },
           { label: '数学粗体', value: 'bold' },
         ],
       },

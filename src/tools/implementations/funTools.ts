@@ -37,44 +37,208 @@ export async function whatToEat(input: Record<string, unknown>): Promise<ToolOut
   }
 }
 
+/**
+ * 装饰文字生成器
+ * 原理：按风格做字符映射 / 组合符 / 翻转。
+ *
+ * 修复要点（2026-08）：
+ * - 原实现把整句中文当成单个 token、且大量使用 SMP（码位 > U+FFFF）字符，
+ *   在 Windows 主流字体下渲染成豆腐块；中文更是原样返回（transformed === text）。
+ * - 现抽出纯函数 transformFancyText，不依赖 DOM，便于单测；
+ *   字形可用性用 isGlyphSupported 探测，探测失败则自动降级到 BMP 安全替代；
+ *   中文输入按风格套用 BMP 内的装饰（括号 / 间隔号 / 组合符等），保证可见变化。
+ */
+
+const CJK_RE = /[一-鿿㐀-䶿]/;
+function isCJK(c: string): boolean {
+  return CJK_RE.test(c);
+}
+
+/** 把 ASCII 可打印字符转为全角（BMP 内，中日韩字体必然覆盖）。 */
+function toFullwidth(c: string): string {
+  const code = c.charCodeAt(0);
+  if (code >= 0x21 && code <= 0x7e) return String.fromCharCode(code + 0xfee0);
+  if (code >= 0x30 && code <= 0x39) return String.fromCharCode(code - 0x30 + 0xff10);
+  return c;
+}
+
+/** 气泡圈（BMP，U+24D0 起，主流字体均有）。 */
+const BUBBLES: Record<string, string> = { 'a':'ⓐ','b':'ⓑ','c':'ⓒ','d':'ⓓ','e':'ⓔ','f':'ⓕ','g':'ⓖ','h':'ⓗ','i':'ⓘ','j':'ⓙ','k':'ⓚ','l':'ⓛ','m':'ⓜ','n':'ⓝ','o':'ⓞ','p':'ⓟ','q':'ⓠ','r':'ⓡ','s':'ⓢ','t':'ⓣ','u':'ⓤ','v':'ⓥ','w':'ⓦ','x':'ⓧ','y':'ⓨ','z':'ⓩ','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ','D':'Ⓓ','E':'Ⓔ','F':'Ⓕ','G':'Ⓖ','H':'Ⓗ','I':'Ⓘ','J':'Ⓙ','K':'Ⓚ','L':'Ⓛ','M':'Ⓜ','N':'Ⓝ','O':'Ⓞ','P':'Ⓟ','Q':'Ⓠ','R':'Ⓡ','S':'Ⓢ','T':'Ⓣ','U':'Ⓤ','V':'Ⓥ','W':'Ⓦ','X':'Ⓧ','Y':'Ⓨ','Z':'Ⓩ','0':'⓪','1':'①','2':'②','3':'③','4':'④','5':'⑤','6':'⑥','7':'⑦','8':'⑧','9':'⑨' };
+
+/** 方形框（SMP，U+1F130 起，需字形探测 / 降级）。 */
+const SQUARES: Record<string, string> = { 'A':'🄰','B':'🄱','C':'🄲','D':'🄳','E':'🄴','F':'🄵','G':'🄶','H':'🄷','I':'🄸','J':'🄹','K':'🄺','L':'🄻','M':'🄼','N':'🄽','O':'🄾','P':'🄿','Q':'🅀','R':'🅁','S':'🅂','T':'🅃','U':'🅄','V':'🅅','W':'🅆','X':'🅇','Y':'🅈','Z':'🅉','a':'🄰','b':'🄱','c':'🄲','d':'🄳','e':'🄴','f':'🄵','g':'🄶','h':'🄷','i':'🄸','j':'🄹','k':'🄺','l':'🄻','m':'🄼','n':'🄽','o':'🄾','p':'🄿','q':'🅀','r':'🅁','s':'🅂','t':'🅃','u':'🅄','v':'🅅','w':'🅆','x':'🅇','y':'🅈','z':'🅉' };
+
+/** 数学粗体（SMP，U+1D41A 起，需字形探测 / 降级）。 */
+const MATHBOLD: Record<string, string> = { 'a':'𝐚','b':'𝐛','c':'𝐜','d':'𝐝','e':'𝐞','f':'𝐟','g':'𝐠','h':'𝐡','i':'𝐢','j':'𝐣','k':'𝐤','l':'𝐥','m':'𝐦','n':'𝐧','o':'𝐨','p':'𝐩','q':'𝐪','r':'𝐫','s':'𝐬','t':'𝐭','u':'𝐮','v':'𝐯','w':'𝐰','x':'𝐱','y':'𝐲','z':'𝐳','A':'𝐀','B':'𝐁','C':'𝐂','D':'𝐃','E':'𝐄','F':'𝐅','G':'𝐆','H':'𝐇','I':'𝐈','J':'𝐉','K':'𝐊','L':'𝐋','M':'𝐌','N':'𝐍','O':'𝐎','P':'𝐏','Q':'𝐐','R':'𝐑','S':'𝐒','T':'𝐓','U':'𝐔','V':'𝐕','W':'𝐖','X':'𝐗','Y':'𝐘','Z':'𝐙','0':'𝟎','1':'𝟏','2':'𝟐','3':'𝟑','4':'𝟒','5':'𝟓','6':'𝟔','7':'𝟕','8':'𝟖','9':'𝟗' };
+
+/** 翻转映射（字母 + 数字 + 标点；'B' 用 BMP 的 ᗺ U+15FA，比 Deseret 稳妥）。 */
+const FLIP: Record<string, string> = {
+  'a':'ɐ','b':'q','c':'ɔ','d':'p','e':'ǝ','f':'ɟ','g':'ƃ','h':'ɥ','i':'ᴉ','j':'ɾ','k':'ʞ','l':'l','m':'ɯ','n':'u','o':'o','p':'d','q':'b','r':'ɹ','s':'s','t':'ʇ','u':'n','v':'ʌ','w':'ʍ','x':'x','y':'ʎ','z':'z',
+  'A':'∀','B':'ᗺ','C':'Ɔ','D':'◖','E':'Ǝ','F':'Ⅎ','G':'⅁','H':'H','I':'I','J':'ſ','K':'⋊','L':'⅂','M':'W','N':'N','O':'O','P':'Ԁ','Q':'Ό','R':'ᴚ','S':'S','T':'⊥','U':'∩','V':'Λ','W':'M','X':'X','Y':'⅄','Z':'Z',
+  '?':'¿','!':'¡','.':'˙',',':"'",'(':')',')':'(','1':'Ɩ','3':'Ɛ','6':'9','7':'ㄥ','9':'6',
+};
+
+const ZALGO_MARKS = ['\u0300','\u0301','\u0302','\u0303','\u0304','\u0305','\u0306','\u0307','\u0308','\u0309','\u030a','\u030b','\u030c','\u030d','\u030e'];
+
+/** 每种风格用于字形探测的样本次（SMP 字符需探测，BMP 字符一般直接可用）。 */
+const STYLE_PROBE: Record<string, string> = {
+  bubbles: 'ⓐ', // U+24D0 BMP
+  squares: '🄰', // U+1F130 SMP
+  bold: '𝐚', // U+1D41A SMP
+  flip: 'ᗺ', // U+15FA BMP
+};
+
+const GLYPH_FONT = "16px 'DM Sans', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Cambria Math', sans-serif";
+
+const glyphCache = new Map<string, boolean>();
+
+/** 创建基于 canvas measureText 的字形宽度测量函数；无 DOM 时返回 null。 */
+function createCanvasMeasurer(): ((char: string, font: string) => number) | null {
+  if (typeof document === 'undefined') return null;
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    return (char: string, font: string) => {
+      ctx.font = font;
+      return ctx.measureText(char).width;
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 探测某个字符在当前环境是否有可用字形。
+ * 方法：对比目标字符与「必然缺字形」的私用区字符（\uFFFF）的渲染宽度，宽度相同即判定为豆腐块。
+ * - 必须显式设置与页面一致的字体栈（否则测的是 canvas 默认字体，结论无效）。
+ * - 无 canvas 环境（vitest / SSR）安全降级返回 true，且不抛异常。
+ * - 结果按字符缓存，避免重复测量。
+ */
+export function isGlyphSupported(
+  char: string,
+  measurer?: (char: string, font: string) => number,
+): boolean {
+  try {
+    const m = measurer !== undefined ? measurer : createCanvasMeasurer();
+    if (!m) return true;
+    const cached = glyphCache.get(char);
+    if (cached !== undefined) return cached;
+    const w = m(char, GLYPH_FONT);
+    const wMissing = m('\uFFFF', GLYPH_FONT);
+    const supported = w !== wMissing;
+    glyphCache.set(char, supported);
+    return supported;
+  } catch {
+    return true;
+  }
+}
+
+export interface FancyTransformOptions {
+  /** 可注入的字形探测函数（测试时传 mock）。缺省则走 canvas 真实探测。 */
+  glyphChecker?: (char: string) => boolean;
+}
+
+/**
+ * 纯函数：把文字按风格转换。不依赖 DOM，便于单测。
+ * 返回 { result, note }：note 为降级说明（空串表示未降级）。
+ */
+export function transformFancyText(
+  text: string,
+  style: string,
+  opts: FancyTransformOptions = {},
+): { result: string; note: string } {
+  const checker = opts.glyphChecker;
+  const styleSupported = (probe: string): boolean => (checker ? checker(probe) : true);
+
+  const chars = [...text];
+  const hasCJK = chars.some(isCJK);
+
+  switch (style) {
+    case 'bubbles': {
+      const supported = styleSupported(STYLE_PROBE.bubbles);
+      const fn = (c: string) => (supported ? BUBBLES[c] || c : `【${c}】`);
+      const result = chars.map((c) => (isCJK(c) ? `【${c}】` : fn(c))).join('');
+      const note = supported ? '' : '你的系统缺少气泡圈字形，已自动降级为方头括号包裹效果';
+      return { result, note };
+    }
+    case 'squares': {
+      const supported = styleSupported(STYLE_PROBE.squares);
+      const fn = (c: string) => (supported ? SQUARES[c] || c : `〖${c}〗`);
+      const result = chars.map((c) => (isCJK(c) ? `〖${c}〗` : fn(c))).join('');
+      const note = supported ? '' : '你的系统缺少方形框字形，已自动降级为六角括号包裹效果';
+      return { result, note };
+    }
+    case 'bold': {
+      const supported = styleSupported(STYLE_PROBE.bold);
+      const mapped = chars.map((c) => (isCJK(c) ? c : supported ? MATHBOLD[c] || c : toFullwidth(c)));
+      let result: string;
+      if (hasCJK) {
+        // 中文无数学粗体字形，用间隔号点缀产生可见变化
+        result = mapped
+          .map((m, i) => (isCJK(chars[i]) && i > 0 ? '·' + m : m))
+          .join('');
+      } else {
+        result = mapped.join('');
+      }
+      const note = supported
+        ? hasCJK
+          ? '中文无数学粗体字形，已用间隔号点缀'
+          : ''
+        : '你的系统缺少数学粗体字形，已自动降级为全角字符效果';
+      return { result, note };
+    }
+    case 'zalgo': {
+      const result = chars
+        .map((c) => {
+          // 中文叠组合符易错位，数量从 3-7 降到 1-2
+          const n = isCJK(c) ? 1 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 5);
+          let r = c;
+          for (let i = 0; i < n; i++) r += ZALGO_MARKS[Math.floor(Math.random() * ZALGO_MARKS.length)];
+          return r;
+        })
+        .join('');
+      return { result, note: '' };
+    }
+    case 'strikethrough': {
+      const result = chars.map((c) => c + '\u0336').join('');
+      const note = hasCJK ? '删除线为组合符，对中文可能略有错位' : '';
+      return { result, note };
+    }
+    case 'flip': {
+      const supported = styleSupported(STYLE_PROBE.flip);
+      const reversed = [...chars].reverse();
+      // 探测失败则降级为纯反转（仅用 BMP/ASCII，绝不输出豆腐块）
+      const result = reversed.map((c) => (supported ? FLIP[c] || c : c)).join('');
+      const note = supported ? '' : '你的系统缺少翻转字形，已自动降级为纯反转效果';
+      return { result, note };
+    }
+    default: {
+      // 未知风格回落到 bubbles
+      const supported = styleSupported(STYLE_PROBE.bubbles);
+      const fn = (c: string) => (supported ? BUBBLES[c] || c : `【${c}】`);
+      const result = chars.map((c) => (isCJK(c) ? `【${c}】` : fn(c))).join('');
+      const note = supported ? '' : '你的系统缺少气泡圈字形，已自动降级为方头括号包裹效果';
+      return { result, note };
+    }
+  }
+}
+
 export async function fancyTextGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const text = (input.text as string) || '';
     const style = (input.style as string) || 'bubbles';
     if (!text.trim()) return { success: false, error: '请输入文字' };
 
-    const transformers: Record<string, (t: string) => string> = {
-      bubbles: (t) => [...t].map(c => {
-        const map: Record<string, string> = { 'a':'ⓐ','b':'ⓑ','c':'ⓒ','d':'ⓓ','e':'ⓔ','f':'ⓕ','g':'ⓖ','h':'ⓗ','i':'ⓘ','j':'ⓙ','k':'ⓚ','l':'ⓛ','m':'ⓜ','n':'ⓝ','o':'ⓞ','p':'ⓟ','q':'ⓠ','r':'ⓡ','s':'ⓢ','t':'ⓣ','u':'ⓤ','v':'ⓥ','w':'ⓦ','x':'ⓧ','y':'ⓨ','z':'ⓩ','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ','D':'Ⓓ','E':'Ⓔ','F':'Ⓕ','G':'Ⓖ','H':'Ⓗ','I':'Ⓘ','J':'Ⓙ','K':'Ⓚ','L':'Ⓛ','M':'Ⓜ','N':'Ⓝ','O':'Ⓞ','P':'Ⓟ','Q':'Ⓠ','R':'Ⓡ','S':'Ⓢ','T':'Ⓣ','U':'Ⓤ','V':'Ⓥ','W':'Ⓦ','X':'Ⓧ','Y':'Ⓨ','Z':'Ⓩ','0':'⓪','1':'①','2':'②','3':'③','4':'④','5':'⑤','6':'⑥','7':'⑦','8':'⑧','9':'⑨' };
-        return map[c] || c;
-      }).join(''),
-      squares: (t) => [...t].map(c => {
-        const map: Record<string, string> = { 'A':'🄰','B':'🄱','C':'🄲','D':'🄳','E':'🄴','F':'🄵','G':'🄶','H':'🄷','I':'🄸','J':'🄹','K':'🄺','L':'🄻','M':'🄼','N':'🄽','O':'🄾','P':'🄿','Q':'🅀','R':'🅁','S':'🅂','T':'🅃','U':'🅄','V':'🅅','W':'🅆','X':'🅇','Y':'🅈','Z':'🅉','a':'🄰','b':'🄱','c':'🄲','d':'🄳','e':'🄴','f':'🄵','g':'🄶','h':'🄷','i':'🄸','j':'🄹','k':'🄺','l':'🄻','m':'🄼','n':'🄽','o':'🄾','p':'🄿','q':'🅀','r':'🅁','s':'🅂','t':'🅃','u':'🅄','v':'🅅','w':'🅆','x':'🅇','y':'🅈','z':'🅉' };
-        return map[c] || c;
-      }).join(''),
-      zalgo: (t) => [...t].map(c => {
-        const marks = ['\u0300','\u0301','\u0302','\u0303','\u0304','\u0305','\u0306','\u0307','\u0308','\u0309','\u030a','\u030b','\u030c','\u030d','\u030e'];
-        let r = c;
-        const n = Math.floor(Math.random() * 5) + 3;
-        for (let i = 0; i < n; i++) r += marks[Math.floor(Math.random() * marks.length)];
-        return r;
-      }).join(''),
-      strikethrough: (t) => [...t].map(c => c + '\u0336').join(''),
-      flip: (t) => {
-        const map: Record<string, string> = { 'a':'ɐ','b':'q','c':'ɔ','d':'p','e':'ǝ','f':'ɟ','g':'ƃ','h':'ɥ','i':'ᴉ','j':'ɾ','k':'ʞ','l':'l','m':'ɯ','n':'u','o':'o','p':'d','q':'b','r':'ɹ','s':'s','t':'ʇ','u':'n','v':'ʌ','w':'ʍ','x':'x','y':'ʎ','z':'z','A':'∀','B':'𐐒','C':'Ɔ','D':'◖','E':'Ǝ','F':'Ⅎ','G':'⅁','H':'H','I':'I','J':'ſ','K':'⋊','L':'⅂','M':'W','N':'N','O':'O','P':'Ԁ','Q':'Ό','R':'ᴚ','S':'S','T':'⊥','U':'∩','V':'Λ','W':'M','X':'X','Y':'⅄','Z':'Z' };
-        return [...t].reverse().map(c => map[c] || c).join('');
-      },
-      bold: (t) => {
-        const map: Record<string, string> = { 'a':'𝐚','b':'𝐛','c':'𝐜','d':'𝐝','e':'𝐞','f':'𝐟','g':'𝐠','h':'𝐡','i':'𝐢','j':'𝐣','k':'𝐤','l':'𝐥','m':'𝐦','n':'𝐧','o':'𝐨','p':'𝐩','q':'𝐪','r':'𝐫','s':'𝐬','t':'𝐭','u':'𝐮','v':'𝐯','w':'𝐰','x':'𝐱','y':'𝐲','z':'𝐳','A':'𝐀','B':'𝐁','C':'𝐂','D':'𝐃','E':'𝐄','F':'𝐅','G':'𝐆','H':'𝐇','I':'𝐈','J':'𝐉','K':'𝐊','L':'𝐋','M':'𝐌','N':'𝐍','O':'𝐎','P':'𝐏','Q':'𝐐','R':'𝐑','S':'𝐒','T':'𝐓','U':'𝐔','V':'𝐕','W':'𝐖','X':'𝐗','Y':'𝐘','Z':'𝐙','0':'𝟎','1':'𝟏','2':'𝟐','3':'𝟑','4':'𝟒','5':'𝟓','6':'𝟔','7':'𝟕','8':'𝟖','9':'𝟗' };
-        return [...t].map(c => map[c] || c).join('');
-      },
-    };
+    const { result, note } = transformFancyText(text, style, {
+      glyphChecker: (c) => isGlyphSupported(c),
+    });
 
-    const transformed = (transformers[style] || transformers.bubbles)(text);
+    const hint = '点击右上角复制按钮复制转换后的文字' + (note ? `（${note}）` : '');
 
     return {
       success: true,
-      data: { 原文: text, '转换结果': transformed, 风格: style, 提示: '点击右上角复制按钮复制转换后的文字' },
+      data: { 原文: text, '转换结果': result, 风格: style, 提示: hint },
     };
   } catch (e) { return { success: false, error: `转换失败: ${(e as Error).message}` }; }
 }

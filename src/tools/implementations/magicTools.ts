@@ -430,49 +430,142 @@ export async function textToHandwriting(input: Record<string, unknown>): Promise
  * 词云生成器
  * 功能：根据输入文本生成词云图片
  * 原理：词频统计 + 螺旋布局 + 碰撞检测
- * 支持中文分词和英文单词
+ * 支持中文分词（Intl.Segmenter，降级 bigram）和英文单词
  * ============================================
  */
+
+/** 中文停用词：常见虚词、无信息量字词（单字中文也会被统一过滤）。 */
+const ZH_STOPWORDS = new Set<string>([
+  '的', '了', '是', '在', '我', '有', '和', '就', '不', '人', '都', '一', '一个',
+  '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好',
+  '自己', '这', '那', '之', '与', '及', '等', '被', '把', '让', '他', '她', '它',
+  '我们', '你们', '他们', '这个', '那个', '什么', '怎么', '可以', '因为', '所以',
+  '但是', '如果', '已经', '现在', '知道', '觉得', '时候', '出来', '起来', '过',
+  '还', '又', '再', '更', '最', '比', '跟', '给', '向', '从', '对', '为', '以',
+  '而', '或', '并', '吗', '呢', '吧', '啊', '呀', '嘛', '哦', '嗯', '啦',
+]);
+
+/** 英文停用词。 */
+const EN_STOPWORDS = new Set<string>([
+  'the', 'and', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'on', 'at', 'for',
+  'with', 'that', 'this', 'it', 'as', 'be', 'by', 'or', 'an', 'a', 'from', 'has',
+  'have', 'had', 'but', 'not', 'they', 'we', 'you', 'he', 'she', 'i', 'my', 'your',
+  'their', 'our', 'his', 'her', 'its', 'them', 'us', 'me', 'do', 'does', 'did',
+  'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'than',
+  'into', 'about', 'over', 'after', 'before', 'between', 'out', 'up', 'down',
+  'so', 'if', 'then', 'there', 'here', 'what', 'which', 'who', 'whom', 'whose',
+]);
+
+/** 是否为单个中文字（无信息量，应被过滤）。 */
+function isSingleChineseChar(w: string): boolean {
+  return /^[一-鿿]$/.test(w);
+}
+
+/**
+ * 中文分词：优先使用浏览器原生的 Intl.Segmenter（zh-CN, word 粒度），
+ * 旧浏览器（Safari <14.1 / Firefox <125）不存在时降级为 bigram 相邻两字滑窗。
+ * 返回所有词片段（含标点/空白等非词片段，由调用方按需过滤）。
+ */
+function segmentChinese(text: string): string[] {
+  const zhRuns = text.match(/[一-鿿]+/g) || [];
+  const words: string[] = [];
+
+  let segmenter: Intl.Segmenter | null = null;
+  try {
+    if (typeof Intl !== 'undefined' && typeof (Intl as unknown as { Segmenter?: unknown }).Segmenter === 'function') {
+      segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
+    }
+  } catch {
+    segmenter = null;
+  }
+
+  if (segmenter) {
+    for (const run of zhRuns) {
+      const segments = segmenter.segment(run);
+      for (const s of segments) {
+        if (s.isWordLike) words.push(s.segment);
+      }
+    }
+  } else {
+    // 降级：bigram 相邻两字滑窗，例如「今天天气」→「今天」「天天」「天气」
+    for (const run of zhRuns) {
+      if (run.length < 2) continue;
+      for (let i = 0; i < run.length - 1; i++) {
+        words.push(run.slice(i, i + 2));
+      }
+    }
+  }
+  return words;
+}
+
+/** 词语与其词频（按词频降序）。 */
+export interface WordFrequency {
+  word: string;
+  count: number;
+}
+
+/**
+ * 纯函数：分词 + 词频统计 + 停用词/单字过滤。
+ * 不依赖 canvas / DOM，可在单元测试中独立验证。
+ */
+export function extractWordFrequencies(text: string): WordFrequency[] {
+  if (!text || !text.trim()) return [];
+
+  // 移除标点符号与空白，保留中英文与数字
+  const cleaned = text.replace(
+    /[，。！？、；：""''（）【】《》〈〉\n\r\t\s,.!?;:'"()\[\]{}<>_`~@#$%^&*+=|\\/—–…·]+/g,
+    ' ',
+  );
+
+  // 英文单词：去掉中文后按空白切分，长度 >2 且非停用词
+  const enWords = cleaned
+    .replace(/[一-鿿]+/g, ' ')
+    .split(/\s+/)
+    .map((w) => w.toLowerCase())
+    .filter((w) => w.length >= 2 && !EN_STOPWORDS.has(w));
+
+  // 中文分词（Segmenter / bigram 降级）后过滤单字与停用词
+  const zhWords = segmentChinese(cleaned).filter((w) => {
+    if (isSingleChineseChar(w)) return false;
+    if (ZH_STOPWORDS.has(w)) return false;
+    return true;
+  });
+
+  const allWords = [...enWords, ...zhWords];
+  const freq: Record<string, number> = {};
+  for (const w of allWords) {
+    if (!w) continue;
+    const key = w.toLowerCase();
+    freq[key] = (freq[key] || 0) + 1;
+  }
+
+  return Object.entries(freq)
+    .map(([word, count]) => ({ word, count }))
+    .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
+}
 export async function wordCloudGenerate(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const text = (input.text as string) || '';
     const colorScheme = (input.colorScheme as string) || 'warm';
     if (!text.trim()) return { success: false, error: '请输入文本' };
 
-    // ========== 第1步：文本预处理和词频统计 ==========
-    // 移除标点符号
-    const cleaned = text.replace(/[，。！？、；：""''（）【】《》\n\r\t,\.!\?;:'"\(\)\[\]{}]/g, ' ');
+    // ========== 第1步：分词 + 词频统计（纯函数，已导出便于单测） ==========
+    const allEntries = extractWordFrequencies(text);
+    const entries = allEntries.slice(0, 80);
 
-    // 中文分词：按字符切分（简化版，实际应用可用jieba等分词库）
-    const zhongwenMatches = cleaned.match(/[\u4e00-\u9fff]+/g) || [];
-
-    // 英文单词提取
-    const enWords = cleaned.replace(/[\u4e00-\u9fff]+/g, '').split(/\s+/).filter(w => w.length > 1);
-
-    // 合并所有词
-    const allWords = [...zhongwenMatches, ...enWords];
-
-    // 统计词频
-    const freq: Record<string, number> = {};
-    for (const w of allWords) {
-      const key = w.toLowerCase();
-      freq[key] = (freq[key] || 0) + 1;
+    if (entries.length === 0) {
+      return {
+        success: false,
+        error: '未提取到有效词汇，请输入更长、更有实质内容的文本（例如多个词语、句子或段落）',
+      };
     }
 
-    // 按频率排序，取前80个词
-    const entries = Object.entries(freq)
-      .filter(([_, c]) => c >= 1)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 80);
-
-    if (entries.length === 0) return { success: false, error: '未提取到有效词汇' };
-
     // ========== 第2步：创建画布 ==========
-    const maxCount = entries[0][1];
-    const minCount = entries[entries.length - 1][1];
+    const maxCount = entries[0].count;
+    const minCount = entries[entries.length - 1].count;
     const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 600;
+    canvas.width = 900;
+    canvas.height = 650;
     const ctx = canvas.getContext('2d')!;
 
     // 绘制背景
@@ -513,10 +606,17 @@ export async function wordCloudGenerate(input: Record<string, unknown>): Promise
     };
 
     // ========== 第5步：逐词放置 ==========
-    for (const [word, count] of entries) {
-      // 根据词频计算字体大小
-      const ratio = maxCount > minCount ? (count - minCount) / (maxCount - minCount) : 0.5;
-      const fontSize = Math.round(16 + ratio * 56); // 16px - 72px
+    for (let i = 0; i < entries.length; i++) {
+      const { word, count } = entries[i];
+      // 字号：词频差异明显时按词频映射；所有词频相同时退化为按排名，保证有视觉层次
+      let fontSize: number;
+      if (maxCount > minCount) {
+        const ratio = (count - minCount) / (maxCount - minCount);
+        fontSize = Math.round(16 + ratio * 56); // 16px - 72px
+      } else {
+        const rankRatio = entries.length > 1 ? 1 - i / entries.length : 0.5;
+        fontSize = Math.round(16 + rankRatio * 56);
+      }
 
       ctx.font = `bold ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
       const metrics = ctx.measureText(word);
@@ -551,14 +651,9 @@ export async function wordCloudGenerate(input: Record<string, unknown>): Promise
         }
       }
 
-      // 如果螺旋搜索失败，随机放置
+      // 螺旋搜索失败：跳过该词，宁可少画几个也不要重叠糊成一片
       if (!placed) {
-        const x = 10 + nextRand() * (canvas.width - tw - 20);
-        const y = 10 + nextRand() * (canvas.height - th - 20);
-        ctx.font = `bold ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
-        ctx.fillStyle = palette[Math.floor(nextRand() * palette.length)];
-        ctx.fillText(word, x, y + th);
-        placedRects.push({ x, y, w: tw, h: th });
+        continue;
       }
     }
 
@@ -569,8 +664,8 @@ export async function wordCloudGenerate(input: Record<string, unknown>): Promise
       success: true,
       data: {
         词汇数: `${entries.length} 个`,
-        最高频词: entries[0][0],
-        出现次数: `${entries[0][1]} 次`,
+        最高频词: entries[0].word,
+        出现次数: `${entries[0].count} 次`,
         配色: colorScheme === 'warm' ? '暖色系' : colorScheme === 'cool' ? '冷色系' : colorScheme === 'purple' ? '紫色系' : '霓虹色',
         提示: '词云大小反映词频高低，可下载PNG图片使用',
       },

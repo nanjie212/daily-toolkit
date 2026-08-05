@@ -1,5 +1,5 @@
 import type { ToolOutput } from '@/types';
-import { toLocalDateStr } from '@/lib/date';
+import { toLocalDateStr, parseLocalDate } from '@/lib/date';
 
 const foodCalorieDB: Record<string, number> = {
   米饭: 116, 馒头: 223, 面条: 110, 鸡蛋: 144, 牛奶: 54, 苹果: 53, 香蕉: 93,
@@ -40,8 +40,9 @@ export async function dueDateCalc(input: Record<string, unknown>): Promise<ToolO
   try {
     const lmp = input.lmp as string;
     if (!lmp) return { success: false, error: '请输入末次月经日期' };
-    const lmpDate = new Date(lmp);
-    if (isNaN(lmpDate.getTime())) return { success: false, error: '日期格式无效' };
+    // new Date('2024-02-30') 会静默变成 03-01，必须用严格解析
+    const lmpDate = parseLocalDate(lmp);
+    if (!lmpDate) return { success: false, error: `"${lmp}" 不是有效日期，请使用 YYYY-MM-DD 格式且日期须真实存在` };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (lmpDate > today) return { success: false, error: '末次月经日期不能晚于今天' };
@@ -72,14 +73,22 @@ export async function bodyFatCalc(input: Record<string, unknown>): Promise<ToolO
     const neck = Number(input.neck) || (gender === 'male' ? 38 : 33);
     const height = Number(input.height) || 170;
     if (weight <= 0 || waist <= 0) return { success: false, error: '请输入体重和腰围' };
+    if (neck <= 0) return { success: false, error: '颈围必须大于 0' };
+    if (height <= 0) return { success: false, error: '身高必须大于 0' };
     const bmi = weight / ((height / 100) ** 2);
     let bodyFat: number;
     if (gender === 'male') {
+      // 美国海军公式取 log10(腰围-颈围)：腰围不大于颈围时真数 ≤ 0，
+      // Math.log10 会返回 -Infinity / NaN 并污染后续结果，必须先拦下来。
+      if (waist <= neck) return { success: false, error: '腰围必须大于颈围，请检查输入' };
       bodyFat = 86.010 * Math.log10(waist - neck) - 70.041 * Math.log10(height) + 36.76;
     } else {
       const hip = Number(input.hip) || 95;
+      if (hip <= 0) return { success: false, error: '臀围必须大于 0' };
+      if (waist + hip <= neck) return { success: false, error: '腰围与臀围之和必须大于颈围，请检查输入' };
       bodyFat = 163.205 * Math.log10(waist + hip - neck) - 97.684 * Math.log10(height) - 78.387;
     }
+    if (!Number.isFinite(bodyFat)) return { success: false, error: '输入数据无法得出有效体脂率，请检查身高 / 腰围 / 颈围' };
     bodyFat = Math.max(3, Math.min(50, bodyFat));
     let level: string;
     if (gender === 'male') {

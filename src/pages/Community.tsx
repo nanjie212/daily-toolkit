@@ -1,546 +1,158 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HeartIcon, SendIcon, ReplyIcon, TrashIcon, MessageCircleIcon, SmileIcon, ChevronUpIcon, ArrowLeftIcon } from 'lucide-react';
-import { safeStorage } from '@/lib/safeStorage';
 import {
-  listMessages as apiListMessages,
-  createMessage as apiCreateMessage,
-  likeMessage as apiLikeMessage,
-  encourageMessage as apiEncourageMessage,
-  replyMessage as apiReplyMessage,
-  getDeviceId,
-} from '@/lib/communityApi';
-
-interface Reply {
-  id: string;
-  nickname: string;
-  content: string;
-  timestamp: number;
-}
-
-interface Message {
-  id: string;
-  nickname: string;
-  content: string;
-  timestamp: number;
-  likes: number;
-  liked_by: string[];
-  encourages: number;
-  encouraged_by: string[];
-  replies: Reply[];
-  /** 离线草稿标记：联网后由 fetchMessages 自动同步到云端 */
-  pendingSync?: boolean;
-}
-
-const STORAGE_KEY = 'toolbox_community_messages';
-const randomNicks = ['快乐的小鸟', '阳光下的猫', '随风而行', '星空漫步者', '午后红茶', '薄荷糖', '蔚蓝海岸', '竹林听雨', '晨曦微露', '北方的狼', '小鱼儿', '追风少年'];
-
-function genNickname(): string {
-  return randomNicks[Math.floor(Math.random() * randomNicks.length)] + Math.floor(Math.random() * 100);
-}
-
-function formatTime(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-  if (diff < 259200000) return `${Math.floor(diff / 86400000)} 天前`;
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+  ArrowLeftIcon,
+  InboxIcon,
+  MessageCircleIcon,
+  ExternalLinkIcon,
+  SparklesIcon,
+} from 'lucide-react';
+import { getFeedbackFormUrl, isFeedbackConfigured } from '@/lib/feedbackConfig';
+import { communityResponses, type CommunityResponse } from '@/data/communityResponses';
 
 /**
- * 云端留言板数据层（调用 Worker / D1 后端，封装于 @/lib/communityApi）。
- * 函数签名与原 localStorage 版保持一致（async / 返回 Promise），组件侧逻辑无需改动。
- * 容错降级：后端不可用时，回退到 safeStorage 本地缓存 / 离线草稿。
+ * 社区意见箱页面（纯静态，零后端）。
+ *
+ * ## 为什么不再是「实时留言墙」
+ * 前两版分别用自建 Serverless 后端与国内 BaaS 云数据库：前者默认域名在大陆被墙，
+ * 后者要求站长（非技术背景）完成实名认证、手工建表、配置一堆权限，维护成本过高。
+ * 现改为「第三方表单 + 静态回应区」：
+ *
+ *   - **A 区 意见箱**：内嵌金数据 / 腾讯问卷等第三方表单的 iframe。
+ *     用户填写与提交全部发生在第三方域内，本项目**不发起任何网络请求、不持有任何凭据**。
+ *   - **B 区 站长回应区**：读取 `src/data/communityResponses.ts` 的静态数组。
+ *     站长从表单后台导出真实意见后，手动挑选、脱敏、附回应，再提交代码发布。
+ *
+ * 因此本文件不含任何 fetch / localStorage 草稿 / 点赞 / 回复逻辑 —— 它只是两块展示区。
+ *
+ * ## 布局说明（2026-08 改版）
+ * 移动 / 平板（< lg）单列纵向堆叠：页头 → 意见箱（上）→ 站长回应区（下）。
+ * 桌面端（>= lg）左右双栏：左栏倾斜给第三方表单更多宽度（minmax(0,…) 防止 iframe 撑破 grid），
+ * 右栏站长回应区 `sticky` 跟随，列表过长时内部滚动，避免布局塌陷。
  */
-function loadMessages(): Message[] {
-  const list = safeStorage.getJSON<Message[]>(STORAGE_KEY, []);
-  return Array.isArray(list) ? list : [];
-}
 
-function saveMessages(list: Message[]): void {
-  safeStorage.setJSON(STORAGE_KEY, list);
-}
+/** iframe 的 sandbox 白名单：允许表单正常运行与提交，但禁止其操纵顶层窗口。 */
+const IFRAME_SANDBOX = 'allow-forms allow-scripts allow-same-origin allow-popups';
 
-/**
- * 拉取留言列表。
- * 成功：缓存到本地并合并未同步的离线草稿（联网后自动重试同步）。
- * 失败（后端不可用）：回退到本地缓存，保证可见可降级。
- */
-async function fetchMessages(): Promise<Message[]> {
-  try {
-    const serverItems = await apiListMessages();
-    const cached = loadMessages();
-    const drafts = cached.filter((m) => m.pendingSync);
-    const keep = new Set<string>();
-    for (const d of drafts) {
-      try {
-        await apiCreateMessage({ nickname: d.nickname, content: d.content });
-      } catch {
-        keep.add(d.id);
-      }
-    }
-    const remainingDrafts = drafts
-      .filter((d) => keep.has(d.id))
-      .map((d) => ({ ...d, pendingSync: undefined }));
-    const merged = [...serverItems, ...remainingDrafts];
-    saveMessages(merged);
-    return merged.slice().sort((a, b) => b.timestamp - a.timestamp);
-  } catch {
-    return loadMessages().slice().sort((a, b) => b.timestamp - a.timestamp);
-  }
-}
+/** 单条「意见 + 站长回应」卡片。 */
+function ResponseCard({ item }: { item: CommunityResponse }) {
+  return (
+    <div className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-7 h-7 rounded-full bg-surface flex items-center justify-center text-xs font-bold text-accent">
+          {item.nickname.slice(0, 1) || '匿'}
+        </div>
+        <span className="font-medium text-sm text-gray-200">{item.nickname}</span>
+        {item.date ? <span className="text-xs text-gray-600">{item.date}</span> : null}
+      </div>
 
-/** 发布新留言；离线时写入本地草稿（pendingSync），联网后自动同步。 */
-async function postMessage(msg: Message): Promise<boolean> {
-  try {
-    await apiCreateMessage({ nickname: msg.nickname, content: msg.content });
-    return true;
-  } catch {
-    const list = loadMessages();
-    list.push({ ...msg, pendingSync: true });
-    saveMessages(list);
-    return true;
-  }
-}
+      <p className="text-gray-300 text-sm whitespace-pre-wrap break-words">{item.content}</p>
 
-/**
- * 用户侧删除：仅隐藏本机本地草稿 / 缓存（一般用户走「隐藏本地草稿」）。
- * 云端隐藏 / 删除属管理行为（需 adminKey → moderateMessage），不在普通访客 UI 暴露。
- */
-async function deleteMessage(id: string): Promise<boolean> {
-  saveMessages(loadMessages().filter((m) => m.id !== id));
-  return true;
-}
-
-/** 点赞：按 deviceId 去重（服务端 toggle）；离线时本地切换 deviceId。 */
-async function likeMessage(id: string, _nickname: string, _liked: boolean): Promise<boolean> {
-  const deviceId = getDeviceId();
-  try {
-    await apiLikeMessage(id, deviceId);
-    return true;
-  } catch {
-    const list = loadMessages();
-    const msg = list.find((m) => m.id === id);
-    if (!msg) return false;
-    const likedBy = msg.liked_by || [];
-    if (likedBy.includes(deviceId)) {
-      msg.likes = Math.max(0, (msg.likes || 0) - 1);
-      msg.liked_by = likedBy.filter((n) => n !== deviceId);
-    } else {
-      msg.likes = (msg.likes || 0) + 1;
-      msg.liked_by = [...likedBy, deviceId];
-    }
-    saveMessages(list);
-    return true;
-  }
-}
-
-/** 鼓励：按 deviceId 去重（服务端 toggle）；离线时本地切换 deviceId。 */
-async function encourageMessage(
-  id: string,
-  _nickname: string,
-  _encouraged: boolean,
-): Promise<boolean> {
-  const deviceId = getDeviceId();
-  try {
-    await apiEncourageMessage(id, deviceId);
-    return true;
-  } catch {
-    const list = loadMessages();
-    const msg = list.find((m) => m.id === id);
-    if (!msg) return false;
-    const encouragedBy = msg.encouraged_by || [];
-    if (encouragedBy.includes(deviceId)) {
-      msg.encourages = Math.max(0, (msg.encourages || 0) - 1);
-      msg.encouraged_by = encouragedBy.filter((n) => n !== deviceId);
-    } else {
-      msg.encourages = (msg.encourages || 0) + 1;
-      msg.encouraged_by = [...encouragedBy, deviceId];
-    }
-    saveMessages(list);
-    return true;
-  }
-}
-
-/** 回复：离线时追加到本地缓存。 */
-async function replyMessage(msgId: string, reply: Reply): Promise<boolean> {
-  try {
-    await apiReplyMessage(msgId, { nickname: reply.nickname, content: reply.content });
-    return true;
-  } catch {
-    const list = loadMessages();
-    const msg = list.find((m) => m.id === msgId);
-    if (!msg) return false;
-    msg.replies = [...(msg.replies || []), reply];
-    saveMessages(list);
-    return true;
-  }
+      {item.reply ? (
+        <div className="mt-3 pl-3 border-l-2 border-accent/40 bg-surface/40 rounded-r-xl py-2 pr-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <SparklesIcon className="w-3.5 h-3.5 text-accent" />
+            <span className="text-xs font-medium text-accent">站长回应</span>
+          </div>
+          <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">{item.reply}</p>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function Community() {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState('');
-  const [nickname, setNickname] = useState(() => safeStorage.getJSON<string>('toolbox_community_nickname', '') || genNickname());
-  const [content, setContent] = useState('');
-  const [nickEditing, setNickEditing] = useState(false);
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState('');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'hottest'>('newest');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const msgListRef = useRef<HTMLDivElement>(null);
-
-  const loadMessages = useCallback(async (showLoading = false) => {
-    if (showLoading) setInitialLoading(true);
-    const msgs = await fetchMessages();
-    setMessages(msgs);
-    setInitialLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadMessages(true);
-    const interval = setInterval(() => loadMessages(), 30000);
-    return () => clearInterval(interval);
-  }, [loadMessages]);
-
-  const handleSaveNick = () => {
-    safeStorage.setJSON('toolbox_community_nickname', nickname);
-    setNickEditing(false);
-  };
-
-  const handleSend = async () => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    if (trimmed.length > 500) return;
-    if (sending) return;
-
-    setSending(true);
-    setSendError('');
-
-    const msg: Message = {
-      id: crypto.randomUUID(),
-      nickname: nickname || '匿名用户',
-      content: trimmed,
-      timestamp: Date.now(),
-      likes: 0,
-      liked_by: [],
-      encourages: 0,
-      encouraged_by: [],
-      replies: [],
-    };
-
-    const ok = await postMessage(msg);
-    if (ok) {
-      setContent('');
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
-      loadMessages();
-    } else {
-      setSendError('发送失败，请稍后重试');
-    }
-    setSending(false);
-  };
-
-  const handleLike = async (msgId: string) => {
-    const msg = messages.find((m) => m.id === msgId);
-    if (!msg) return;
-    const alreadyLiked = isLiked(msg);
-    const ok = await likeMessage(msgId, nickname || '匿名用户', alreadyLiked);
-    if (ok) loadMessages();
-  };
-
-  const handleEncourage = async (msgId: string) => {
-    const msg = messages.find((m) => m.id === msgId);
-    if (!msg) return;
-    const already = isEncouraged(msg);
-    const ok = await encourageMessage(msgId, nickname || '匿名用户', already);
-    if (ok) loadMessages();
-  };
-
-  const handleDelete = async (msgId: string) => {
-    const ok = await deleteMessage(msgId);
-    if (ok) loadMessages();
-  };
-
-  const handleReply = async (msgId: string) => {
-    const trimmed = replyContent.trim();
-    if (!trimmed || trimmed.length > 300) return;
-
-    const reply: Reply = {
-      id: crypto.randomUUID(),
-      nickname: nickname || '匿名用户',
-      content: trimmed,
-      timestamp: Date.now(),
-    };
-
-    const ok = await replyMessage(msgId, reply);
-    if (ok) {
-      setReplyTo(null);
-      setReplyContent('');
-      loadMessages();
-    }
-  };
-
-  // 移除 Enter 发送功能，防止打字时误触
-  // 注意：昵称输入框和回复输入框的 Enter 发送也一并移除了
-
-  const sorted = [...messages].sort((a, b) => {
-    if (sortOrder === 'hottest') {
-      const heatA = (a.likes || 0) + (a.encourages || 0);
-      const heatB = (b.likes || 0) + (b.encourages || 0);
-      return heatB - heatA || b.timestamp - a.timestamp;
-    }
-    return b.timestamp - a.timestamp;
-  });
-
-  const nickColors = ['text-emerald-400', 'text-blue-400', 'text-purple-400', 'text-pink-400', 'text-amber-400', 'text-cyan-400', 'text-rose-400'];
-
-  const getNickColor = (nick: string) => {
-    let hash = 0;
-    for (let i = 0; i < nick.length; i++) hash = nick.charCodeAt(i) + ((hash << 5) - hash);
-    return nickColors[Math.abs(hash) % nickColors.length];
-  };
-
-  // 点赞/鼓励去重改用 deviceId（与云端一致），而非昵称，避免不同用户昵称相同误 toggle
-  const isLiked = (msg: Message) => {
-    const deviceId = getDeviceId();
-    return (msg.liked_by || []).includes(deviceId);
-  };
-
-  const isEncouraged = (msg: Message) => {
-    const deviceId = getDeviceId();
-    return (msg.encouraged_by || []).includes(deviceId);
-  };
+  const formUrl = getFeedbackFormUrl();
+  const configured = isFeedbackConfigured();
+  const responses = communityResponses;
 
   return (
     <div className="min-h-full p-6 lg:p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/')}
-            aria-label="返回"
-            className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-heading font-bold text-white mb-1">社区留言板</h1>
-            <p className="text-gray-400 text-sm">公开留言，所有人可见</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 bg-surface rounded-xl p-1">
-          <button
-            onClick={() => setSortOrder('newest')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${sortOrder === 'newest' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white'}`}
-          >
-            最新
-          </button>
-          <button
-            onClick={() => setSortOrder('hottest')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${sortOrder === 'hottest' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white'}`}
-          >
-            最热
-          </button>
+      {/* ---------- 页头（顶部通栏，不参与分栏） ---------- */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate('/')}
+          aria-label="返回"
+          className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        >
+          <ArrowLeftIcon className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-heading font-bold text-white mb-1">社区意见箱</h1>
+          <p className="text-gray-400 text-sm">提建议、报 Bug、说想法，站长都会看</p>
         </div>
       </div>
 
-      <div className="bg-card border border-white/5 rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-            <SmileIcon className="w-5 h-5 text-accent" />
+      {/* ---------- 双栏：左=意见箱 / 右=站长回应区（lg 及以上） ---------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-6 items-start">
+        {/* ---------- A 区：意见箱（第三方表单） ---------- */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 text-gray-500 text-sm">
+            <InboxIcon className="w-4 h-4" />
+            <span>意见箱</span>
           </div>
-          <div className="flex-1 flex items-center gap-2">
-            {nickEditing ? (
-              <div className="flex items-center gap-2">
-                <input
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value.slice(0, 12))}
-                  onBlur={handleSaveNick}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveNick()}
-                  className="w-28 px-2 py-1 bg-surface border border-accent/30 rounded-lg text-white text-sm focus:outline-none"
-                  autoFocus
-                />
+
+          {configured ? (
+            <div className="bg-card border border-white/5 rounded-2xl p-2 sm:p-3 space-y-3">
+              <iframe
+                src={formUrl}
+                title="意见反馈表单"
+                loading="lazy"
+                sandbox={IFRAME_SANDBOX}
+                className="w-full h-[460px] lg:h-[520px] rounded-xl border border-white/10 bg-white"
+              />
+              <div className="flex justify-center">
+                <a
+                  href={formUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface text-gray-400 text-xs hover:text-accent hover:bg-white/5 transition-all"
+                >
+                  <ExternalLinkIcon className="w-3.5 h-3.5" />
+                  <span>表单显示异常？在新窗口打开</span>
+                </a>
               </div>
-            ) : (
-              <button
-                onClick={() => setNickEditing(true)}
-                className={`text-sm font-medium hover:underline ${getNickColor(nickname)}`}
-              >
-                {nickname || '匿名用户'}
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="relative">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, 500))}
-            placeholder="写下你想说的话...（点击发送按钮发布）"
-            rows={3}
-            className="w-full px-4 py-3 bg-surface border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent/50 resize-none text-sm"
-          />
-          <div className="absolute bottom-3 right-3 flex items-center gap-2">
-            <span className={`text-xs ${content.length > 450 ? 'text-red-400' : 'text-gray-600'}`}>
-              {content.length}/500
-            </span>
-            <button
-              onClick={handleSend}
-              disabled={!content.trim() || sending}
-              className="p-2 rounded-lg bg-accent text-black disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/90 transition-all active:scale-95"
-            >
-              <SendIcon className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        {showSuccess && (
-          <div className="text-center text-accent text-sm animate-fade-in">✨ 发送成功！</div>
-        )}
-        {sendError && (
-          <div className="text-center text-red-400 text-sm">{sendError}</div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
-          <MessageCircleIcon className="w-4 h-4" />
-          <span>
-            {initialLoading ? '加载中...' : `共 ${messages.length} 条留言`}
-          </span>
-        </div>
-
-        {initialLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-card border border-white/5 rounded-2xl p-4 animate-pulse">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-full bg-surface" />
-                  <div className="h-3 w-20 bg-surface rounded" />
-                  <div className="h-2 w-12 bg-surface rounded" />
-                </div>
-                <div className="h-3 w-full bg-surface rounded mb-2" />
-                <div className="h-3 w-3/4 bg-surface rounded" />
+            </div>
+          ) : (
+            <div className="bg-card border border-white/5 rounded-2xl p-8 text-center space-y-3">
+              <InboxIcon className="w-12 h-12 mx-auto text-gray-600 opacity-50" />
+              <h2 className="text-lg font-heading font-semibold text-white">意见箱即将开放</h2>
+              <p className="text-sm text-gray-400">站长正在接入意见收集表单，稍候~</p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface text-gray-500 text-sm opacity-50 cursor-not-allowed"
+                >
+                  <ExternalLinkIcon className="w-4 h-4" />
+                  <span>联系站长</span>
+                </button>
               </div>
-            ))}
+            </div>
+          )}
+        </section>
+
+        {/* ---------- B 区：站长回应区（静态数据，桌面端 sticky 跟随） ---------- */}
+        <section className="space-y-3 lg:sticky lg:top-6">
+          <div className="flex items-center gap-2 text-gray-500 text-sm">
+            <MessageCircleIcon className="w-4 h-4" />
+            <span>站长回应区{responses.length > 0 ? ` · ${responses.length} 条` : ''}</span>
           </div>
-        ) : sorted.length > 0 ? (
-          <div ref={msgListRef} className="space-y-3">
-            {sorted.map((msg) => {
-              const liked = isLiked(msg);
-              const encouraged = isEncouraged(msg);
-              return (
-                <div key={msg.id} className="bg-card border border-white/5 rounded-2xl p-4 transition-all hover:border-white/10 group">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-full bg-surface flex items-center justify-center text-xs font-bold ${getNickColor(msg.nickname)}`}>
-                        {msg.nickname[0]}
-                      </div>
-                      <span className={`font-medium text-sm ${getNickColor(msg.nickname)}`}>
-                        {msg.nickname}
-                      </span>
-                      <span className="text-xs text-gray-600">{formatTime(msg.timestamp)}</span>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(msg.id)}
-                      className="p-1 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                      title="删除"
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
 
-                  <p className="text-gray-200 text-sm whitespace-pre-wrap break-words mb-3">{msg.content}</p>
-
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => handleLike(msg.id)}
-                      className={`flex items-center gap-1.5 text-xs transition-all active:scale-125 ${
-                        liked ? 'text-red-400' : 'text-gray-500 hover:text-red-400'
-                      }`}
-                    >
-                      <HeartIcon className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
-                      <span>{(msg.likes || 0) > 0 ? msg.likes : '赞'}</span>
-                    </button>
-                    <button
-                      onClick={() => handleEncourage(msg.id)}
-                      className={`flex items-center gap-1.5 text-xs transition-all active:scale-125 ${
-                        encouraged ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'
-                      }`}
-                    >
-                      <span className="text-base leading-none">{encouraged ? '🌟' : '⭐'}</span>
-                      <span>{(msg.encourages || 0) > 0 ? msg.encourages : '鼓励'}</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setReplyTo(replyTo === msg.id ? null : msg.id);
-                        setReplyContent('');
-                      }}
-                      className={`flex items-center gap-1.5 text-xs transition-all ${
-                        replyTo === msg.id ? 'text-accent' : 'text-gray-500 hover:text-accent'
-                      }`}
-                    >
-                      <ReplyIcon className="w-3.5 h-3.5" />
-                      <span>{(msg.replies || []).length > 0 ? msg.replies.length : '回复'}</span>
-                    </button>
-                  </div>
-
-                  {replyTo === msg.id && (
-                    <div className="mt-3 pl-2 border-l-2 border-accent/30 animate-fade-in">
-                      <div className="flex gap-2">
-                        <input
-                          value={replyContent}
-                          onChange={(e) => setReplyContent(e.target.value.slice(0, 300))}
-                          placeholder="写下回复..."
-                          className="flex-1 px-3 py-2 bg-surface border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent/50"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleReply(msg.id)}
-                          disabled={!replyContent.trim()}
-                          className="px-3 py-2 rounded-lg bg-accent/20 text-accent text-sm disabled:opacity-30 hover:bg-accent/30 transition-all"
-                        >
-                          <SendIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {msg.replies && msg.replies.length > 0 && (
-                    <div className="mt-3 space-y-2 pl-4 border-l border-white/5">
-                      {msg.replies.map((reply) => (
-                        <div key={reply.id} className="bg-surface/50 rounded-xl p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-xs font-medium ${getNickColor(reply.nickname)}`}>{reply.nickname}</span>
-                            <span className="text-[10px] text-gray-600">{formatTime(reply.timestamp)}</span>
-                          </div>
-                          <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">{reply.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-16 text-gray-500">
-            <MessageCircleIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg">还没有留言</p>
-            <p className="text-sm mt-1">成为第一个发言的人吧！</p>
-          </div>
-        )}
-
-        {messages.length > 10 && (
-          <button
-            onClick={() => msgListRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="fixed bottom-20 right-6 z-40 p-3 rounded-full bg-accent/20 text-accent hover:bg-accent/30 transition-all"
-          >
-            <ChevronUpIcon className="w-5 h-5" />
-          </button>
-        )}
+          {responses.length > 0 ? (
+            <div className="space-y-3 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:pr-1">
+              {responses.map((item) => (
+                <ResponseCard key={item.id} item={item} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-gray-500">
+              <MessageCircleIcon className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-base">还没有回应，欢迎来提~</p>
+              <p className="text-xs mt-1">你的意见被采纳后，会出现在这一栏</p>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

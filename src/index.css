@@ -158,7 +158,9 @@ html, body, #root {
   height: 100%;
   background-color: var(--bg);
   color: var(--text);
-  font-family: var(--font-body), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  /* 追加符号字体兜底：装饰文字工具会输出 SMP 平面字符（如 U+1F130 方形框、U+1D41A 数学粗体），
+     仅靠 DM Sans + emoji 字体会渲染成豆腐块 □，需要 Segoe UI Symbol / Noto Sans Symbols 2 / Cambria Math 覆盖。 */
+  font-family: var(--font-body), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Cambria Math', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

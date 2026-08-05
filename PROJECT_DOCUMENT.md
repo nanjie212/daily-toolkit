@@ -1,8 +1,8 @@
 # 普通日常工具箱 — 产品文档（权威版）
 
-> 版本：v1.2.1 ｜ 更新日期：2026-07-31
-> 在线地址：https://nanjie212.github.io/daily-toolkit/
-> 仓库：`github.com/nanjie212/daily-toolkit`
+> 版本：v1.2.1 ｜ 更新日期：2026-08-04
+> 在线地址：https://6c9131a380b24cd08741384565831c9b.bj9.agentos-app.net （WorkBuddy 云端 / CloudStudio 托管）
+> 仓库：已脱离 GitHub，无公开代码仓库（开发发布统一在 WorkBuddy 云端完成）
 >
 > ⚠️ **本文档为项目权威说明。** 同目录下的 `01-项目概览与架构分析.md`、`02-Bug清单与修复建议.md`、`03-完整测试记录.md`、`04-项目原始资料汇编.md`、`对话记录整理.md`、`ROADMAP_PHASE1_2.md` 均为早期 **AI 生成的草稿**，其中工具数量、分类数、部署平台、技术栈等数据与代码不符，**请以本文为准**。
 
@@ -24,12 +24,12 @@
 |------|------|
 | **100% 本地运行** | 全部计算/处理在浏览器内完成，不上传任何数据 |
 | **完全离线可用** | Service Worker 预缓存资源，断网仍可用 |
-| **零后端 / 零 API** | 无服务器依赖，无第三方接口调用（社区留言仅存 localStorage） |
+| **零后端 / 零 API** | 无服务器依赖，无第三方接口调用（意见收集走嵌入第三方表单，回应区为静态数据，站点本身不存储任何数据） |
 | **66 个内置工具** | 覆盖日常、理财、健康、图片/PDF、趣味 5 大分类 |
 | **智能搜索** | 支持中文 / 全拼 / 拼音首字母；`Ctrl+K` / `Cmd+K` 快速聚焦 |
 | **个人化** | 收藏、固定、最近使用（均本地保存） |
 | **主题与响应式** | 暗色 / 亮色主题，手机 / 平板 / 桌面自适应 |
-| **社区留言板** | 纯本地存储的留言/点赞/回复（不联网、不共享） |
+| **意见箱 + 站长回应区** | 嵌入第三方表单收集意见（数据存于表单后台，网站不存储）；站长手动维护的"回应区"为静态展示 |
 | **开发者中心** | 自定义工具本地持久化 |
 
 ---
@@ -42,10 +42,10 @@
 | 构建 | Vite 6 | 快速构建 |
 | 样式 | Tailwind CSS 3 | 原子化 CSS，支持 `dark:` 暗色变体 |
 | 状态管理 | Zustand | 轻量全局状态 |
-| 路由 | React Router（**Hash 模式**） | 适配 GitHub Pages 子路径 `/daily-toolkit/`，无需服务端重写 |
+| 路由 | React Router（**Hash 模式**） | 免服务端重写，适配任意静态托管（CloudStudio / 任意 CDN） |
 | PWA | vite-plugin-pwa | Service Worker 预缓存，可安装到桌面 |
-| 存储 | localStorage | 收藏/固定/最近/留言/主题偏好 |
-| 部署 | **GitHub Pages**（`gh-pages` 分支） | 仓库 `nanjie212/daily-toolkit`，`base: '/daily-toolkit/'` |
+| 存储 | localStorage | 收藏/固定/最近/主题偏好 |
+| 部署 | **WorkBuddy 云端（CloudStudio）** | 构建产物静态托管于腾讯云节点，`base: '/'`，国内访问稳定 |
 
 > 注：早期方案曾含 Cloudflare Pages Functions / D1 / Supabase 等后端依赖，已于 v1.2.x 清理移除，当前为**纯静态、零后端**。
 
@@ -85,13 +85,12 @@
 npm install        # 安装依赖
 npm run dev        # 本地开发 (Vite)
 npm run build      # 构建到 dist/
-npm run deploy     # 构建并推送到 gh-pages 分支（需配置 Git 远程，推荐 SSH）
 ```
 
-部署说明：
-- 站点由 `gh-pages` 分支的 `dist/` 提供，GitHub Pages 源设为 `gh-pages` 分支
-- 使用 **SSH** 推送（已为用户配置 `.ssh/config` 走 443 端口，绕过 22 端口封锁），无需明文 token
-- 路由为 Hash 模式，GitHub Pages 无需 SPA 重写
+部署说明（WorkBuddy 云端，无需 GitHub）：
+- 开发发布统一在 WorkBuddy 云端（CloudStudio）完成：代理在云端编码、构建，将 `dist/` 静态托管到腾讯云节点，国内访问稳定、关电脑也在线。
+- 本地 `npm run dev` 仅用于本机调试；正式发布不再使用 GitHub Pages / `npm run deploy`。
+- 路由为 Hash 模式，任意静态托管均无需 SPA 重写。
 
 ---
 

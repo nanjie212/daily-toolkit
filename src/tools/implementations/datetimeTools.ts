@@ -1,5 +1,9 @@
 import type { ToolOutput } from '@/types';
-import { toLocalDateStr } from '@/lib/date';
+import { toLocalDateStr, parseLocalDate } from '@/lib/date';
+import { isValidCalendarDate } from '@/lib/validation';
+
+/** 循环推算日期时允许的最大天数，防止用户误填超大数字把页面算死 */
+const MAX_SPAN_DAYS = 3650;
 
 const chinaHolidays2026: Record<string, string> = {
   '2026-01-01': '元旦', '2026-01-28': '除夕', '2026-01-29': '春节', '2026-01-30': '春节', '2026-01-31': '春节', '2026-02-01': '春节', '2026-02-02': '春节', '2026-02-03': '春节',
@@ -12,35 +16,39 @@ export async function workingDaysCalc(input: Record<string, unknown>): Promise<T
     const start = input.start as string;
     const days = Number(input.days) || 30;
     if (!start) return { success: false, error: '请输入开始日期' };
-    const startDate = new Date(start);
-    if (isNaN(startDate.getTime())) return { success: false, error: '日期格式无效' };
-    let naturalDays = 0, workDays = 0;
-    const endDate = new Date(startDate);
-    while (naturalDays < days) {
+    // 用 parseLocalDate 而非 new Date(str)：后者会把 2024-02-30 静默顺延成 03-01
+    const startDate = parseLocalDate(start);
+    if (!startDate) return { success: false, error: `"${start}" 不是有效日期，请使用 YYYY-MM-DD 格式且日期须真实存在` };
+    if (!Number.isFinite(days) || days < 1) return { success: false, error: '天数必须是大于 0 的数字' };
+    if (days > MAX_SPAN_DAYS) return { success: false, error: `天数不能超过 ${MAX_SPAN_DAYS} 天` };
+
+    const totalDays = Math.floor(days);
+    let workDays = 0;
+    for (let offset = 0; offset < totalDays; offset++) {
       const d = new Date(startDate);
-      d.setDate(d.getDate() + naturalDays);
-      const key = d.toISOString().split('T')[0];
+      d.setDate(d.getDate() + offset);
+      // 按本地年月日取 key，避免 toISOString() 的 UTC 偏移导致节假日错位一天
+      const key = toLocalDateStr(d);
       const dow = d.getDay();
       if (dow !== 0 && dow !== 6 && !chinaHolidays2026[key]) workDays++;
-      naturalDays++;
     }
-    endDate.setDate(endDate.getDate() + naturalDays - 1);
-    return { success: true, data: { 开始日期: start, 结束日期: endDate.toISOString().split('T')[0], 自然日: `${naturalDays} 天`, 工作日: `${workDays} 天`, 节假日: `${naturalDays - workDays} 天`, 提示: '仅计算了周末和2026年已知节假日，调休未做处理' } };
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + totalDays - 1);
+    return { success: true, data: { 开始日期: start, 结束日期: toLocalDateStr(endDate), 自然日: `${totalDays} 天`, 工作日: `${workDays} 天`, 节假日: `${totalDays - workDays} 天`, 提示: '仅计算了周末和2026年已知节假日，调休未做处理' } };
   } catch (e) { return { success: false, error: `计算失败: ${(e as Error).message}` }; }
 }
 
 export async function lunarCalendarQuery(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const dateStr = input.date as string || new Date().toISOString().split('T')[0];
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return { success: false, error: '日期格式无效' };
+    const dateStr = (input.date as string) || toLocalDateStr(new Date());
+    // 空值走「今天」，有值则必须是真实存在的日期（拒绝 2024-02-30 这类顺延输入）
+    const date = parseLocalDate(dateStr);
+    if (!date) return { success: false, error: `"${dateStr}" 不是有效日期，请使用 YYYY-MM-DD 格式且日期须真实存在` };
     const zodiacAnimals = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
     const zodiacYear = zodiacAnimals[(date.getFullYear() - 4) % 12];
     const stemBranches = ['甲子','乙丑','丙寅','丁卯','戊辰','己巳','庚午','辛未','壬申','癸酉','甲戌','乙亥','丙子','丁丑','戊寅','己卯','庚辰','辛巳','壬午','癸未','甲申','乙酉','丙戌','丁亥','戊子','己丑','庚寅','辛卯','壬辰','癸巳','甲午','乙未','丙申','丁酉','戊戌','己亥','庚子','辛丑','壬寅','癸卯','甲辰','乙巳','丙午','丁未','戊申','己酉','庚戌','辛亥','壬子','癸丑','甲寅','乙卯','丙辰','丁巳','戊午','己未','庚申','辛酉','壬戌','癸亥'];
     const sbIndex = (date.getFullYear() - 4) % 60;
     const stemBranch = stemBranches[sbIndex >= 0 ? sbIndex : sbIndex + 60] || '未知';
-    const lunarDays = ['初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十', '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'];
-    const lunarMonths = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月'];
     const solarTerms = ['小寒', '大寒', '立春', '雨水', '惊蛰', '春分', '清明', '谷雨', '立夏', '小满', '芒种', '夏至', '小暑', '大暑', '立秋', '处暑', '白露', '秋分', '寒露', '霜降', '立冬', '小雪', '大雪', '冬至'];
     const termIdx = Math.floor(((date.getMonth() * 30 + date.getDate()) / 30) * 2) % 24;
     return {
@@ -62,8 +70,9 @@ export async function zodiacQuery(input: Record<string, unknown>): Promise<ToolO
     const birth = input.birth as string;
     if (!birth) return { success: false, error: '请输入出生日期' };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
-    const birthDate = new Date(birth);
-    if (isNaN(birthDate.getTime()) || birthDate.toISOString().slice(0, 10) !== birth) return { success: false, error: '日期格式无效或日期不存在' };
+    // 原先靠 toISOString() 回比来判合法性，依赖 UTC 语义且不易读；统一改用 parseLocalDate
+    const birthDate = parseLocalDate(birth);
+    if (!birthDate) return { success: false, error: '日期格式无效或日期不存在' };
     const zodiacAnimals = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
     const zodiac = zodiacAnimals[(birthDate.getFullYear() - 4) % 12];
     const month = birthDate.getMonth() + 1;
@@ -98,13 +107,19 @@ export async function anniversaryTracker(input: Record<string, unknown>): Promis
       const dateStr = parts[1] || '';
       if (!name || !dateStr) continue;
       const dateParts = dateStr.split('-').map(Number);
-      if (dateParts.length !== 3 || dateParts.some(isNaN)) { results.push(`${name}: 日期格式无效`); continue; }
-      let target = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-      if (isNaN(target.getTime()) || target.getDate() !== dateParts[2]) { results.push(`${name}: 日期格式无效`); continue; }
+      if (dateParts.length !== 3 || dateParts.some(Number.isNaN)) { results.push(`${name}: 日期格式无效`); continue; }
+      // 旧写法只回比了 getDate()，"2024-13-01" 会被 JS 顺延成 2025-01-01 且 day 仍为 1 从而蒙混过关；
+      // isValidCalendarDate 会把年 / 月 / 日整体回比，非法日期一律拒绝。
+      if (!isValidCalendarDate(dateParts[0], dateParts[1], dateParts[2])) {
+        results.push(`${name}: 日期无效（${dateStr} 不是真实存在的日期）`);
+        continue;
+      }
+      const originalYear = dateParts[0];
+      const target = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
       while (target.getFullYear() < today.getFullYear()) target.setFullYear(target.getFullYear() + 1);
       const t = new Date(target.getFullYear(), target.getMonth(), target.getDate());
       const diff = Math.ceil((t.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-      const yearsElapsed = target.getFullYear() - new Date(dateStr).getFullYear();
+      const yearsElapsed = target.getFullYear() - originalYear;
       results.push(`${name}: ${toLocalDateStr(t)} ${diff > 0 ? `还有${diff}天` : diff === 0 ? '就是今天!' : `已过${Math.abs(diff)}天`} | 第${yearsElapsed}年`);
     }
     return { success: true, data: { 纪念日列表: results.join('\n'), 提示: '每行格式：名称,日期（如：生日,2010-01-01），支持多个纪念日' } };

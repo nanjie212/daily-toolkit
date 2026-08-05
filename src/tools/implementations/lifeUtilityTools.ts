@@ -1,5 +1,5 @@
 import type { ToolOutput } from '@/types';
-import { toLocalDateStr } from '@/lib/date';
+import { toLocalDateStr, parseLocalDate } from '@/lib/date';
 
 export async function petAgeCalc(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
@@ -365,8 +365,9 @@ export async function periodTrackerCalc(input: Record<string, unknown>): Promise
     if (!lastDate) return { success: false, error: '请输入上次经期开始日期' };
     if (cycleDays < 15 || cycleDays > 60) return { success: false, error: '周期天数应在15~60天之间' };
     if (periodDays < 1 || periodDays > 15) return { success: false, error: '经期天数应在1~15天之间' };
-    const last = new Date(lastDate);
-    if (isNaN(last.getTime())) return { success: false, error: '日期格式无效' };
+    // new Date('2024-02-30') 不会报错而是顺延到 03-01，改用严格解析拦截非法日期
+    const last = parseLocalDate(lastDate);
+    if (!last) return { success: false, error: `"${lastDate}" 不是有效日期，请使用 YYYY-MM-DD 格式且日期须真实存在` };
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const nextDate = new Date(last);

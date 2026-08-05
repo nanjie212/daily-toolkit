@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import type { ToolOutput } from '@/types';
-import { toLocalDateStr } from '@/lib/date';
+import { toLocalDateStr, parseLocalDate } from '@/lib/date';
+import { num } from '@/lib/numbers';
 
 export async function qrcodeGenerator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
@@ -95,9 +96,11 @@ export async function unitConverter(input: Record<string, unknown>): Promise<Too
 
 export async function mortgageCalculator(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
-    const principal = Number(input.principal) || 1000000;
-    const annualRate = Number(input.rate) || 3.5;
-    const years = Number(input.years) || 30;
+    // 用 num() 而非 `Number(x) || default`：后者会把合法的 0（如零利率）
+    // 当成假值替换为默认值，也会把 'abc' 这种非法输入静默替换掉。
+    const principal = num(input.principal, 1000000);
+    const annualRate = num(input.rate, 3.5);
+    const years = num(input.years, 30);
     const method = (input.method as string) || 'equal-payment';
 
     if (principal <= 0) return { success: false, error: '贷款金额必须大于0' };
@@ -108,7 +111,12 @@ export async function mortgageCalculator(input: Record<string, unknown>): Promis
     const totalMonths = years * 12;
 
     if (method === 'equal-payment') {
-      const monthly = principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+      // 利率为 0 时 Math.pow(1+0, n) - 1 === 0，原公式会除以 0 得到 Infinity；
+      // 零利率下等额本息即为本金均摊，单独处理。
+      const factor = Math.pow(1 + monthlyRate, totalMonths);
+      const monthly = monthlyRate === 0
+        ? principal / totalMonths
+        : (principal * monthlyRate * factor) / (factor - 1);
       const totalPayment = monthly * totalMonths;
       const totalInterest = totalPayment - principal;
 
@@ -231,20 +239,15 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
     const date1Str = input.date1 as string;
     const date2Str = (input.date2 as string) || '';
 
-    const isValidDate = (s: string) => {
-      if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-      const d = new Date(s);
-      return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-    };
-
+    // 统一改用 parseLocalDate：它同时保证「格式正确」「日期真实存在」「按本地时区零点解析」。
+    // 原先的 new Date(str) 走 UTC 语义，在 UTC-X 时区做日期加减后再格式化会整体差一天。
     if (!date1Str) return { success: false, error: '请输入日期' };
 
     if (mode === 'diff') {
-      if (!isValidDate(date1Str)) return { success: false, error: `"${date1Str}" 不是有效日期` };
-      if (!isValidDate(date2Str)) return { success: false, error: `"${date2Str}" 不是有效日期` };
-      const d1 = new Date(date1Str);
-      const d2 = new Date(date2Str);
-      if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
+      const d1 = parseLocalDate(date1Str);
+      if (!d1) return { success: false, error: `"${date1Str}" 不是有效日期` };
+      const d2 = parseLocalDate(date2Str);
+      if (!d2) return { success: false, error: `"${date2Str}" 不是有效日期` };
 
       const diffMs = Math.abs(d2.getTime() - d1.getTime());
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -255,11 +258,11 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
         data: `【日期差计算】\n日期1: ${date1Str}\n日期2: ${date2Str}\n\n相差: ${diffDays}天 (${diffWeeks}周${diffDays % 7}天)`,
       };
     } else if (mode === 'add') {
-      if (!isValidDate(date1Str)) return { success: false, error: `"${date1Str}" 不是有效日期` };
-      const d1 = new Date(date1Str);
+      const d1 = parseLocalDate(date1Str);
+      if (!d1) return { success: false, error: `"${date1Str}" 不是有效日期` };
       const days = parseInt(date2Str, 10);
-      if (isNaN(d1.getTime())) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
       if (isNaN(days)) return { success: false, error: '请输入有效的天数' };
+      if (Math.abs(days) > 3650000) return { success: false, error: '推算天数超出可计算范围' };
 
       d1.setDate(d1.getDate() + days);
       const result = toLocalDateStr(d1);
@@ -269,9 +272,8 @@ export async function dateCalculator(input: Record<string, unknown>): Promise<To
         data: `【日期推算】\n起始日期: ${date1Str}\n推算天数: ${days > 0 ? '+' : ''}${days}天\n\n结果日期: ${result}`,
       };
     } else {
-      if (!isValidDate(date1Str)) return { success: false, error: `"${date1Str}" 不是有效日期` };
-      const target = new Date(date1Str);
-      if (isNaN(target.getTime())) return { success: false, error: '日期格式无效，请使用 YYYY-MM-DD' };
+      const target = parseLocalDate(date1Str);
+      if (!target) return { success: false, error: `"${date1Str}" 不是有效日期` };
 
       const now = new Date();
       const diffMs = target.getTime() - now.getTime();
@@ -409,7 +411,26 @@ export async function timezoneConverter(input: Record<string, unknown>): Promise
 
     if (!datetimeStr?.trim()) return { success: false, error: '请输入时间' };
 
-    const date = new Date(datetimeStr);
+    // 不能只靠 `isNaN(new Date(str).getTime())`：非法日期（如 2024-02-30）不会变成
+    // Invalid Date，而是被 JS 静默顺延到 03-01，用户会拿到一个看着完全正常的换算结果。
+    // 这里把日期段单独拆出来做「真实存在」校验，再与时间段拼回去。
+    const dtMatch = /^(\d{4}-\d{2}-\d{2})[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(datetimeStr.trim());
+    if (!dtMatch) return { success: false, error: '时间格式无效，请使用 YYYY-MM-DD HH:mm' };
+
+    const [, datePart, hourStr, minuteStr, secondStr = '00'] = dtMatch;
+    if (!parseLocalDate(datePart)) {
+      return { success: false, error: `"${datePart}" 不是有效日期，请检查是否为真实存在的日期` };
+    }
+
+    const hour = Number(hourStr);
+    const minute = Number(minuteStr);
+    const second = Number(secondStr);
+    if (hour > 23) return { success: false, error: '小时应在 0~23 之间' };
+    if (minute > 59) return { success: false, error: '分钟应在 0~59 之间' };
+    if (second > 59) return { success: false, error: '秒应在 0~59 之间' };
+
+    const paddedTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+    const date = new Date(`${datePart}T${paddedTime}`);
     if (isNaN(date.getTime())) return { success: false, error: '时间格式无效，请使用 YYYY-MM-DD HH:mm' };
 
     const fromFormatted = new Intl.DateTimeFormat('zh-CN', {
@@ -619,10 +640,13 @@ export async function countdown(input: Record<string, unknown>): Promise<ToolOut
     const eventName = (input.eventName as string) || '目标';
 
     if (!targetDate) return { success: false, error: '请输入目标日期' };
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return { success: false, error: `"${targetDate}" 不是有效日期` };
+    // 先用严格解析确认「日期真实存在」（原来的 toISOString 回比依赖 UTC，
+    // 在 UTC-X 时区会把合法日期误判为非法）
+    if (!parseLocalDate(targetDate)) return { success: false, error: `"${targetDate}" 不是有效日期` };
+    if (!/^\d{2}:\d{2}$/.test(targetTime)) return { success: false, error: `"${targetTime}" 不是有效时间，格式应为 HH:mm` };
 
     const target = new Date(`${targetDate}T${targetTime}:00`);
-    if (isNaN(target.getTime()) || target.toISOString().slice(0, 10) !== targetDate) return { success: false, error: `"${targetDate}" 不是有效日期` };
+    if (isNaN(target.getTime())) return { success: false, error: `"${targetDate} ${targetTime}" 不是有效时间` };
 
     const now = new Date();
     const diff = target.getTime() - now.getTime();
