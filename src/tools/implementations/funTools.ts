@@ -1,4 +1,13 @@
 import type { ToolOutput } from '@/types';
+import {
+  validateUserMove,
+  pickAIMove,
+  listAvailableSuccessors,
+  normalizeDifficulty,
+  lastCharOf,
+  type Difficulty,
+} from '@/lib/idiomChainRules';
+import { idiomSource } from '@/lib/idiomSource';
 
 const foodDB = [
   '🍜 兰州拉面', '🍔 汉堡薯条', '🍕 意大利披萨', '🍣 日式寿司', '🥟 饺子馄饨', '🍛 咖喱饭', '🍲 麻辣火锅', '🥘 石锅拌饭', '🍝 番茄意面', '🌮 墨西哥卷饼',
@@ -485,351 +494,102 @@ function randomKinshipJoke(current: string, part: string): string {
   return kinshipJokes[idx](current, part);
 }
 
+/** 把接龙链渲染成多行文本。用有序数组而非 Set，避免重复项被静默去重导致链条错位。 */
+function renderIdiomChain(chain: string[], lastIsAI: boolean): string {
+  return chain
+    .map((idiom, i) => {
+      if (i === 0) return `🟢 ${idiom}`;
+      if (i === chain.length - 1 && lastIsAI) return `🤖 ${idiom}`;
+      return `    ${idiom}`;
+    })
+    .join('\n');
+}
+
+const IDIOM_LEVEL_NAMES: Record<Difficulty, string> = {
+  easy: '简单',
+  normal: '普通',
+  hard: '困难',
+};
+
+/**
+ * 成语接龙。
+ *
+ * 规则与算法全部下沉到 `@/lib/idiomChainRules`（纯函数 + 数据源注入），
+ * 本函数只负责「解析输入 → 调规则 → 拼 ToolOutput」，不再内联任何成语数据。
+ */
 export async function idiomChain(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const start = (input.start as string) || '';
     const history = (input.history as string) || '';
-    const difficulty = (input.difficulty as string) || 'normal';
+    const difficulty = normalizeDifficulty(input.difficulty as string);
 
-    // 扩充成语数据库（100+成语，覆盖更多首字）
-    const idiomDB: Record<string, string[]> = {
-      一: ['一心一意','一见如故','一马当先','一鸣惊人','一目十行','一诺千金','一针见血','一落千丈','一帆风顺','一举两得','一丝不苟','一言九鼎','一触即发','一尘不染','一箭双雕','一鼓作气'],
-      心: ['心花怒放','心想事成','心旷神怡','心直口快','心血来潮','心猿意马','心满意足','心照不宣','心花怒放'],
-      马: ['马到成功','马不停蹄','马首是瞻','马革裹尸'],
-      人: ['人山人海','人声鼎沸','人尽其才','人面桃花','人言可畏','人杰地灵','人才济济'],
-      天: ['天长地久','天翻地覆','天衣无缝','天马行空','天涯海角','天花乱坠','天经地义'],
-      大: ['大公无私','大器晚成','大同小异','大刀阔斧','大智若愚','大快人心','大显身手'],
-      万: ['万无一失','万众一心','万象更新','万紫千红','万水千山'],
-      千: ['千钧一发','千丝万缕','千锤百炼','千载难逢','千变万化','千军万马'],
-      百: ['百发百中','百花齐放','百折不挠','百感交集','百步穿杨','百年大计'],
-      龙: ['龙飞凤舞','龙马精神','龙腾虎跃','龙争虎斗','龙凤呈祥'],
-      风: ['风和日丽','风调雨顺','风华正茂','风驰电掣','风平浪静','风雨同舟','风花雪月'],
-      花: ['花好月圆','花团锦簇','花言巧语','花枝招展','花前月下'],
-      日: ['日新月异','日积月累','日理万机','日上三竿'],
-      水: ['水落石出','水深火热','水到渠成','水滴石穿','水乳交融'],
-      山: ['山清水秀','山穷水尽','山盟海誓','山高水长'],
-      金: ['金碧辉煌','金玉满堂','金榜题名','金枝玉叶'],
-      火: ['火冒三丈','火眼金睛','火中取栗'],
-      不: ['不可思议','不翼而飞','不屈不挠','不约而同','不劳而获','不言而喻','不寒而栗'],
-      自: ['自强不息','自告奋勇','自力更生','自言自语','自相矛盾'],
-      无: ['无微不至','无与伦比','无可奈何','无穷无尽','无中生有','无价之宝'],
-      出: ['出类拔萃','出人头地','出口成章','出其不意'],
-      画: ['画龙点睛','画蛇添足','画饼充饥'],
-      虎: ['虎头蛇尾','虎视眈眈','虎口余生','虎背熊腰'],
-      意: ['意气风发','意味深长','意想不到','意气用事'],
-      故: ['故步自封','故弄玄虚'],
-      先: ['先发制人','先入为主','先见之明'],
-      到: ['到岸舍筏'],
-      成: ['成竹在胸','成千上万','成家立业'],
-      功: ['功成名就','功德无量'],
-      前: ['前功尽弃','前车之鉴','前仆后继'],
-      行: ['行云流水','行尸走肉'],
-      十: ['十全十美','十拿九稳','十万火急'],
-      目: ['目不转睛','目瞪口呆','目中无人'],
-      诺: ['诺诺连声'],
-      针: ['针锋相对'],
-      血: ['血口喷人','血本无归'],
-      落: ['落花流水','落井下石','落落大方'],
-      鸣: ['鸣锣开道'],
-      惊: ['惊天动地','惊弓之鸟','惊慌失措','惊喜交加'],
-      尽: ['尽心尽力','尽善尽美'],
-      如: ['如虎添翼','如鱼得水','如火如荼','如雷贯耳'],
-      海: ['海阔天空','海底捞月','海纳百川'],
-      声: ['声东击西','声色俱厉'],
-      沸: ['沸沸扬扬'],
-      才: ['才高八斗','才华横溢'],
-      桃: ['桃李满天下'],
-      畏: ['畏首畏尾'],
-      翻: ['翻天覆地'],
-      缝: ['缝衣浅带'],
-      空: ['空前绝后','空穴来风'],
-      角: ['角巾私第'],
-      缘: ['缘木求鱼'],
-      公: ['公而忘私','公平合理'],
-      晚: ['晚节不保'],
-      异: ['异想天开','异曲同工'],
-      刀: ['刀光剑影'],
-      愚: ['愚公移山'],
-      快: ['快马加鞭'],
-      身: ['身临其境','身体力行','身败名裂'],
-      失: ['失之交臂'],
-      众: ['众志成城','众所周知'],
-      象: ['象齿焚身'],
-      红: ['红杏出墙'],
-      丝: ['丝丝入扣'],
-      变: ['变化无常','变本加厉'],
-      军: ['军令如山'],
-      发: ['发愤图强','发人深省'],
-      中: ['中流砥柱'],
-      步: ['步步为营','步人后尘','步步登高'],
-      折: ['折戟沉沙'],
-      感: ['感人肺腑'],
-      舞: ['舞文弄墨'],
-      精: ['精益求精','精打细算'],
-      腾: ['腾云驾雾'],
-      争: ['争分夺秒'],
-      斗: ['斗志昂扬','斗转星移'],
-      呈: ['呈花一现'],
-      平: ['平步青云','平分秋色'],
-      静: ['静如处子'],
-      同: ['同甘共苦','同舟共济'],
-      月: ['月下老人'],
-      上: ['上行下效'],
-      理: ['理直气壮','理屈词穷'],
-      乳: ['乳臭未干'],
-      交: ['交口称赞'],
-      穿: ['穿针引线'],
-      高: ['高瞻远瞩','高枕无忧'],
-      长: ['长驱直入','长年累月'],
-      盟: ['盟山誓海'],
-      碧: ['碧血丹心'],
-      玉: ['玉洁冰清'],
-      榜: ['榜上有名'],
-      枝: ['枝繁叶茂'],
-      叶: ['叶落归根'],
-      栗: ['栗栗危惧'],
-      劳: ['劳苦功高','劳师动众'],
-      言: ['言简意赅','言不由衷','言传身教'],
-      寒: ['寒气逼人'],
-      约: ['约法三章'],
-      告: ['告老还乡'],
-      相: ['相辅相成','相依为命','相机行事'],
-      矛: ['矛盾重重'],
-      生: ['生龙活虎','生机勃勃','生灵涂炭'],
-      价: ['价值连城'],
-      宝: ['宝刀不老'],
-      其: ['其乐无穷'],
-      弄: ['弄巧成拙','弄虚作假'],
-      虚: ['虚张声势','虚怀若谷'],
-      封: ['封妻荫子'],
-      主: ['主客颠倒'],
-      见: ['见义勇为','见多识广'],
-      云: ['云消雾散'],
-      雨: ['雨过天晴','雨后春笋'],
-      草: ['草木皆兵'],
-      后: ['后来居上'],
-      仆: ['仆仆风尘'],
-      继: ['继往开来'],
-      全: ['全心全意'],
-      美: ['美不胜收','美轮美奂'],
-      拿: ['拿手好戏'],
-      急: ['急中生智'],
-      转: ['转危为安'],
-      睛: ['睛天霹雳'],
-      呆: ['呆若木鸡'],
-      东: ['东张西望','东山再起'],
-      西: ['西装革履'],
-      弓: ['弓弩手'],
-      鸟: ['鸟语花香'],
-      慌: ['慌不择路'],
-      地: ['地大物博'],
-      善: ['善始善终'],
-      力: ['力不从心','力挽狂澜'],
-      临: ['临危不惧'],
-      体: ['体贴入微'],
-      河: ['河清海晏'],
-      阔: ['阔步前进'],
-      底: ['海底捞针'],
-      纳: ['纳谏如流'],
-      纵: ['纵横交错'],
-      色: ['色厉内荏'],
-      厉: ['厉兵秣马'],
-      甘: ['甘之如饴'],
-      舟: ['舟车劳顿'],
-      济: ['济世之才'],
-      老: ['老马识途','老当益壮'],
-      下: ['下笔成章'],
-      效: ['效犬马力'],
-      直: ['直截了当'],
-      壮: ['壮志凌云'],
-      愤: ['愤世嫉俗'],
-      图: ['图穷匕见'],
-      省: ['省吃俭用'],
-      口: ['口若悬河','口是心非'],
-      称: ['称心如意'],
-      赞: ['赞不绝口'],
-      文: ['文质彬彬','文武双全'],
-      墨: ['墨守成规'],
-      益: ['精益求精'],
-      打: ['打草惊蛇'],
-      瞻: ['瞻前顾后'],
-      远: ['远见卓识'],
-      忧: ['忧心忡忡'],
-      枕: ['枕戈待旦'],
-      驱: ['驱虎吞狼'],
-      入: ['入木三分'],
-      年: ['年富力强'],
-      累: ['累卵之危'],
-      志: ['志同道合'],
-      昂: ['昂首阔步'],
-      分: ['分秒必争'],
-      营: ['营私舞弊'],
-      载: ['载歌载舞'],
-      沉: ['沉鱼落雁'],
-      锋: ['锋芒毕露'],
-      义: ['义不容辞','义正词严'],
-      勇: ['勇往直前'],
-      多: ['多才多艺','多谋善断'],
-      识: ['识时务者为俊杰'],
-      消: ['消声匿迹'],
-      散: ['散兵游勇'],
-      过: ['过河拆桥'],
-      春: ['春风化雨','春暖花开'],
-      笋: ['笋冻不解'],
-      木: ['木已成舟'],
-      兵: ['兵不厌诈','兵贵神速'],
-      居: ['居高临下'],
-      望: ['望梅止渴','望尘莫及'],
-      张: ['张灯结彩','张冠李戴','张口结舌'],
-      再: ['再接再厉'],
-      装: ['装聋作哑'],
-      革: ['革故鼎新'],
-      履: ['履险如夷'],
-      犬: ['犬马之劳'],
-      虏: ['虏获人心'],
-      涂: ['涂脂抹粉'],
-      茂: ['茂林修竹'],
-      拔: ['拔苗助长'],
-      危: ['危言耸听','危在旦夕'],
-      惧: ['惧怕心理'],
-      逼: ['逼上梁山'],
-      横: ['横行霸道','横冲直撞'],
-      狂: ['狂风暴雨'],
-      辞: ['辞旧迎新'],
-      容: ['容光焕发'],
-      连: ['连绵不断'],
-      城: ['城狐社鼠'],
-      知: ['知足常乐','知己知彼'],
-      俗: ['俗不可耐'],
-      简: ['简明扼要'],
-      由: ['由表及里'],
-      衷: ['衷心感谢'],
-      传: ['传为佳话'],
-      败: ['败军之将'],
-      名: ['名不虚传','名落孙山'],
-      结: ['结党营私'],
-      怕: ['怕死贪生'],
-      策: ['策马奔腾'],
-      奔: ['奔走相告'],
-    };
+    // 接龙链用「有序数组」维护，Set 只用于 O(1) 去重查询
+    const chain: string[] = history ? history.split(/[,，、\s]+/).filter(Boolean) : [];
+    const used = new Set<string>(chain);
 
-    // 解析接龙历史
-    // history 格式: "成语1,成语2,成语3" 或空
-    const usedIdioms = new Set<string>();
-    let lastChar = '';
-
-    if (history) {
-      const histList = history.split(/[,，、\s]+/).filter(Boolean);
-      histList.forEach(idiom => usedIdioms.add(idiom));
-      if (histList.length > 0) {
-        lastChar = histList[histList.length - 1].slice(-1);
-      }
-    }
-
-    // 如果用户输入了新的起始成语
+    // 用户本轮输入的成语
     if (start && start.trim()) {
       const trimmed = start.trim();
-      const isFourChar = trimmed.length === 4;
-      const isInDb = Object.values(idiomDB).some(arr => arr.includes(trimmed));
-      if (!isFourChar) {
-        return { success: false, error: `"${trimmed}" 不是四字成语，请输入正确的成语` };
-      }
-      if (!isInDb) {
-        return { success: false, error: `"${trimmed}" 不在成语库中，请换一个成语试试` };
-      }
-      if (history) {
-        const histList = history.split(/[,，、\s]+/).filter(Boolean);
-        if (histList.length > 0) {
-          const lastIdiom = histList[histList.length - 1];
-          const expectedFirst = lastIdiom.slice(-1);
-          if (trimmed[0] !== expectedFirst) {
-            return { success: false, error: `接龙不匹配：需要以"${expectedFirst}"开头，但"${trimmed}"以"${trimmed[0]}"开头` };
-          }
-        }
-      }
-      usedIdioms.add(trimmed);
-      lastChar = trimmed.slice(-1);
+      const prev = chain.length > 0 ? chain[chain.length - 1] : null;
+      const verdict = validateUserMove(trimmed, prev, used, idiomSource);
+      if (!verdict.ok) return { success: false, error: verdict.error };
+      chain.push(trimmed);
+      used.add(trimmed);
     }
 
-    if (!lastChar) {
+    if (chain.length === 0) {
       return {
         success: true,
         type: 'idiom-chain',
         data: {
           状态: '🎮 请输入一个成语开始接龙',
-          规则: 'AI会用你成语的最后一个字开头，接一个新成语',
-          提示: '例如输入"一心一意"，AI会接"意"开头的成语',
+          规则: '任意四字成语都可以，不必在词库内；AI 会用你成语的末字（同音字也算）接龙',
+          提示: '例如输入"一心一意"，AI 会接"意"或同音"一/亿/易"开头的成语',
         },
       };
     }
 
-    // 查找可用成语
-    const candidates = (idiomDB[lastChar] || []).filter(idiom => !usedIdioms.has(idiom));
+    const prevIdiom = chain[chain.length - 1];
+    const move = pickAIMove(prevIdiom, used, idiomSource, difficulty);
 
-    if (candidates.length === 0) {
-      // 检查是否根本没有这个字开头的成语
-      const allCandidates = idiomDB[lastChar] || [];
-      if (allCandidates.length === 0) {
-        return {
-          success: true,
-          type: 'idiom-chain',
-          data: {
-            状态: '😢 接龙结束',
-            原因: `成语库中没有以"${lastChar}"开头的成语`,
-            已接: `${usedIdioms.size} 个`,
-            提示: '换个成语重新开始吧！',
-          },
-        };
-      }
+    // AI 无词可接：本局结束
+    if ('deadEnd' in move) {
       return {
         success: true,
         type: 'idiom-chain',
         data: {
+          接龙链: renderIdiomChain(chain, false),
           状态: '😢 接龙结束',
-          原因: `"${lastChar}"开头的成语都用完了`,
-          已接: `${usedIdioms.size} 个`,
+          原因: move.reason,
+          已接: `${chain.length} 个`,
           提示: '换个成语重新开始吧！',
         },
       };
     }
 
-    // 根据难度筛选
-    let pool = candidates;
-    if (difficulty === 'hard') {
-      pool = candidates.filter(c => c.length === 4);
-    }
-    if (pool.length === 0) pool = candidates;
+    chain.push(move.idiom);
+    used.add(move.idiom);
 
-    // 随机选择一个
-    const chosen = pool[Math.floor(Math.random() * pool.length)];
-    usedIdioms.add(chosen);
-
-    const nextChar = chosen.slice(-1);
-    const nextCandidates = (idiomDB[nextChar] || []).filter(idiom => !usedIdioms.has(idiom));
-    const hasNext = nextCandidates.length > 0 || (idiomDB[nextChar] || []).length > 0;
-
-    const levelNames: Record<string, string> = { easy: '简单', normal: '普通', hard: '困难' };
-    const chainCount = usedIdioms.size;
-
-    // 构建接龙链展示
-    const chainList = [...usedIdioms];
-    const chainDisplay = chainList.map((idiom, i) => {
-      if (i === 0) return `🟢 ${idiom}`;
-      if (i === chainList.length - 1) return `🤖 ${idiom}`;
-      return `    ${idiom}`;
-    }).join('\n');
+    const nextChar = lastCharOf(move.idiom);
+    // 只看「真正还剩下的未使用后继」，不再叠加那个让判断几乎恒为真的冗余分支
+    const nextCandidates = listAvailableSuccessors(move.idiom, used, idiomSource);
+    const hasNext = nextCandidates.length > 0;
 
     return {
       success: true,
       type: 'idiom-chain',
       data: {
-        接龙链: chainDisplay,
-        AI接龙: chosen,
+        接龙链: renderIdiomChain(chain, true),
+        AI接龙: move.idiom,
         下一字: nextChar,
-        难度: levelNames[difficulty] || '普通',
-        已接: `${chainCount} 个`,
-        状态: hasNext ? `✅ 请以"${nextChar}"开头继续` : `⚠️ "${nextChar}"可能无法继续`,
-        提示: hasNext ? `在输入框输入以"${nextChar}"开头的成语` : '可以结束或换一个成语',
+        难度: IDIOM_LEVEL_NAMES[difficulty],
+        已接: `${chain.length} 个`,
+        状态: hasNext
+          ? `✅ 请以"${nextChar}"或其同音字开头继续`
+          : `⚠️ "${nextChar}"已无可接成语，本局到此为止`,
+        提示: hasNext
+          ? `输入以"${nextChar}"开头的四字成语，同音字也算接上`
+          : '可以结束，或换一个成语重新开始',
       },
     };
   } catch (e) { return { success: false, error: `接龙失败: ${(e as Error).message}` }; }
