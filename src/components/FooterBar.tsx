@@ -30,26 +30,20 @@ export default function FooterBar() {
       const list = safeStorage.getJSON<unknown[]>('toolbox_community_messages', []);
       setMsgCount(Array.isArray(list) ? list.length : 0);
     };
-    const fetchVisitCount = async () => {
-      try {
-        const res = await fetch('/api/stats');
-        if (res.ok) {
-          const data = await res.json();
-          setVisitCount(data.total_visits);
-        }
-      } catch { /* ignore */ }
-    };
     updateMsgCount();
-    fetchVisitCount();
     const interval = setInterval(updateMsgCount, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // 每次会话只计一次访问
+  // 每次会话只计一次访问（纯本地计数，无后端 API）
   useEffect(() => {
     if (countedRef.current) return;
     countedRef.current = true;
-    fetch('/api/stats', { method: 'POST' }).catch(() => {});
+    const raw = safeStorage.getItem('toolbox_visit_count');
+    const current = Number(raw || '0');
+    const next = Number.isFinite(current) && current >= 0 ? current + 1 : 1;
+    safeStorage.setItem('toolbox_visit_count', String(next));
+    setVisitCount(next);
   }, []);
 
   useEffect(() => {

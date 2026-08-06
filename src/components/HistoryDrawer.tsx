@@ -1,11 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { XIcon, StarIcon, TrashIcon, ClockIcon, BookmarkIcon, ArrowLeftIcon } from 'lucide-react';
-import { useStore, type SavedResult } from '@/store';
+import type { ToolOutput } from '@/types';
 import OutputPanel from '@/components/OutputPanel';
+import { safeStorage } from '@/lib/safeStorage';
 
 interface HistoryDrawerProps {
   open: boolean;
   onClose: () => void;
+}
+
+interface SavedResult {
+  id: string;
+  toolId: string;
+  toolName: string;
+  output: ToolOutput;
+  createdAt: number;
+  favorite: boolean;
+}
+
+const HISTORY_KEY = 'toolbox_result_history';
+
+function loadHistory(): SavedResult[] {
+  const list = safeStorage.getJSON<SavedResult[]>(HISTORY_KEY, []);
+  return Array.isArray(list) ? list : [];
+}
+
+function saveHistory(list: SavedResult[]): void {
+  safeStorage.setJSON(HISTORY_KEY, list);
 }
 
 function timeAgo(ts: number): string {
@@ -28,17 +49,40 @@ function snippet(result: SavedResult): string {
 }
 
 export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
-  const { resultHistory, favoriteResults, toggleFavoriteResult, removeResult, clearResultHistory } = useStore();
   const [tab, setTab] = useState<'history' | 'favorites'>('history');
-  const [selected, setSelected] = useState<SavedResult | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [results, setResults] = useState<SavedResult[]>(() => loadHistory());
+
+  // 每次打开时重新从 localStorage 读取，保证外部写入也能被看到
+  useEffect(() => {
+    if (open) setResults(loadHistory());
+  }, [open]);
 
   if (!open) return null;
 
-  const list = tab === 'history' ? resultHistory : favoriteResults;
+  const selected = results.find((item) => item.id === selectedId) ?? null;
+  const list = tab === 'history' ? results : results.filter((item) => item.favorite);
 
   const handleDelete = (id: string) => {
-    removeResult(id);
-    if (selected?.id === id) setSelected(null);
+    setResults((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      saveHistory(next);
+      return next;
+    });
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const handleToggleFavorite = (id: string) => {
+    setResults((prev) => {
+      const next = prev.map((item) => (item.id === id ? { ...item, favorite: !item.favorite } : item));
+      saveHistory(next);
+      return next;
+    });
+  };
+
+  const handleClearHistory = () => {
+    setResults([]);
+    saveHistory([]);
   };
 
   return (
@@ -68,9 +112,9 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {!selected && tab === 'history' && resultHistory.length > 0 && (
+            {!selected && tab === 'history' && results.length > 0 && (
               <button
-                onClick={() => { if (confirm('确定清空全部历史记录？此操作不可恢复。')) clearResultHistory(); }}
+                onClick={() => { if (confirm('确定清空全部历史记录？此操作不可恢复。')) handleClearHistory(); }}
                 className="text-xs text-gray-500 hover:text-red-400 transition-colors"
               >
                 清空
@@ -86,23 +130,23 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
           {selected ? (
             <div className="space-y-4">
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => setSelectedId(null)}
                 className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
               >
                 <ArrowLeftIcon className="w-4 h-4" />
                 返回列表
               </button>
-              <OutputPanel output={selected.output} toolId={selected.toolId} toolName={selected.toolName} />
+              <OutputPanel output={selected.output} />
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => toggleFavoriteResult(selected.id)}
+                  onClick={() => handleToggleFavorite(selected.id)}
                   className={`flex-1 px-3 py-2 rounded-xl text-sm transition-all ${
-                    favoriteResults.some((r) => r.id === selected.id)
+                    selected.favorite
                       ? 'bg-amber-500/20 text-amber-400'
                       : 'bg-white/5 text-gray-400 hover:text-amber-400'
                   }`}
                 >
-                  {favoriteResults.some((r) => r.id === selected.id) ? '已收藏' : '收藏'}
+                  {selected.favorite ? '已收藏' : '收藏'}
                 </button>
                 <button
                   onClick={() => handleDelete(selected.id)}
@@ -120,42 +164,39 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
             </div>
           ) : (
             <div className="space-y-2">
-              {list.map((item) => {
-                const isFav = favoriteResults.some((r) => r.id === item.id);
-                return (
-                  <div
-                    key={item.id}
-                    className="bg-surface rounded-xl border border-white/5 p-3 hover:border-white/10 transition-all cursor-pointer"
-                    onClick={() => setSelected(item)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-medium truncate">{item.toolName}</span>
-                          <span className="text-gray-600 text-[10px] flex-shrink-0">{timeAgo(item.createdAt)}</span>
-                        </div>
-                        <p className="text-gray-400 text-xs mt-1 truncate">{snippet(item)}</p>
+              {list.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-surface rounded-xl border border-white/5 p-3 hover:border-white/10 transition-all cursor-pointer"
+                  onClick={() => setSelectedId(item.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-sm font-medium truncate">{item.toolName}</span>
+                        <span className="text-gray-600 text-[10px] flex-shrink-0">{timeAgo(item.createdAt)}</span>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => toggleFavoriteResult(item.id)}
-                          className={`p-1.5 rounded-lg transition-colors ${isFav ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'}`}
-                          title={isFav ? '取消收藏' : '收藏'}
-                        >
-                          <StarIcon className="w-4 h-4" fill={isFav ? 'currentColor' : 'none'} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 transition-colors"
-                          title="删除"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <p className="text-gray-400 text-xs mt-1 truncate">{snippet(item)}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleToggleFavorite(item.id)}
+                        className={`p-1.5 rounded-lg transition-colors ${item.favorite ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'}`}
+                        title={item.favorite ? '取消收藏' : '收藏'}
+                      >
+                        <StarIcon className="w-4 h-4" fill={item.favorite ? 'currentColor' : 'none'} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 transition-colors"
+                        title="删除"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>

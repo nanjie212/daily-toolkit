@@ -7,18 +7,27 @@ import type { ToolOutput } from '@/types';
  * （validateUserMove / pickAIMove / normalizeDifficulty），而不是仅仅存在单测。
  * 走真实 idiomSource（1798 条成语），不 mock 引擎本身。
  */
+
+/**
+ * 把 `ToolOutput.data`（类型为 `unknown`）窄化为字符串字典，供断言访问。
+ * 运行时行为不变，仅为了让集成测试通过 `tsc` 类型检查。
+ */
+function dataOf(r: ToolOutput): Record<string, unknown> {
+  return (r.data ?? {}) as Record<string, unknown>;
+}
+
 describe('idiomChain integration (funTools) 消费新规则引擎', () => {
   it('空输入时给出开局提示，不报错', async () => {
     const r: ToolOutput = await idiomChain({});
     expect(r.success).toBe(true);
-    expect(String(r.data?.状态)).toContain('请输入');
+    expect(String(dataOf(r).状态)).toContain('请输入');
   });
 
   it('合法首步被接受，且 AI 能接龙（已接=2 个）', async () => {
     const r: ToolOutput = await idiomChain({ start: '一心一意' });
     expect(r.success).toBe(true);
-    expect(String(r.data?.接龙链)).toContain('一心一意');
-    expect(String(r.data?.已接)).toBe('2 个');
+    expect(String(dataOf(r).接龙链)).toContain('一心一意');
+    expect(String(dataOf(r).已接)).toBe('2 个');
   });
 
   it('拒绝重复使用成语（9类bug#2：used 校验已接入集成层）', async () => {
@@ -34,6 +43,6 @@ describe('idiomChain integration (funTools) 消费新规则引擎', () => {
   it('非法难度不崩溃，且 AI 仍能从已有链延伸（已接=2 个）', async () => {
     const r: ToolOutput = await idiomChain({ history: '一心一意', difficulty: 'banana' });
     expect(r.success).toBe(true);
-    expect(String(r.data?.已接)).toBe('2 个');
+    expect(String(dataOf(r).已接)).toBe('2 个');
   });
 });
