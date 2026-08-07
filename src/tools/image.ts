@@ -4,7 +4,7 @@ export const imageTools: ToolRecord[] = [
   {
     id: 'image-processor',
     name: '图片处理',
-    description: '图片压缩、格式转换、缩放调整，一站式图片基本处理',
+    description: '图片压缩、格式转换、缩放调整，常用图片基本处理',
     category: 'image',
     icon: 'FileImageIcon',
     version: '2.0.0',

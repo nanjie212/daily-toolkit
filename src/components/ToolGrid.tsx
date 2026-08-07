@@ -81,7 +81,7 @@ import {
 import type { ToolRecord } from '@/types';
 import { useStore } from '@/store';
 
-const iconMap: Record<string, React.ElementType> = {
+export const iconMap: Record<string, React.ElementType> = {
   ImageIcon,
   FileTextIcon,
   FilmIcon,
@@ -155,6 +155,14 @@ const iconMap: Record<string, React.ElementType> = {
   ScanTextIcon,
   TypeOutlineIcon: TypeOutline,
 };
+
+/**
+ * 按 ToolRecord.icon 字符串取 lucide 图标组件，找不到时回退到 SparklesIcon。
+ * 供 ToolGrid 之外的组件（HomeHero / CommandSearch）复用同一套图标映射。
+ */
+export function getToolIcon(iconName: string): React.ElementType {
+  return iconMap[iconName] || SparklesIcon;
+}
 
 const categoryColors: Record<string, string> = {
   everyday: 'from-teal-500/20 to-emerald-500/20 hover:from-teal-500/30 hover:to-emerald-500/40',

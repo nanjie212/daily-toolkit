@@ -4,7 +4,7 @@ export const documentTools: ToolRecord[] = [
   {
     id: 'text-processor',
     name: '文本处理',
-    description: '字数统计、繁简转换、大小写转换、文本去重，一站式文本处理',
+    description: '字数统计、繁简转换、大小写转换、文本去重，常用文本处理',
     category: 'everyday',
     icon: 'TextIcon',
     version: '2.0.0',

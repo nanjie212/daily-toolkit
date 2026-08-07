@@ -4,7 +4,7 @@ export const pdfTools: ToolRecord[] = [
   {
     id: 'pdf-toolbox',
     name: 'PDF工具箱',
-    description: 'PDF拆分、签名、压缩、加密、解密、权限设置、转Word，一站式PDF处理',
+    description: 'PDF拆分、签名、压缩、加密、解密、权限设置、转Word',
     category: 'image',
     icon: 'FileTextIcon',
     version: '2.0.0',
