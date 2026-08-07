@@ -139,6 +139,6 @@ export const useStore = create<ToolBoxState>((set, get) => ({
 }));
 
 const initTheme = useStore.getState().theme;
-if (initTheme === 'light') {
+if (typeof document !== 'undefined' && initTheme === 'light') {
   document.documentElement.classList.add('light');
 }
