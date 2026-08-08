@@ -338,10 +338,14 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
 }
 
+/* ── zones wrapper（display: contents 使其对 grid 布局透明）── */
+.grid-home__zones {
+  display: contents;
+}
+
 /* ── 区域：每个 zone 放一个 grid cell ── */
 .grid-zone {
   position: relative;
-  pointer-events: none;
   overflow: hidden;
 }
 
