@@ -1,5 +1,7 @@
+import { useId } from 'react';
 import { XIcon } from 'lucide-react';
 import type { ToolOutput } from '@/types';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface OutputModalProps {
   output: ToolOutput;
@@ -7,14 +9,31 @@ interface OutputModalProps {
 }
 
 export default function OutputModal({ output, onClose }: OutputModalProps) {
+  const titleId = useId();
+  // 组件只在需要展示结果时被挂载，因此焦点陷阱常开；Esc 关闭同样由 hook 接管
+  const dialogRef = useFocusTrap<HTMLDivElement>({ active: true, onEscape: onClose });
+
   return (
     <div className="fixed inset-0 z-[100] animate-fade-in">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="absolute inset-x-0 bottom-0 top-[10%] bg-card border-t border-white/10 rounded-t-3xl animate-slide-up overflow-hidden flex flex-col">
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        role="presentation"
+      />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="absolute inset-x-0 bottom-0 top-[10%] bg-card border-t border-white/10 rounded-t-3xl animate-slide-up overflow-hidden flex flex-col"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
-          <h3 className="text-white font-heading font-semibold text-base">执行结果</h3>
+          <h3 id={titleId} className="text-white font-heading font-semibold text-base">
+            执行结果
+          </h3>
           <button
             onClick={onClose}
+            aria-label="关闭结果"
             className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <XIcon className="w-5 h-5" />

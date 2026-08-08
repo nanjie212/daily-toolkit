@@ -5,6 +5,14 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 // `@/` 别名通过 vite-tsconfig-paths 解析，与运行时保持一致。
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  // 必须与 vite.config.ts 的 define 保持一致。
+  // FooterBar 里用到了 __APP_VERSION__ / __BUILD_DATE__ 这两个编译期常量，
+  // 少了它们，任何渲染到页脚的测试都会抛 ReferenceError 并被 ErrorBoundary 吞成
+  // 「出了点问题」——症状看着像组件坏了，实际只是测试环境缺注入。
+  define: {
+    __APP_VERSION__: JSON.stringify('1.2.1'),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],

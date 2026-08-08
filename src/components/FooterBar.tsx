@@ -5,6 +5,8 @@ import {
   ClockIcon,
   MessageCircleIcon,
   ShieldCheckIcon,
+  HelpCircleIcon,
+  FileTextIcon,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -103,11 +105,21 @@ export default function FooterBar() {
             <span className="text-white font-heading font-bold text-base">日常工具箱</span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-gray-400">
+          {/* 使用时长是纯本地统计（localStorage: toolbox_usage_records），
+              这里显式说明一句，避免和「全部本地处理」的说法看起来矛盾。 */}
+          <div
+            className="flex items-center gap-3 text-xs text-gray-400"
+            title="使用时长仅存在本机浏览器，不会上传"
+          >
             <ClockIcon className="w-3.5 h-3.5 text-accent" />
             <span>今日 <strong className="text-white">{todayMinutes}</strong> 分钟</span>
             <span className="text-gray-600">·</span>
             <span>本周 <strong className="text-white">{weekMinutes}</strong> 分钟</span>
+            <HelpCircleIcon
+              className="w-3.5 h-3.5 text-gray-500 flex-shrink-0"
+              aria-label="使用时长仅存在本机浏览器，不会上传"
+              role="img"
+            />
           </div>
         </div>
 
@@ -142,6 +154,18 @@ export default function FooterBar() {
               )}
             </div>
             社区留言
+          </button>
+
+          <button
+            onClick={() => navigate('/about')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
+              location.pathname === '/about'
+                ? 'text-accent bg-accent/10'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <FileTextIcon className="w-4 h-4" />
+            关于 / 隐私
           </button>
 
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-400">

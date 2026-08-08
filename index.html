@@ -2,6 +2,54 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      内容安全策略（保守版）。改动前请先读完这段说明，否则很容易把站点打死。
+
+      已确认的硬约束（都是实测/查过源码的，不要想当然收紧）：
+      · script-src 必须带 'unsafe-eval'
+        —— 计算器等 3 处用了 new Function()：
+           src/components/CalculatorUI.tsx、src/pages/Developer.tsx、
+           src/tools/implementations/lifeTools.ts
+      · script-src 必须带 'unsafe-inline'
+        —— 图片裁剪工具输出的是一整份带 <script> 的 HTML，塞进 srcdoc iframe 运行；
+           srcdoc 会继承父页面的 CSP，收紧就等于把该工具打死（src/components/OutputModal.tsx）
+      · style-src 必须带 'unsafe-inline'
+        —— index.html 自带 inline <style>，项目里还有大量 style={{}} 内联样式
+      · img-src / media-src 需要 data: 与 blob:
+        —— 图片与 PDF 工具大量使用 canvas.toDataURL 与 URL.createObjectURL
+      · worker-src 需要 blob:
+        —— pdfjs-dist 的 worker 在部分路径下会退化成 blob worker
+      · frame-src 放开 https:
+        —— 意见箱 iframe 的地址来自 .env 的 VITE_FEEDBACK_FORM_URL（当前为
+           https://jmtxtacy.jsjform.com/f/miYSMC），换供应商时只改 .env，
+           这里写死域名会导致意见箱白屏
+      · connect-src 带 ws: wss:
+        —— 这份 meta 在 `npm run dev` 时同样生效，不放开会打断 Vite HMR 的 websocket
+
+      真正在生效的零风险收紧项：object-src 'none'（禁插件）、base-uri 'self'（防 base 标签注入）、
+      frame-ancestors 'none'（防点击劫持）、form-action 'self'（防表单外发）、
+      以及把脚本/样式/连接的**外部来源**限制在同源。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        base-uri 'self';
+        object-src 'none';
+        frame-ancestors 'none';
+        form-action 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        font-src 'self' data:;
+        media-src 'self' data: blob:;
+        worker-src 'self' blob:;
+        child-src 'self' blob:;
+        manifest-src 'self';
+        connect-src 'self' data: blob: ws: wss:;
+        frame-src 'self' https: data: blob:;
+      "
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#00E5A0" />
@@ -30,6 +78,23 @@
       </div>
       <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
     </div>
+    <!-- JavaScript 被关闭时的兜底说明。用 inline style 是因为此刻外链 CSS 未必已加载；
+         盖在 #root 之上，避免用户对着一个永远转不停的加载圈发呆。 -->
+    <noscript>
+      <div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:#0A0A0F;color:#ffffff;font-family:'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased">
+        <div style="max-width:420px;text-align:center">
+          <div style="font-size:13px;letter-spacing:.3em;color:#00E5A0">普通日常工具箱</div>
+          <h1 style="margin:14px 0 0;font-size:20px;font-weight:700;color:#ffffff">本站需要 JavaScript 才能运行</h1>
+          <p style="margin:12px 0 0;font-size:14px;color:#9CA3AF">
+            所有工具都在你的浏览器里本地计算，没有服务器参与，因此必须依赖 JavaScript。
+            请在浏览器设置中开启 JavaScript，然后刷新本页。
+          </p>
+          <p style="margin:16px 0 0;font-size:12px;color:#6B7280">
+            设置路径一般在「设置 → 隐私与安全 → 网站设置 → JavaScript」。
+          </p>
+        </div>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

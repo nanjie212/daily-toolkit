@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { XIcon, StarIcon, TrashIcon, ClockIcon, BookmarkIcon, ArrowLeftIcon } from 'lucide-react';
 import type { ToolOutput } from '@/types';
 import OutputPanel from '@/components/OutputPanel';
 import { safeStorage } from '@/lib/safeStorage';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface HistoryDrawerProps {
   open: boolean;
@@ -52,6 +53,10 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
   const [tab, setTab] = useState<'history' | 'favorites'>('history');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [results, setResults] = useState<SavedResult[]>(() => loadHistory());
+  const titleId = useId();
+
+  // Esc 关闭 + Tab 焦点循环 + 关闭后焦点归位
+  const drawerRef = useFocusTrap<HTMLDivElement>({ active: open, onEscape: onClose });
 
   // 每次打开时重新从 localStorage 读取，保证外部写入也能被看到
   useEffect(() => {
@@ -87,11 +92,17 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-card border-l border-white/5 z-50 flex flex-col animate-slide-in-right">
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} role="presentation" />
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="fixed right-0 top-0 h-full w-full max-w-md bg-card border-l border-white/5 z-50 flex flex-col animate-slide-in-right"
+      >
         <div className="flex items-center justify-between p-4 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <h2 className="font-heading font-bold text-white text-lg">
+            <h2 id={titleId} className="font-heading font-bold text-white text-lg">
               {selected ? '结果详情' : '我的结果'}
             </h2>
             {!selected && (

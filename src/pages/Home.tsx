@@ -14,13 +14,14 @@ import { matchPinyin } from '@/lib/pinyinSearch';
 import ThemeToggle from '@/components/ThemeToggle';
 import ToolGrid from '@/components/ToolGrid';
 import HomeHero from '@/components/HomeHero';
-import OnboardingModal from '@/components/OnboardingModal';
+import OnboardingModal, { isOnboardingDone, markOnboardingDone } from '@/components/OnboardingModal';
 import DonateSection from '@/components/DonateSection';
 
 export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, pinnedToolIds, searchQuery } = useStore();
   const location = useLocation();
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboarding-done'));
+  // 读写统一走 safeStorage（隐私模式 / 禁用 localStorage 时不会抛错），key 见 OnboardingModal
+  const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingDone());
   const [scrolledLeft, setScrolledLeft] = useState(false);
   const [scrolledRight, setScrolledRight] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -97,7 +98,7 @@ export default function Home() {
 
   const dismissOnboarding = () => {
     if (!showOnboarding) return;
-    localStorage.setItem('onboarding-done', '1');
+    markOnboardingDone();
     setShowOnboarding(false);
   };
 
@@ -185,7 +186,7 @@ export default function Home() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <PinIcon className="w-4 h-4 text-accent" />
-              <h2 className="text-white font-heading font-semibold text-sm">已固定</h2>
+              <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">已固定</h2>
               <span className="text-xs text-gray-400">({pinnedTools.length})</span>
             </div>
             <div className="bg-card rounded-xl border border-white/5 p-3">
@@ -199,7 +200,7 @@ export default function Home() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <StarIcon className="w-4 h-4 text-amber-400" />
-              <h2 className="text-white font-heading font-semibold text-sm">收藏</h2>
+              <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">收藏</h2>
               <span className="text-xs text-gray-400">({favoriteTools.length})</span>
             </div>
             <div className="bg-card rounded-xl border border-white/5 p-3">
@@ -213,7 +214,7 @@ export default function Home() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <ClockIcon className="w-4 h-4 text-gray-300" />
-              <h2 className="text-white font-heading font-semibold text-sm">最近</h2>
+              <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">最近</h2>
               <span className="text-xs text-gray-400">({recentTools.length})</span>
             </div>
             <div className="bg-card rounded-xl border border-white/5 p-3">
@@ -225,7 +226,7 @@ export default function Home() {
         {/* 全部工具 - 主图标网格 */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white font-heading font-semibold text-sm">
+            <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">
               {searchQuery
                 ? '搜索结果'
                 : selectedCategory
@@ -249,12 +250,8 @@ export default function Home() {
 
       {/* 新手引导 */}
       {showOnboarding && (
-        <OnboardingModal
-          onClose={() => {
-            localStorage.setItem('onboarding-done', '1');
-            setShowOnboarding(false);
-          }}
-        />
+        // 是否写入「已看过」标记由 OnboardingModal 内的「不再提示」勾选决定，这里只负责隐藏
+        <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}
     </div>
   );

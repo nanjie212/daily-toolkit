@@ -11,8 +11,25 @@
   --border: rgba(255, 255, 255, 0.05);
   --accent: #00E5A0;
   --accent-secondary: #6C5CE7;
-  --font-heading: 'Space Grotesk', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+
+  /* ── 主题色的「裸 RGB 通道」副本 ────────────────────────────────────────────
+     tailwind.config.js 里颜色写成 `rgb(var(--xx-rgb) / <alpha-value>)`，
+     Tailwind 才能为它生成透明度变体（bg-accent/20、focus:ring-accent/30、bg-card/90 …）。
+     直接写 `var(--accent)` 时这些 class 一条 CSS 都不会产出。
+
+     ⚠️ 上面不带 -rgb 的旧变量**必须保留**：本文件与部分组件仍有直接 `var(--accent)` 的引用。
+     两套变量要一一对应，改色时**两处都要改**。 */
+  --bg-rgb: 10 10 15;         /* #0A0A0F */
+  --card-rgb: 18 18 26;       /* #12121A */
+  --surface-rgb: 26 26 46;    /* #1A1A2E */
+  --accent-rgb: 0 229 160;    /* #00E5A0 */
+
+  /* 中文字体栈：西文用 DM Sans / Space Grotesk，中文回落到系统自带的高质量黑体。
+     刻意不引入任何网络字体——中文字体文件体积过大，且本站要求离线可用。
+     末尾保留 sans-serif 泛型，`html, body, #root` 规则里的 emoji / 符号兜底链排在其后，
+     与改造前的结构保持一致，不影响装饰文字工具的 SMP 字符渲染。 */
+  --font-heading: 'Space Grotesk', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  --font-body: 'DM Sans', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
 }
 
 /* 主题切换平滑过渡 - 只在根元素和直接子元素上 */
@@ -29,6 +46,12 @@ html.light {
   --border: #c6c6cc;
   --accent: #0071e3;
   --accent-secondary: #5e5ce6;
+
+  /* 浅色主题必须同步覆盖 -rgb 副本，否则透明度变体会继续用深色主题的通道值 */
+  --bg-rgb: 242 242 245;      /* #f2f2f5 */
+  --card-rgb: 255 255 255;    /* #ffffff */
+  --surface-rgb: 235 235 240; /* #ebebf0 */
+  --accent-rgb: 0 113 227;    /* #0071e3 */
 }
 
 html.light .text-white,
@@ -329,10 +352,21 @@ h1, h2, h3, h4, h5, h6 {
   animation: slide-up 0.3s ease-out;
 }
 
+/* 键盘焦点环。
+   accent 在深色背景上本身就够亮，问题出在中间调背景（bg-card / bg-surface）上边缘会被吞掉，
+   所以在原有 outline 基础上加粗到 3px，并额外套一层半透明外发光把边界推开一圈。
+   外发光用 --accent-rgb，深浅两套主题会自动跟随。 */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
   border-radius: 4px;
+  box-shadow: 0 0 0 5px rgb(var(--accent-rgb) / 0.28);
+}
+
+/* 浅色主题的 accent 是蓝色 #0071e3，在白色卡片上对比度足够，
+   但外发光需要压深一点才看得出层次 */
+html.light :focus-visible {
+  box-shadow: 0 0 0 5px rgb(var(--accent-rgb) / 0.22);
 }
 
 select option {
@@ -353,4 +387,37 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 input[type="color"]::-webkit-color-swatch {
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+}
+
+/* ── 减少动效 ──────────────────────────────────────────────────────────────
+   用户在系统里开启「减少动态效果」时，把动画/过渡压到 0.01ms。
+   保留 0.01ms 而不是 0，是为了让依赖 transitionend / animationend 的逻辑仍能收到事件。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* 纯装饰性的无限循环动画直接关掉，压到 0.01ms 只会变成一次性闪烁 */
+  .animate-glow-pulse,
+  .animate-success-pulse {
+    animation: none !important;
+  }
+
+  /* 主题切换的背景渐变过渡同样去掉 */
+  html {
+    transition: none !important;
+  }
+
+  /* 例外：加载转圈是「还在处理」的功能性反馈，完全静止会让人以为卡死。
+     这里放慢到 1.5s 匀速，既不晃眼也保留状态提示。 */
+  .animate-spin {
+    animation: spin 1.5s linear infinite !important;
+  }
 }

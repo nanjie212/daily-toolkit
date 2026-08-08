@@ -1,12 +1,20 @@
 import { XIcon, StarIcon, CopyIcon, CheckIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useStore } from '@/store';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 export default function ToolDetail() {
   const { selectedTool, detailOpen, setDetailOpen, favoriteToolIds, toggleFavorite } = useStore();
   const [copiedJson, setCopiedJson] = useState(false);
   const [copiedEntry, setCopiedEntry] = useState(false);
+  const titleId = useId();
   const isFavorite = selectedTool ? favoriteToolIds.includes(selectedTool.id) : false;
+
+  // Esc 关闭 + Tab 焦点循环 + 关闭后焦点归位（hook 必须在提前 return 之前调用）
+  const drawerRef = useFocusTrap<HTMLDivElement>({
+    active: detailOpen && !!selectedTool,
+    onEscape: () => setDetailOpen(false),
+  });
 
   if (!detailOpen || !selectedTool) return null;
 
@@ -50,12 +58,22 @@ export default function ToolDetail() {
       <div
         className="fixed inset-0 bg-black/40 z-40"
         onClick={() => setDetailOpen(false)}
+        role="presentation"
       />
-      <div className="fixed right-0 top-0 h-full w-96 bg-card border-l border-white/5 z-50 flex flex-col animate-slide-in-right">
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="fixed right-0 top-0 h-full w-96 bg-card border-l border-white/5 z-50 flex flex-col animate-slide-in-right"
+      >
         <div className="flex items-center justify-between p-4 border-b border-white/5">
-          <h2 className="font-heading font-bold text-white text-lg">工具详情</h2>
+          <h2 id={titleId} className="font-heading font-bold text-white text-lg">
+            工具详情
+          </h2>
           <button
             onClick={() => setDetailOpen(false)}
+            aria-label="关闭工具详情"
             className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
           >
             <XIcon className="w-5 h-5" />

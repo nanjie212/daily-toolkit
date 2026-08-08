@@ -7,6 +7,7 @@ import {
   CheckIcon,
   DownloadIcon,
 } from 'lucide-react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 /**
  * 全局固定分享按钮 + 分享面板。
@@ -33,6 +34,10 @@ export default function ShareButton(): JSX.Element {
     typeof window !== 'undefined' ? window.location.href : '',
   );
   const copyTimer = useRef<number | null>(null);
+
+  // 焦点管理：打开时焦点移入面板、Tab 在面板内循环、关闭后焦点回到右上角分享按钮。
+  // Esc 关闭沿用下方已有的 useEffect，这里不重复接管（不传 onEscape）。
+  const dialogRef = useFocusTrap<HTMLDivElement>({ active: open });
 
   const isToolPage = currentUrl.includes('/tool/');
   const pageUrl = currentUrl;
@@ -162,6 +167,7 @@ export default function ShareButton(): JSX.Element {
           role="presentation"
         >
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label={title}

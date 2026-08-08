@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { HeartIcon, CoffeeIcon, ChevronDownIcon, XIcon } from 'lucide-react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface DonateSectionProps {
   wechatQr?: string;
@@ -9,6 +10,13 @@ interface DonateSectionProps {
 export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const previewTitleId = useId();
+
+  // 赞赏码放大浮层：Esc 关闭 + Tab 焦点循环 + 关闭后焦点回到被点击的赞赏码卡片
+  const previewRef = useFocusTrap<HTMLDivElement>({
+    active: previewImage !== null,
+    onEscape: () => setPreviewImage(null),
+  });
 
   const wechatSrc = wechatQr || '/wechat-donate.jpg';
   const alipaySrc = alipayQr || '/alipay-donate.jpg';
@@ -78,16 +86,27 @@ export default function DonateSection({ wechatQr, alipayQr }: DonateSectionProps
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setPreviewImage(null)}
+          role="presentation"
         >
-          <div className="relative max-w-sm w-full bg-white rounded-2xl p-4" onClick={e => e.stopPropagation()}>
+          <div
+            ref={previewRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={previewTitleId}
+            className="relative max-w-sm w-full bg-white rounded-2xl p-4"
+            onClick={e => e.stopPropagation()}
+          >
             <button
               onClick={() => setPreviewImage(null)}
+              aria-label="关闭赞赏码"
               className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700"
             >
               <XIcon className="w-4 h-4" />
             </button>
             <img src={previewImage} alt="赞赏码" className="w-full h-auto rounded-xl" />
-            <p className="text-center text-gray-500 text-xs mt-3">打开微信/支付宝扫一扫</p>
+            <p id={previewTitleId} className="text-center text-gray-500 text-xs mt-3">
+              打开微信/支付宝扫一扫
+            </p>
           </div>
         </div>
       )}

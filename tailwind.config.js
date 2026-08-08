@@ -8,11 +8,15 @@ export default {
       center: true,
     },
     extend: {
+      // ⚠️ 主题色必须写成 `rgb(var(--xx-rgb) / <alpha-value>)`。
+      // 写成裸 `var(--xx)` 时 Tailwind 无法注入 alpha，`bg-accent/20`、`focus:ring-accent/30`、
+      // `bg-card/90` 这类透明度变体会被静默丢弃（产物 CSS 里根本不存在对应规则）。
+      // 通道值定义在 src/index.css 的 :root 与 html.light 中，两套主题各一份。
       colors: {
-        bg: 'var(--bg)',
-        card: 'var(--card)',
-        surface: 'var(--surface)',
-        accent: 'var(--accent)',
+        bg: 'rgb(var(--bg-rgb) / <alpha-value>)',
+        card: 'rgb(var(--card-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--surface-rgb) / <alpha-value>)',
+        accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
         'accent-secondary': '#6C5CE7',
       },
       fontFamily: {
