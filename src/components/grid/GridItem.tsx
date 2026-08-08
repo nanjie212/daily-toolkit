@@ -11,6 +11,10 @@ export interface GridItemProps {
   isHovered: boolean;
   hasNeighborRight: boolean;
   hasNeighborBelow: boolean;
+  /** 卡片宽度 (px)，来自 GridConfig.itemW */
+  itemW: number;
+  /** 卡片高度 (px)，来自 GridConfig.itemH */
+  itemH: number;
   onHover: () => void;
   onLeave: () => void;
   onActivate: () => void;
@@ -31,6 +35,8 @@ const GridItem = memo(function GridItem({
   isHovered,
   hasNeighborRight,
   hasNeighborBelow,
+  itemW,
+  itemH,
   onHover,
   onLeave,
   onActivate,
@@ -75,6 +81,8 @@ const GridItem = memo(function GridItem({
         position: 'absolute',
         left: `${slot.cx}px`,
         top: `${slot.cy}px`,
+        width: `${itemW}px`,
+        height: `${itemH}px`,
         transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
         opacity,
         zIndex: z,

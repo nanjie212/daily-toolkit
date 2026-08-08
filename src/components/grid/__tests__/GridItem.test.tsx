@@ -83,6 +83,8 @@ function renderGridItem(
         isHovered: extra.isHovered ?? false,
         hasNeighborRight: extra.hasNeighborRight ?? slot.hasNeighborRight,
         hasNeighborBelow: extra.hasNeighborBelow ?? slot.hasNeighborBelow,
+        itemW: 76,
+        itemH: 68,
         onHover: noop,
         onLeave: noop,
         onActivate: noop,

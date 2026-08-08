@@ -344,34 +344,14 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 200px;
 }
 
-/* ── 区域 ── */
+/* ── 区域 ──
+   所有 zone 都使用 inset:0 覆盖整个 grid-home__zones 区域。
+   GridItem 的 cx/cy 在 stage-global 坐标系下计算，zone 容器原点必须与 stage 原点一致。
+   不再按 data-zone 做差异化定位——标签改为在 stage 坐标下手动放置。 */
 .grid-zone {
   position: absolute;
+  inset: 0;
   pointer-events: none;
-}
-
-.grid-zone[data-zone="top"] {
-  left: 0;
-  right: 0;
-  top: 0;
-}
-
-.grid-zone[data-zone="bottom"] {
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-.grid-zone[data-zone="left"] {
-  left: 0;
-  top: 20%;
-  bottom: 25%;
-}
-
-.grid-zone[data-zone="right"] {
-  right: 0;
-  top: 20%;
-  bottom: 25%;
 }
 
 .grid-zone__label {
@@ -383,23 +363,25 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.6;
 }
 
+/* 标签定位：top 标签在 stage 顶部，left/right 紧贴两侧上沿，
+   bottom 标签贴在 stage 底部 */
 .grid-zone[data-zone="top"] .grid-zone__label {
-  top: -16px;
+  top: 4px;
   left: 8px;
 }
 
 .grid-zone[data-zone="bottom"] .grid-zone__label {
-  bottom: -16px;
+  bottom: 4px;
   left: 8px;
 }
 
 .grid-zone[data-zone="left"] .grid-zone__label {
-  top: -16px;
+  top: 4px;
   left: 4px;
 }
 
 .grid-zone[data-zone="right"] .grid-zone__label {
-  top: -16px;
+  top: 4px;
   right: 4px;
 }
 

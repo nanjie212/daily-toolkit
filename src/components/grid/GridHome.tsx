@@ -84,7 +84,6 @@ export default function GridHome({
           className={`grid-home__zones ${isSearching || hoveredId ? 'grid-home--interacting' : ''}`}
           style={{
             width: layout.stageW,
-            height: Math.max(layout.stageH - 120, 0), // 扣掉搜索区
           }}
         >
           {ZONE_ORDER.map((zone) => (
@@ -95,6 +94,7 @@ export default function GridHome({
               slots={layout.slots}
               transforms={transforms}
               hoveredId={hoveredId}
+              config={layout.config}
               onHover={handleHover}
               onActivate={handleActivate}
             />

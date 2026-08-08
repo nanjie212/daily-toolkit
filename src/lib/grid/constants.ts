@@ -31,13 +31,13 @@ export const GRID_CONFIG_BY_BP: Record<GridBreakpoint, GridConfig> = {
   },
   lg: {
     breakpoint: 'lg',
-    itemW: 76,
-    itemH: 68,
+    itemW: 70,
+    itemH: 54,
     gap: 5,
-    searchW: 440,
+    searchW: 420,
     topRows: 3,
     bottomRows: 2,
-    sideCols: 2,
+    sideCols: 3,
   },
   md: {
     breakpoint: 'md',

@@ -1,7 +1,7 @@
 import React from 'react';
 import GridItem from './GridItem';
 import type { ToolRecord } from '@/types';
-import type { GridSlot, GridTransform, ZoneId } from '@/lib/grid/types';
+import type { GridSlot, GridTransform, GridConfig, ZoneId } from '@/lib/grid/types';
 
 export interface GridZoneProps {
   tools: ToolRecord[];
@@ -11,6 +11,7 @@ export interface GridZoneProps {
   hoveredId: string | null;
   onHover: (id: string | null) => void;
   onActivate: (tool: ToolRecord) => void;
+  config: GridConfig;
 }
 
 const ZONE_LABELS: Record<ZoneId, string> = {
@@ -34,6 +35,7 @@ export default function GridZone({
   hoveredId,
   onHover,
   onActivate,
+  config,
 }: GridZoneProps) {
   const zoneSlots = slots.filter((s) => s.zone === zone);
   const zoneTools = zoneSlots
@@ -68,6 +70,8 @@ export default function GridZone({
               isHovered={hoveredId === tool.id}
               hasNeighborRight={slot.hasNeighborRight}
               hasNeighborBelow={slot.hasNeighborBelow}
+              itemW={config.itemW}
+              itemH={config.itemH}
               onHover={() => onHover(tool.id)}
               onLeave={() => onHover(null)}
               onActivate={() => onActivate(tool)}
