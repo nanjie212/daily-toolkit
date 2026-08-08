@@ -18,7 +18,7 @@ import { builtInTools } from '@/tools';
  * · A1 未知 hash 路由走 NotFound 兜底（不白屏）
  * · A2 懒加载路由有 PageFallback（role=status / aria-live）
  * · C2 /about 渲染四节 + 占位符已替换
- * · C2 页脚「关于 / 隐私」入口存在且指向 /about
+ * · C2 「关于 / 隐私」入口已上移至右上角 LeadBar 菜单（页脚不再放导航链接）
  */
 
 let container: HTMLDivElement;
@@ -168,44 +168,66 @@ describe('路由集成 (HashRouter)', () => {
     });
   });
 
-  describe('C2 页脚入口', () => {
-    it('页脚存在「关于」与「隐私」入口', async () => {
+  describe('C2 关于/隐私入口（已上移至右上角 LeadBar）', () => {
+    /** 在 LeadBar 里找到「关于」按钮并点开菜单。 */
+    async function openAboutMenu(): Promise<HTMLElement> {
+      const aboutBtn = Array.from(container.querySelectorAll('button')).find(
+        (el) => el.getAttribute('aria-label') === '关于',
+      ) as HTMLElement | undefined;
+      expect(aboutBtn, 'LeadBar 应存在 aria-label="关于" 的按钮').toBeTruthy();
+      await act(async () => {
+        aboutBtn!.click();
+      });
+      const menu = container.querySelector('[role="menu"]') as HTMLElement | null;
+      expect(menu, '点击「关于」后应展开菜单').not.toBeNull();
+      return menu!;
+    }
+
+    it('页脚不再含「社区留言 / 关于 / 隐私」导航链接，只保留统计与版本信息', async () => {
       setHash('#/');
       await mountApp();
 
       const footer = container.querySelector('footer');
       expect(footer).not.toBeNull();
       const footerText = footer?.textContent ?? '';
-      expect(footerText).toContain('关于');
-      expect(footerText).toContain('隐私');
+      expect(footerText).not.toContain('社区留言');
+      expect(footerText).not.toContain('关于');
+      expect(footerText).not.toContain('隐私');
+      expect(footerText).toContain('今日');
+      expect(footerText).toContain('本周');
+      expect(footerText).toContain('访问');
+      expect(footerText).toContain('普通日常工具箱');
     });
 
-    it('页脚入口指向 /about（href 或点击后跳转）', async () => {
+    it('LeadBar「关于」菜单包含「关于 / 隐私」两项', async () => {
       setHash('#/');
       await mountApp();
 
-      const footer = container.querySelector('footer') as HTMLElement;
-      const candidates = Array.from(footer.querySelectorAll('a,button')).filter((el) =>
-        (el.textContent ?? '').includes('关于'),
+      const menu = await openAboutMenu();
+      const items = Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (el) => el.textContent ?? '',
       );
-      expect(candidates.length).toBeGreaterThan(0);
+      expect(items).toHaveLength(2);
+      expect(items[0]).toContain('关于');
+      expect(items[1]).toContain('隐私');
+    });
 
-      const target = candidates[0] as HTMLElement;
-      const href = target.getAttribute('href');
-      if (href) {
-        expect(href).toContain('/about');
-      } else {
+    it('点击菜单「关于」跳转 /about 并渲染关于页', async () => {
+      setHash('#/');
+      await mountApp();
+
+      const menu = await openAboutMenu();
+      const first = menu.querySelector('[role="menuitem"]') as HTMLElement;
+      await act(async () => {
+        first.click();
+      });
+      for (let i = 0; i < 5; i += 1) {
         await act(async () => {
-          target.click();
+          await Promise.resolve();
         });
-        for (let i = 0; i < 5; i += 1) {
-          await act(async () => {
-            await Promise.resolve();
-          });
-        }
-        expect(window.location.hash).toContain('/about');
-        expect(bodyText()).toContain('关于这个站');
       }
+      expect(window.location.hash).toContain('/about');
+      expect(bodyText()).toContain('关于这个站');
     });
   });
 });

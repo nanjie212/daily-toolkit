@@ -128,13 +128,17 @@ export default function Home() {
 
   // 判断是否显示下方内容区（非搜索/非分类筛选时显示 pinned/favorites/recent）
   const showSections = !selectedCategory && !searchQuery;
+  // 三个列表全空时不渲染容器本身——空的 p-4 容器会白占 32px，把底栏顶出一屏
+  const hasSectionContent =
+    pinnedTools.length > 0 || favoriteTools.length > 0 || recentTools.length > 0;
 
   return (
     <div className="bg-bg">
       {/* 1. 顶部品牌条：站名小而安静，粘性常驻，右侧保留主题切换
-             pr-* 用于避开固定在右上角的 LeadBar 按钮组 */}
+             pr-* 用于避开固定在右上角的 LeadBar 四按钮组（社区留言/分享/赞赏/关于），
+             保证主题切换按钮不被 LeadBar 遮挡 */}
       <div className="sticky top-0 z-40 bg-bg">
-        <div className="h-12 md:h-14 pl-4 pr-[200px] sm:pr-[220px] flex items-center justify-between">
+        <div className="h-12 md:h-14 pl-4 pr-[224px] sm:pr-[424px] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-accent" />
             <span className="text-white/80 font-heading font-medium text-[13px] md:text-sm tracking-wide">
@@ -173,9 +177,9 @@ export default function Home() {
         </div>
       ) : (
         /* 桌面端：网格首页（一屏不滚动）
-           高度 = 100vh - 顶部品牌条，正好一屏；grid 用 height:100% 跟随，
-           不再预留 180px（下方 pinned/favorites/recent 区块若存在则自然滚动出现） */
-        <div className="h-[calc(100vh-48px)] md:h-[calc(100vh-56px)] overflow-hidden">
+           高度 = 100vh - 顶部品牌条(48/56) - 底部信息细条(36)，头+方阵+脚正好一屏；
+           grid 用 height:100% 跟随（下方 pinned/favorites/recent 区块若存在则自然滚动出现） */
+        <div className="h-[calc(100vh-84px)] md:h-[calc(100vh-92px)] overflow-hidden">
           <GridHome
             tools={tools}
             searchQuery={searchQuery}
@@ -229,8 +233,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* 4. 下方内容：固定/收藏/最近（仅桌面端且非搜索/非筛选时显示） */}
-      {!isMobile && showSections && (
+      {/* 4. 下方内容：固定/收藏/最近（仅桌面端且非搜索/非筛选且有内容时显示） */}
+      {!isMobile && showSections && hasSectionContent && (
         <div className="p-4 space-y-4">
           {/* 固定工具 */}
           {pinnedTools.length > 0 && (

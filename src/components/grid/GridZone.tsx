@@ -12,6 +12,10 @@ export interface GridZoneProps {
   onHover: (id: string | null) => void;
   onActivate: (tool: ToolRecord) => void;
   config: GridConfig;
+  /** 水平偏移（px）：内容比 zone 轨道窄时水平居中（top/bottom 区），默认 0 */
+  offsetX?: number;
+  /** 垂直偏移（px）：内容比中间行矮时垂直居中（left/right 区），默认 0 */
+  offsetY?: number;
 }
 
 const ZONE_LABELS: Record<ZoneId, string> = {
@@ -36,6 +40,8 @@ export default function GridZone({
   onHover,
   onActivate,
   config,
+  offsetX = 0,
+  offsetY = 0,
 }: GridZoneProps) {
   const zoneSlots = slots.filter((s) => s.zone === zone);
   const zoneTools = zoneSlots
@@ -52,8 +58,11 @@ export default function GridZone({
         <span className="grid-zone__count">({zoneTools.length})</span>
       </div>
 
-      {/* 工具网格 */}
-      <div className="grid-zone__container">
+      {/* 工具网格（relative 容器，left/top 用于紧凑方阵的区内居中偏移） */}
+      <div
+        className="grid-zone__container"
+        style={offsetX || offsetY ? { left: offsetX, top: offsetY } : undefined}
+      >
         {zoneTools.map((tool) => {
           const slot = slots.find((s) => s.toolId === tool.id);
           if (!slot) return null;

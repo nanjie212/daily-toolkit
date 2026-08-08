@@ -1,13 +1,5 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  WrenchIcon,
-  HomeIcon,
-  ClockIcon,
-  MessageCircleIcon,
-  ShieldCheckIcon,
-  FileTextIcon,
-} from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
+import { useLocation } from 'react-router-dom';
+import { ClockIcon } from 'lucide-react';
 import { safeStorage } from '@/lib/safeStorage';
 import { useEffect, useState, useRef } from 'react';
 
@@ -18,29 +10,21 @@ interface UsageRecord {
   duration?: number;
 }
 
+/**
+ * 底部信息细条。
+ *
+ * 导航入口已全部上移（首页=品牌区、社区留言/关于/隐私=右上角 LeadBar），
+ * 这里只保留：今日/本周时长、访问次数、slogan、版本号。
+ * 桌面端固定 36px 高（md:h-9），与 Home 的一屏高度预算（100vh - 头部 - 36px）配套。
+ */
 export default function FooterBar() {
-  const navigate = useNavigate();
   const location = useLocation();
-
-  const isCommunity = location.pathname === '/community';
-  const isHome = location.pathname === '/';
 
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [weekMinutes, setWeekMinutes] = useState(0);
 
-  const [msgCount, setMsgCount] = useState(0);
   const [visitCount, setVisitCount] = useState<number | null>(null);
   const countedRef = useRef(false);
-
-  useEffect(() => {
-    const updateMsgCount = () => {
-      const list = safeStorage.getJSON<unknown[]>('toolbox_community_messages', []);
-      setMsgCount(Array.isArray(list) ? list.length : 0);
-    };
-    updateMsgCount();
-    const interval = setInterval(updateMsgCount, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   // 每次会话只计一次访问（纯本地计数，无后端 API）
   useEffect(() => {
@@ -99,94 +83,31 @@ export default function FooterBar() {
   }, [location.pathname]);
 
   return (
-    <footer className="bg-card/90 backdrop-blur-xl border-t border-white/5">
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
-        {/* 品牌 */}
-        <div className="flex items-center gap-2.5 justify-center">
-          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-            <WrenchIcon className="w-5 h-5 text-accent" />
-          </div>
-          <span className="text-white font-heading font-bold text-base">日常工具箱</span>
-        </div>
+    <footer className="bg-card/90 backdrop-blur-xl border-t border-white/5 md:h-9">
+      <div className="max-w-5xl mx-auto px-4 py-2 md:py-0 md:h-full flex flex-wrap md:flex-nowrap md:overflow-hidden items-center justify-center gap-x-3 gap-y-0.5 whitespace-nowrap text-[11px] leading-4 text-gray-500">
+        {/* 访问统计：今日 / 本周时长 + 访问次数 */}
+        <span className="flex items-center gap-1">
+          <ClockIcon className="w-3 h-3 text-accent" />
+          <span>今日 <strong className="text-gray-300">{todayMinutes}</strong> 分钟</span>
+        </span>
+        <span aria-hidden="true" className="text-gray-700">·</span>
+        <span>本周 <strong className="text-gray-300">{weekMinutes}</strong> 分钟</span>
+        {visitCount !== null && (
+          <>
+            <span aria-hidden="true" className="text-gray-700">·</span>
+            <span>访问 <strong className="text-gray-300">{visitCount}</strong> 次</span>
+          </>
+        )}
 
-        {/* 导航链接 */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => navigate('/')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
-              isHome
-                ? 'text-accent bg-accent/10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <HomeIcon className="w-4 h-4" />
-            首页
-          </button>
+        {/* slogan（窄屏隐藏，保证单行不溢出） */}
+        <span aria-hidden="true" className="hidden md:inline text-gray-700">·</span>
+        <span className="hidden md:inline">
+          普通日常工具箱 · 永久免费 · 无需注册 · 数据本地处理
+        </span>
 
-          <button
-            onClick={() => navigate('/community')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
-              isCommunity
-                ? 'text-accent bg-accent/10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <div className="relative">
-              <MessageCircleIcon className="w-4 h-4" />
-              {msgCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white">
-                  {msgCount > 99 ? '99+' : msgCount}
-                </span>
-              )}
-            </div>
-            社区留言
-          </button>
-
-          <button
-            onClick={() => navigate('/about')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
-              location.pathname === '/about'
-                ? 'text-accent bg-accent/10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <FileTextIcon className="w-4 h-4" />
-            关于 / 隐私
-          </button>
-
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-400">
-            <ShieldCheckIcon className="w-4 h-4 text-accent" />
-            <span className="text-xs">留言与工具数据均本地处理</span>
-          </div>
-
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
-        </div>
-
-        {/* 底部版权 + 访问统计 + 双行 slogan */}
-        <div className="text-center text-gray-600 text-[10px] space-y-1.5">
-          {/* 访问统计：时长 + 数量 居中 */}
-          <div className="flex items-center justify-center gap-4 text-xs text-gray-400 mb-2">
-            <span className="flex items-center gap-1.5">
-              <ClockIcon className="w-3.5 h-3.5 text-accent" />
-              <span>今日 <strong className="text-white">{todayMinutes}</strong> 分钟</span>
-            </span>
-            <span className="text-gray-600">·</span>
-            <span>本周 <strong className="text-white">{weekMinutes}</strong> 分钟</span>
-            {visitCount !== null && (
-              <>
-                <span className="text-gray-600">·</span>
-                <span>访问次数 <strong className="text-white">{visitCount}</strong></span>
-              </>
-            )}
-          </div>
-
-          {/* 双行 slogan */}
-          <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 工具数据本地处理</p>
-          <p>一个网页，解决你的问题</p>
-          <p className="mt-1">v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</p>
-        </div>
+        {/* 版本号 */}
+        <span aria-hidden="true" className="text-gray-700">·</span>
+        <span>v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</span>
       </div>
     </footer>
   );

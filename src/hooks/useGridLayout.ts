@@ -84,11 +84,20 @@ export function useGridLayout(
       }
     }
 
-    // Top zone：横向排列
-    layoutZone(zones.top, 'top', Math.max(1, Math.floor((stageWidth - gap) / (itemW + gap))));
-
-    // Bottom zone：横向排列
-    layoutZone(zones.bottom, 'bottom', Math.max(1, Math.floor((stageWidth - gap) / (itemW + gap))));
+    // Top/Bottom zone：横向排列。
+    // 列数 = min(宽度容纳列数, 配置行数反推列数)：宽屏不再铺满整行，四区收成
+    // 紧凑方阵均匀围住中央搜索框；窄屏仍按宽度自适应（保持旧行为）。
+    const widthCols = Math.max(1, Math.floor((stageWidth - gap) / (itemW + gap)));
+    const topCols = Math.max(
+      1,
+      Math.min(widthCols, Math.ceil(zones.top.length / Math.max(1, config.topRows)) || 1),
+    );
+    const bottomCols = Math.max(
+      1,
+      Math.min(widthCols, Math.ceil(zones.bottom.length / Math.max(1, config.bottomRows)) || 1),
+    );
+    layoutZone(zones.top, 'top', topCols);
+    layoutZone(zones.bottom, 'bottom', bottomCols);
 
     // Left/Right zone：纵向排列（2~3 列，由 sideCols 决定）
     const sideCols = config.sideCols;

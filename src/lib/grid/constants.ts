@@ -17,7 +17,17 @@ export const GRID_BREAKPOINT_MIN: Record<GridBreakpoint, number> = {
   xl: 1280,
 };
 
-/** 各断点的布局配置 */
+/**
+ * 各断点的布局配置。
+ *
+ * 紧凑方阵约定（与 GridHome 的 frame 计算配套）：
+ * - topRows / bottomRows：Top/Bottom 区的目标行数，useGridLayout 据此反推列数
+ *   （列数 = min(宽度容纳列数, ceil(工具数 / 行数))），宽屏不再铺满整行；
+ * - sideCols：Left/Right 区列数，决定中间行最小高度；
+ * - xl 实测（1440×900，内容区 1440×808）：Top 2行×14列=1260×164、
+ *   Bottom 2行×8列=720×164、Left 4列×4行=360×328、Right 4列×3行=360×246，
+ *   中央搜索 520×52 —— 四块均匀围住搜索框，整体一屏放下。
+ */
 export const GRID_CONFIG_BY_BP: Record<GridBreakpoint, GridConfig> = {
   xl: {
     breakpoint: 'xl',
@@ -25,9 +35,9 @@ export const GRID_CONFIG_BY_BP: Record<GridBreakpoint, GridConfig> = {
     itemH: 76,
     gap: 6,
     searchW: 520,
-    topRows: 3,
-    bottomRows: 3,
-    sideCols: 3,
+    topRows: 2,
+    bottomRows: 2,
+    sideCols: 4,
   },
   lg: {
     breakpoint: 'lg',
@@ -35,7 +45,7 @@ export const GRID_CONFIG_BY_BP: Record<GridBreakpoint, GridConfig> = {
     itemH: 54,
     gap: 5,
     searchW: 420,
-    topRows: 3,
+    topRows: 2,
     bottomRows: 2,
     sideCols: 3,
   },

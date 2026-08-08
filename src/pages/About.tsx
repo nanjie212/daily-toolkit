@@ -147,8 +147,8 @@ export default function About() {
           </div>
         </section>
 
-        {/* 四、隐私说明 */}
-        <section className="space-y-5">
+        {/* 四、隐私说明（id 供 LeadBar「关于 → 隐私」菜单滚动定位） */}
+        <section id="about-privacy" className="space-y-5 scroll-mt-20">
           <h2 className="font-heading font-bold text-white text-xl md:text-2xl">隐私说明</h2>
           <blockquote className="border-l-2 border-accent/50 pl-4 text-gray-400 text-[14px] italic">
             一句话版本：我们不想知道你是谁，技术上也没这么做。
