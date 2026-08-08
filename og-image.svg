@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="普通日常工具箱 - 66 个免费工具 · 隐私优先 · 本地运行">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A0A0F" />
+      <stop offset="55%" stop-color="#0D1418" />
+      <stop offset="100%" stop-color="#08120F" />
+    </linearGradient>
+    <linearGradient id="accentBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00E5A0" />
+      <stop offset="100%" stop-color="#00E5A0" stop-opacity="0.25" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0%" stop-color="#00E5A0" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#00E5A0" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- 背景：深色底 + 品牌绿光晕（暗底浅字，与站点暗色主题一致） -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#glow)" />
+
+  <!-- 顶部品牌色条 -->
+  <rect x="0" y="0" width="1200" height="10" fill="url(#accentBar)" />
+
+  <!-- 右上角几何装饰（刻意避开左侧文字区，最左 x=920） -->
+  <g opacity="0.55">
+    <circle cx="1050" cy="190" r="130" fill="none" stroke="#00E5A0" stroke-opacity="0.3" stroke-width="2" />
+    <circle cx="1050" cy="190" r="88" fill="none" stroke="#00E5A0" stroke-opacity="0.2" stroke-width="2" />
+    <circle cx="1050" cy="190" r="48" fill="#00E5A0" fill-opacity="0.15" />
+    <circle cx="1050" cy="190" r="12" fill="#00E5A0" />
+  </g>
+
+  <!-- 左上角品牌标记 -->
+  <g transform="translate(80, 74)">
+    <rect x="0" y="0" width="52" height="52" rx="14" fill="#00E5A0" />
+    <rect x="14" y="15" width="24" height="4.5" rx="2.25" fill="#0A0A0F" />
+    <rect x="14" y="23.75" width="24" height="4.5" rx="2.25" fill="#0A0A0F" />
+    <rect x="14" y="32.5" width="15" height="4.5" rx="2.25" fill="#0A0A0F" />
+    <text x="72" y="36" font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Noto Sans SC','Segoe UI',sans-serif" font-size="26" font-weight="600" fill="#8FA3AD" letter-spacing="3">DAILY TOOLKIT</text>
+  </g>
+
+  <!-- 主标题（7 个汉字 × 100px + 字距 4px ≈ 728px 宽，右端约 808px，不触碰装饰圆） -->
+  <text x="80" y="312" font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Noto Sans SC',sans-serif" font-size="100" font-weight="700" fill="#FFFFFF" letter-spacing="4">普通日常工具箱</text>
+
+  <!-- 标题下的短装饰线 -->
+  <rect x="82" y="348" width="128" height="8" rx="4" fill="#00E5A0" />
+
+  <!-- 副标题 -->
+  <text x="80" y="432" font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Noto Sans SC',sans-serif" font-size="42" font-weight="500" fill="#00E5A0" letter-spacing="1">66 个免费工具 · 隐私优先 · 本地运行</text>
+
+  <!-- 小字说明 -->
+  <text x="80" y="492" font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Noto Sans SC',sans-serif" font-size="28" font-weight="400" fill="#8FA3AD">图片处理 · 文档转换 · 财务计算 · 健康测算 · 日期工具</text>
+
+  <!-- 底部标签 -->
+  <g font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Noto Sans SC',sans-serif" font-size="26" font-weight="500">
+    <rect x="80" y="540" width="180" height="52" rx="26" fill="#00E5A0" fill-opacity="0.12" stroke="#00E5A0" stroke-opacity="0.45" stroke-width="1.5" />
+    <text x="170" y="574" fill="#00E5A0" text-anchor="middle">无需注册</text>
+
+    <rect x="280" y="540" width="206" height="52" rx="26" fill="#00E5A0" fill-opacity="0.12" stroke="#00E5A0" stroke-opacity="0.45" stroke-width="1.5" />
+    <text x="383" y="574" fill="#00E5A0" text-anchor="middle">数据不上传</text>
+
+    <rect x="506" y="540" width="180" height="52" rx="26" fill="#00E5A0" fill-opacity="0.12" stroke="#00E5A0" stroke-opacity="0.45" stroke-width="1.5" />
+    <text x="596" y="574" fill="#00E5A0" text-anchor="middle">完全免费</text>
+  </g>
+
+  <!-- 底部品牌色条 -->
+  <rect x="0" y="620" width="1200" height="10" fill="url(#accentBar)" />
+</svg>
