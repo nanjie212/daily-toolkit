@@ -1,254 +1,124 @@
 classDiagram
-    direction LR
+    %% ── 网格布局类型 ──
+    class GridBreakpoint {
+        <<enumeration>>
+        sm
+        md
+        lg
+        xl
+    }
 
-    %% ───────── 纯计算内核 (src/lib/orbit) ─────────
-    class OrbitConfig {
-        <<interface>>
+    class GridConfig {
+        +GridBreakpoint breakpoint
         +number itemW
         +number itemH
-        +number slotIdeal
-        +number slotMin
-        +number centerSafeRx
-        +number centerSafeRy
-        +number innerRatio
-        +number maxRings
-        +number minSegment
-        +number sectorGapRad
-        +OrbitBreakpoint breakpoint
+        +number gap
+        +number searchW
+        +number searchH
+        +number topRows
+        +number bottomRows
+        +number sideCols
+        +number maxColsPerRow
     }
 
-    class StageBox {
-        <<interface>>
-        +number width
-        +number height
-    }
-
-    class OrbitRing {
-        <<interface>>
-        +number index
-        +number rx
-        +number ry
-        +number perimeter
-        +number capacity
-        +OrbitSegment[] segments
-    }
-
-    class OrbitSegment {
-        <<interface>>
-        +string categoryId
-        +number count
-        +number startTheta
-        +number endTheta
-    }
-
-    class OrbitNode {
-        <<interface>>
+    class GridSlot {
         +string toolId
         +string categoryId
-        +number ringIndex
-        +number indexInRing
-        +number theta
-        +number bx
-        +number by
+        +number zone
+        +number row
+        +number col
+        +number cx
+        +number cy
     }
 
-    class OrbitLayout {
-        <<interface>>
-        +OrbitConfig config
-        +StageBox stage
-        +number k
-        +number slot
-        +OrbitRing[] rings
-        +OrbitNode[] nodes
-        +Map~string,OrbitNode~ nodeById
-        +string[] overflowIds
+    class ZoneAssignment {
+        +ToolRecord[] top
+        +ToolRecord[] bottom
+        +ToolRecord[] left
+        +ToolRecord[] right
+        +string[] pinnedTop
     }
 
-    class OrbitTransform {
-        <<interface>>
+    class GridLayout {
+        +GridConfig config
+        +number stageW
+        +number stageH
+        +GridSlot[] slots
+        +Record~string, GridSlot~ slotById
+        +ZoneAssignment zones
+    }
+
+    class GridTransform {
         +number dx
         +number dy
         +number scale
         +number opacity
         +number z
-        +OrbitItemState state
+        +GridItemState state
     }
 
-    class RepulsionConfig {
-        <<interface>>
-        +number radius
-        +number strength
-        +number maxOffset
-        +number maxSources
-        +FalloffKind falloff
+    class GridItemState {
+        <<enumeration>>
+        idle
+        matched
+        hovered
+        pushed
+        dimmed
+    }
+
+    class GridInteractionConfig {
         +boolean enabled
+        +number pushRadius
+        +number pushStrength
+        +number maxPushX
+        +number maxPushY
+        +number matchedScale
+        +number hoverScale
+        +number dimmedScale
+        +number dimmedOpacity
     }
 
-    class orbitConstants {
-        <<module>>
-        +ORBIT_BREAKPOINTS
-        +ORBIT_CONFIG_BY_BP
-        +REPULSION_BY_BP
-        +ORBIT_DUR_MOVE
-        +ORBIT_EASE_MOVE
-        +ORBIT_Z
-        +CATEGORY_RING_ORDER
-        +ENABLE_IDLE_FLOAT
-    }
-
-    class ellipse {
-        <<module>>
-        +perimeterFactor(k) number
-        +ellipsePerimeter(rx, ry) number
-        +buildArcTable(rx, ry, samples) ArcTable
-        +thetaAtArcLength(table, s) number
-        +pointAt(rx, ry, theta) Point
-    }
-
-    class layout {
-        <<module>>
-        +resolveConfig(stage) OrbitConfig
-        +planRings(stage, cfg, total) OrbitRing[]
-        +planBands(rings, groups, cfg) OrbitRing[]
-        +placeNodes(rings, groups, cfg) OrbitNode[]
-        +computeOrbitLayout(tools, stage, cfg) OrbitLayout
-    }
-
-    class repulsion {
-        <<module>>
-        +computeRepulsion(nodes, highlightIds, cfg) Record
-        +falloffValue(dist, radius, kind) number
-    }
-
-    %% ───────── React 接入层 (src/hooks) ─────────
-    class useStageMetrics {
-        <<hook>>
-        +ref RefObject~HTMLElement~
-        +returns StageBox + bucketed size
-    }
-
-    class useOrbitLayout {
-        <<hook>>
-        +tools ToolRecord[]
-        +stage StageBox
-        +returns OrbitLayout
-    }
-
-    class useOrbitHighlight {
-        <<hook>>
-        +tools ToolRecord[]
-        +layout OrbitLayout
-        +query string
-        +returns OrbitHighlightResult
-    }
-
-    class OrbitHighlightResult {
-        <<interface>>
+    class GridInteractionResult {
         +Set~string~ highlightIds
-        +Record~string,OrbitTransform~ transforms
+        +Record~string, GridTransform~ transforms
+        +string hoveredId
         +number matchCount
         +boolean isSearching
     }
 
-    %% ───────── 展示层 (src/components/orbit) ─────────
-    class ToolOrbit {
-        <<component>>
+    %% ── 关系 ──
+    GridLayout --> GridConfig
+    GridLayout --> GridSlot
+    GridLayout --> ZoneAssignment
+    GridTransform --> GridItemState
+    GridInteractionResult --> GridTransform
+
+    %% ── 组件 Props ──
+    class GridHomeProps {
         +ToolRecord[] tools
         +string searchQuery
-        +onSearchChange(v) void
-        +onSearchFocus() void
-        +RefObject searchInputRef
-        +render() JSX
+        +(value: string) => void onSearchChange
+        +() => void onSearchFocus
+        +RefObject~HTMLInputElement~ searchInputRef
     }
 
-    class OrbitItem {
-        <<component memo>>
-        +OrbitNode node
+    class GridZoneProps {
+        +ToolRecord[] tools
+        +string zone
+        +GridSlot[] slots
+        +Record~string, GridTransform~ transforms
+        +string hoveredId
+        +(id: string | null) => void onHover
+        +(tool: ToolRecord) => void onActivate
+    }
+
+    class GridItemProps {
         +ToolRecord tool
-        +OrbitTransform transform
-        +onActivate(id) void
-        +render() JSX
+        +GridSlot slot
+        +GridTransform transform
+        +boolean isHovered
+        +boolean hasActiveNeighbor
+        +() => void onHover
+        +() => void onLeave
+        +() => void onActivate
     }
-
-    class OrbitRingsLayer {
-        <<component>>
-        +OrbitRing[] rings
-        +string activeCategoryId
-        +render() JSX
-    }
-
-    class OrbitCenter {
-        <<component>>
-        +string query
-        +number matchCount
-        +onQueryChange(v) void
-        +render() JSX
-    }
-
-    class OrbitFallback {
-        <<component>>
-        +ToolRecord[] tools
-        +string searchQuery
-        +render() JSX
-    }
-
-    %% ───────── 既有模块（复用，不改动或轻改） ─────────
-    class Home {
-        <<page>>
-        +render() JSX
-    }
-    class CommandSearch {
-        <<existing component>>
-    }
-    class HomeHero {
-        <<existing component>>
-    }
-    class ToolGrid {
-        <<existing component>>
-        +getToolIcon(name) ElementType
-        +iconMap
-    }
-    class useStore {
-        <<zustand>>
-        +ToolRecord[] tools
-        +string searchQuery
-        +setSearchQuery(q) void
-    }
-    class matchPinyin {
-        <<lib fn>>
-    }
-
-    %% ───────── 关系 ─────────
-    layout ..> OrbitConfig : reads
-    layout ..> StageBox : reads
-    layout ..> ellipse : uses
-    layout ..> orbitConstants : uses
-    layout --> OrbitLayout : produces
-    OrbitLayout *-- OrbitRing
-    OrbitLayout *-- OrbitNode
-    OrbitLayout *-- OrbitConfig
-    OrbitRing *-- OrbitSegment
-    repulsion ..> OrbitNode : reads
-    repulsion ..> RepulsionConfig : reads
-    repulsion --> OrbitTransform : produces
-
-    useOrbitLayout ..> layout : calls
-    useOrbitHighlight ..> repulsion : calls
-    useOrbitHighlight ..> matchPinyin : calls
-    useOrbitHighlight --> OrbitHighlightResult : returns
-
-    ToolOrbit ..> useStageMetrics : uses
-    ToolOrbit ..> useOrbitLayout : uses
-    ToolOrbit ..> useOrbitHighlight : uses
-    ToolOrbit *-- OrbitRingsLayer
-    ToolOrbit *-- OrbitCenter
-    ToolOrbit *-- OrbitItem
-    OrbitCenter ..> CommandSearch : wraps
-    OrbitItem ..> ToolGrid : getToolIcon
-    OrbitItem ..> OrbitTransform : consumes
-
-    Home ..> ToolOrbit : renders (>=640px)
-    Home ..> OrbitFallback : renders (<640px)
-    Home ..> useStore : reads/writes
-    OrbitFallback ..> HomeHero : reuses
-    OrbitFallback ..> ToolGrid : reuses

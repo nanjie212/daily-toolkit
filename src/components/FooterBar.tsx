@@ -5,7 +5,6 @@ import {
   ClockIcon,
   MessageCircleIcon,
   ShieldCheckIcon,
-  HelpCircleIcon,
   FileTextIcon,
 } from 'lucide-react';
 import { useStore } from '@/store';
@@ -94,33 +93,14 @@ export default function FooterBar() {
   }, [location.pathname]);
 
   return (
-    <footer className="bg-card/90 backdrop-blur-xl border-t border-white/5 mt-8">
+    <footer className="bg-card/90 backdrop-blur-xl border-t border-white/5">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
-        {/* 品牌 + 统计 */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <WrenchIcon className="w-5 h-5 text-accent" />
-            </div>
-            <span className="text-white font-heading font-bold text-base">日常工具箱</span>
+        {/* 品牌 */}
+        <div className="flex items-center gap-2.5 justify-center">
+          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+            <WrenchIcon className="w-5 h-5 text-accent" />
           </div>
-
-          {/* 使用时长是纯本地统计（localStorage: toolbox_usage_records），
-              这里显式说明一句，避免和「全部本地处理」的说法看起来矛盾。 */}
-          <div
-            className="flex items-center gap-3 text-xs text-gray-400"
-            title="使用时长仅存在本机浏览器，不会上传"
-          >
-            <ClockIcon className="w-3.5 h-3.5 text-accent" />
-            <span>今日 <strong className="text-white">{todayMinutes}</strong> 分钟</span>
-            <span className="text-gray-600">·</span>
-            <span>本周 <strong className="text-white">{weekMinutes}</strong> 分钟</span>
-            <HelpCircleIcon
-              className="w-3.5 h-3.5 text-gray-500 flex-shrink-0"
-              aria-label="使用时长仅存在本机浏览器，不会上传"
-              role="img"
-            />
-          </div>
+          <span className="text-white font-heading font-bold text-base">日常工具箱</span>
         </div>
 
         {/* 导航链接 */}
@@ -178,13 +158,28 @@ export default function FooterBar() {
           </div>
         </div>
 
-        {/* 底部版权 */}
-        <div className="text-center text-gray-600 text-[10px] space-y-1">
-          <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 工具数据本地处理</p>
-          <p>v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</p>
+        {/* 底部版权 + 访问统计 + 双行 slogan */}
+        <div className="text-center text-gray-600 text-[10px] space-y-1.5">
+          {/* 访问统计：时长 + 数量 居中 */}
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-400 mb-2">
+            <span className="flex items-center gap-1.5">
+              <ClockIcon className="w-3.5 h-3.5 text-accent" />
+              <span>今日 <strong className="text-white">{todayMinutes}</strong> 分钟</span>
+            </span>
+            <span className="text-gray-600">·</span>
+            <span>本周 <strong className="text-white">{weekMinutes}</strong> 分钟</span>
             {visitCount !== null && (
-              <p className="text-gray-600 text-xs">👁️ 本站已被访问 {visitCount} 次</p>
+              <>
+                <span className="text-gray-600">·</span>
+                <span>访问次数 <strong className="text-white">{visitCount}</strong></span>
+              </>
             )}
+          </div>
+
+          {/* 双行 slogan */}
+          <p>普通日常工具箱 · 所有工具永久免费 · 无需注册 · 工具数据本地处理</p>
+          <p>一个网页，解决你的问题</p>
+          <p className="mt-1">v{__APP_VERSION__} · 更新于 {__BUILD_DATE__}</p>
         </div>
       </div>
     </footer>

@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
-import { resolveBreakpoint } from '@/lib/orbit/layout';
-import type { OrbitBreakpoint, StageBox } from '@/lib/orbit/types';
+import { resolveGridBreakpoint } from '@/lib/grid/constants';
+import type { GridBreakpoint } from '@/lib/grid/types';
 
 /** 尺寸量化桶：ResizeObserver 回调里先取整到 40px 再 setState，避免拖拽窗口时每像素重算 */
 const BUCKET_PX = 40;
 
 export interface StageMetrics {
   /** 舞台可用尺寸（px，宽高均已量化到 40px 桶） */
-  stage: StageBox;
-  /** 断点：sm = <640 降级；md = 640~1023；lg = >=1024 */
-  breakpoint: OrbitBreakpoint;
+  stage: { width: number; height: number };
+  /** 断点：sm = <768 降级；md = ≥768；lg = ≥1024；xl = ≥1280 */
+  breakpoint: GridBreakpoint;
   /** 系统是否开启「减少动态效果」 */
   reducedMotion: boolean;
   /** 首次测量完成前为 false（避免 0×0 布局闪烁；SSR / 无 ResizeObserver 环境下保持 false） */
@@ -27,7 +27,7 @@ export interface StageMetrics {
  * @param ref 要观测的容器 ref（通常是 orbit-stage 的外层 div）
  */
 export function useStageMetrics(ref: RefObject<HTMLElement | null>): StageMetrics {
-  const [stage, setStage] = useState<StageBox>({ width: 0, height: 0 });
+  const [stage, setStage] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [reducedMotion, setReducedMotion] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -63,7 +63,7 @@ export function useStageMetrics(ref: RefObject<HTMLElement | null>): StageMetric
 
   return {
     stage,
-    breakpoint: resolveBreakpoint(stage.width),
+    breakpoint: resolveGridBreakpoint(stage.width),
     reducedMotion,
     ready,
   };

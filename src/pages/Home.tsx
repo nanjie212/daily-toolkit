@@ -14,21 +14,21 @@ import { matchPinyin } from '@/lib/pinyinSearch';
 import ThemeToggle from '@/components/ThemeToggle';
 import ToolGrid from '@/components/ToolGrid';
 import OnboardingModal, { isOnboardingDone, markOnboardingDone } from '@/components/OnboardingModal';
-import DonateSection from '@/components/DonateSection';
-import ToolOrbit from '@/components/orbit/ToolOrbit';
-import OrbitFallback from '@/components/orbit/OrbitFallback';
-import { ORBIT_FALLBACK_MAX_WIDTH } from '@/lib/orbit/orbitConstants';
+import GridHome from '@/components/grid/GridHome';
+import { GRID_BREAKPOINT_MIN } from '@/lib/grid/constants';
 
-/** 视口宽度 < 640px 时为 true（docs §5 Q1：小屏降级为 OrbitFallback）。 */
+const SM_BREAKPOINT = GRID_BREAKPOINT_MIN.md; // 768
+
+/** 视口宽度 < 768px 时为 true（小屏降级为 ToolGrid 列表）。 */
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-    return window.matchMedia(`(max-width: ${ORBIT_FALLBACK_MAX_WIDTH - 1}px)`).matches;
+    return window.matchMedia(`(max-width: ${SM_BREAKPOINT - 1}px)`).matches;
   });
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia(`(max-width: ${ORBIT_FALLBACK_MAX_WIDTH - 1}px)`);
+    const mq = window.matchMedia(`(max-width: ${SM_BREAKPOINT - 1}px)`);
     const handle = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     setIsMobile(mq.matches);
     mq.addEventListener('change', handle);
@@ -41,7 +41,6 @@ function useIsMobile(): boolean {
 export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, pinnedToolIds, searchQuery } = useStore();
   const location = useLocation();
-  // 读写统一走 safeStorage（隐私模式 / 禁用 localStorage 时不会抛错），key 见 OnboardingModal
   const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingDone());
   const [scrolledLeft, setScrolledLeft] = useState(false);
   const [scrolledRight, setScrolledRight] = useState(true);
@@ -80,7 +79,6 @@ export default function Home() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        // 原生 focus 会自动把首屏搜索框滚回可视区域
         searchRef.current?.focus();
       }
     };
@@ -124,15 +122,15 @@ export default function Home() {
     setShowOnboarding(false);
   };
 
+  // 判断是否显示下方内容区（非搜索/非分类筛选时显示 pinned/favorites/recent）
+  const showSections = !selectedCategory && !searchQuery;
+
   return (
-    // 跟随 Layout 外层滚动容器的文档流滚动，不再嵌套内部滚动区
     <div className="bg-bg">
       {/* 1. 顶部品牌条：站名小而安静，粘性常驻，右侧保留主题切换
-             pr-* 用于避开固定在右上角的分享按钮（ShareButton: fixed top-4 right-4） */}
-      {/* 注意：bg-bg/90 这类「CSS 变量色 + 透明度」在 Tailwind 下不会生成任何规则，
-             必须用不带透明度的 bg-bg，否则粘性条会完全透明、滚动时文字互相穿透 */}
+             pr-* 用于避开固定在右上角的 LeadBar 按钮组 */}
       <div className="sticky top-0 z-40 bg-bg">
-        <div className="h-12 md:h-14 pl-4 pr-[72px] sm:pr-[112px] flex items-center justify-between">
+        <div className="h-12 md:h-14 pl-4 pr-[200px] sm:pr-[220px] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-accent" />
             <span className="text-white/80 font-heading font-medium text-[13px] md:text-sm tracking-wide">
@@ -143,147 +141,137 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 2~5. 首屏英雄区：大标题 → 中央搜索框 → 副标题 → 常用工具
-             <640px 降级为 OrbitFallback（复用 HomeHero），否则渲染 ToolOrbit 圆环视图 */}
+      {/* 2. 首屏：网格布局（≥768px）/ ToolGrid 降级（<768px） */}
       {isMobile ? (
-        <OrbitFallback
-          tools={tools}
-          searchQuery={searchQuery}
-          onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
-          onSearchFocus={dismissOnboarding}
-          searchInputRef={searchRef}
-        />
+        /* 小屏降级：搜索框 + ToolGrid 列表 */
+        <div className="px-4 pt-6 pb-4">
+          <div className="max-w-[680px] mx-auto">
+            <h1 className="font-heading font-bold text-white text-[22px] leading-tight text-center mb-4">
+              一个网页，解决你的日常小问题
+            </h1>
+            <div className="mb-3">
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => useStore.getState().setSearchQuery(e.target.value)}
+                onFocus={dismissOnboarding}
+                placeholder="搜索工具，比如 二维码、房贷、图片压缩"
+                className="w-full px-4 py-3 rounded-xl bg-card border border-white/10 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent"
+              />
+            </div>
+            <p className="text-xs text-gray-400 text-center mb-6">
+              无需安装，打开即用的在线实用工具集合
+            </p>
+          </div>
+
+          <ToolGrid tools={filteredTools} />
+        </div>
       ) : (
-        <ToolOrbit
-          tools={tools}
-          searchQuery={searchQuery}
-          onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
-          onSearchFocus={dismissOnboarding}
-          searchInputRef={searchRef}
-          activeCategoryId={selectedCategory}
-        />
+        /* 桌面端：网格首页（100vh 一屏不滚动） */
+        <div className="h-[calc(100vh-48px-180px)] md:h-[calc(100vh-56px-180px)] overflow-hidden">
+          <GridHome
+            tools={tools}
+            searchQuery={searchQuery}
+            onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
+            onSearchFocus={dismissOnboarding}
+            searchInputRef={searchRef}
+          />
+        </div>
       )}
 
-      {/* 分类标签 - 横向滚动（从原固定头部下移到工具列表区上方，保持粘性） */}
-      <div className="sticky top-12 md:top-14 z-30 bg-bg border-y border-white/5">
-        <div className="relative px-4 py-2.5">
-          <div
-            ref={scrollRef}
-            className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
-          >
-            <button
-              onClick={() => useStore.getState().setSelectedCategory(null)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                !selectedCategory
-                  ? 'bg-accent/20 text-accent border border-accent/30'
-                  : 'bg-card text-gray-300 border border-white/5 hover:text-white'
-              }`}
+      {/* 3. 分类标签 - 横向滚动（桌面端搜索/筛选时显示） */}
+      {!isMobile && (selectedCategory || searchQuery) && (
+        <div className="sticky top-12 md:top-14 z-30 bg-bg border-y border-white/5">
+          <div className="relative px-4 py-2.5">
+            <div
+              ref={scrollRef}
+              className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
             >
-              <LayoutGridIcon className="w-4 h-4" />
-              全部
-            </button>
-            {categories.map((cat) => {
-              const catTools = tools.filter(t => t.category === cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => useStore.getState().setSelectedCategory(cat.id)}
-                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    selectedCategory === cat.id
-                      ? 'bg-accent/20 text-accent border border-accent/30'
-                      : 'bg-card text-gray-300 border border-white/5 hover:text-white'
-                  }`}
-                >
-                  {cat.name}
-                  <span className="text-gray-300">({catTools.length})</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className={`absolute right-0 top-2.5 bottom-3.5 w-10 bg-gradient-to-l from-bg to-transparent pointer-events-none transition-opacity duration-300 ${scrolledRight ? 'opacity-100' : 'opacity-0'}`} />
-          <div className={`absolute left-0 top-2.5 bottom-3.5 w-10 bg-gradient-to-r from-bg to-transparent pointer-events-none transition-opacity duration-300 ${scrolledLeft ? 'opacity-100' : 'opacity-0'}`} />
-        </div>
-      </div>
-
-      {/* 主内容区域 */}
-      <div className="p-4 space-y-4">
-        {/* 搜索结果提示 */}
-        {searchQuery && (
-          <div className="text-sm text-gray-300">
-            搜索 "<span className="text-white">{searchQuery}</span>" 找到 {filteredTools.length} 个工具
-          </div>
-        )}
-
-        {/* 固定工具 */}
-        {pinnedTools.length > 0 && !selectedCategory && !searchQuery && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <PinIcon className="w-4 h-4 text-accent" />
-              <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">已固定</h2>
-              <span className="text-xs text-gray-400">({pinnedTools.length})</span>
+              <button
+                onClick={() => useStore.getState().setSelectedCategory(null)}
+                className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  !selectedCategory
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : 'bg-card text-gray-300 border border-white/5 hover:text-white'
+                }`}
+              >
+                <LayoutGridIcon className="w-4 h-4" />
+                全部
+              </button>
+              {categories.map((cat) => {
+                const catTools = tools.filter(t => t.category === cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => useStore.getState().setSelectedCategory(cat.id)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      selectedCategory === cat.id
+                        ? 'bg-accent/20 text-accent border border-accent/30'
+                        : 'bg-card text-gray-300 border border-white/5 hover:text-white'
+                    }`}
+                  >
+                    {cat.name}
+                    <span className="text-gray-300">({catTools.length})</span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="bg-card rounded-xl border border-white/5 p-3">
-              <ToolGrid tools={pinnedTools} />
-            </div>
-          </div>
-        )}
-
-        {/* 收藏工具 */}
-        {favoriteTools.length > 0 && !selectedCategory && !searchQuery && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <StarIcon className="w-4 h-4 text-amber-400" />
-              <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">收藏</h2>
-              <span className="text-xs text-gray-400">({favoriteTools.length})</span>
-            </div>
-            <div className="bg-card rounded-xl border border-white/5 p-3">
-              <ToolGrid tools={favoriteTools} />
-            </div>
-          </div>
-        )}
-
-        {/* 最近使用 */}
-        {recentTools.length > 0 && !selectedCategory && !searchQuery && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <ClockIcon className="w-4 h-4 text-gray-300" />
-              <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">最近</h2>
-              <span className="text-xs text-gray-400">({recentTools.length})</span>
-            </div>
-            <div className="bg-card rounded-xl border border-white/5 p-3">
-              <ToolGrid tools={recentTools.slice(0, 10)} />
-            </div>
-          </div>
-        )}
-
-        {/* 全部工具 - 主图标网格 */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">
-              {searchQuery
-                ? '搜索结果'
-                : selectedCategory
-                ? categories.find(c => c.id === selectedCategory)?.name
-                : '全部工具'}
-            </h2>
-            <span className="text-xs text-gray-400">{filteredTools.length}</span>
-          </div>
-          <div className="bg-card rounded-xl border border-white/5 p-3">
-            <ToolGrid tools={filteredTools} />
+            <div className={`absolute right-0 top-2.5 bottom-3.5 w-10 bg-gradient-to-l from-bg to-transparent pointer-events-none transition-opacity duration-300 ${scrolledRight ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`absolute left-0 top-2.5 bottom-3.5 w-10 bg-gradient-to-r from-bg to-transparent pointer-events-none transition-opacity duration-300 ${scrolledLeft ? 'opacity-100' : 'opacity-0'}`} />
           </div>
         </div>
+      )}
 
-        {/* 赞赏 */}
-        {!selectedCategory && !searchQuery && (
-          <div>
-            <DonateSection wechatQr="" alipayQr="" />
-          </div>
-        )}
-      </div>
+      {/* 4. 下方内容：固定/收藏/最近（仅桌面端且非搜索/非筛选时显示） */}
+      {!isMobile && showSections && (
+        <div className="p-4 space-y-4">
+          {/* 固定工具 */}
+          {pinnedTools.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <PinIcon className="w-4 h-4 text-accent" />
+                <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">已固定</h2>
+                <span className="text-xs text-gray-400">({pinnedTools.length})</span>
+              </div>
+              <div className="bg-card rounded-xl border border-white/5 p-3">
+                <ToolGrid tools={pinnedTools} />
+              </div>
+            </div>
+          )}
 
-      {/* 新手引导 */}
+          {/* 收藏工具 */}
+          {favoriteTools.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <StarIcon className="w-4 h-4 text-amber-400" />
+                <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">收藏</h2>
+                <span className="text-xs text-gray-400">({favoriteTools.length})</span>
+              </div>
+              <div className="bg-card rounded-xl border border-white/5 p-3">
+                <ToolGrid tools={favoriteTools} />
+              </div>
+            </div>
+          )}
+
+          {/* 最近使用 */}
+          {recentTools.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <ClockIcon className="w-4 h-4 text-gray-300" />
+                <h2 className="text-white font-heading font-semibold text-[15px] md:text-base">最近</h2>
+                <span className="text-xs text-gray-400">({recentTools.length})</span>
+              </div>
+              <div className="bg-card rounded-xl border border-white/5 p-3">
+                <ToolGrid tools={recentTools.slice(0, 10)} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. 新手引导 */}
       {showOnboarding && (
-        // 是否写入「已看过」标记由 OnboardingModal 内的「不再提示」勾选决定，这里只负责隐藏
         <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}
     </div>

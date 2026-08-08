@@ -31,14 +31,19 @@
   --font-heading: 'Space Grotesk', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
   --font-body: 'DM Sans', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
 
-  /* ── 轨道视图动效 token（与 orbitConstants.ts 的 ORBIT_MOTION 成对，改一处必须改另一处） ── */
-  --orbit-dur-move: 340ms;
-  --orbit-dur-fade: 200ms;
-  --orbit-ease-move: cubic-bezier(0.34, 1.24, 0.44, 1);
-  --orbit-ease-fade: ease-out;
+  /* ── 网格视图动效 token（与 grid/constants.ts 的 GRID_MOTION 成对，改一处必须改另一处） ── */
+  --grid-dur-move: 340ms;
+  --grid-dur-fade: 200ms;
+  --grid-ease-move: cubic-bezier(0.34, 1.24, 0.44, 1);
+  --grid-ease-fade: ease-out;
 
-  /* ── v2 装饰层 token（与 orbitConstants.ts 的 v2 块成对镜像，改一处必须改另一处） ── */
-  /* 分类 chip 背景：色相只定义在这一处，`--orbit-cat-{id}-h` ↔ CATEGORY_CHIP_HUE */
+  /* 细光线参数 */
+  --grid-line-base-alpha: 0.15;
+  --grid-line-active-alpha: 0.5;
+  --grid-glow-radius: 18px;
+
+  /* ── v2 装饰层 token（与 grid/constants.ts 的 CATEGORY_CHIP_HUE 成对镜像） ── */
+  /* 分类 chip 背景：色相只定义在这一处，CSS 变量名保留 --orbit-cat-*-h 避免影响其他页面 */
   --orbit-cat-everyday-h: 152;  /* 日常淡绿 */
   --orbit-cat-finance-h: 42;    /* 财务淡金 */
   --orbit-cat-health-h: 205;    /* 健康淡蓝 */
@@ -48,20 +53,6 @@
   --orbit-cat-l: 58%;
   --orbit-chip-bg-alpha: 0.72;
   --orbit-chip-border-alpha: 0.45;
-  /* 高亮光晕（D1 = A：单次弹 0.5s） */
-  --orbit-ring-width: 2px;
-  --orbit-ring-alpha: 0.9;
-  --orbit-halo-radius: 18px;
-  --orbit-halo-alpha: 0.35;
-  --orbit-glow-pop-halo: 24px;
-  --orbit-glow-pop-dur: 500ms;
-  --orbit-glow-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  /* 卡片间细光线（D2 = 分类色相 / D3 = 回落） */
-  --orbit-line-base-alpha: 0.15;
-  --orbit-line-active-alpha: 0.6;
-  --orbit-line-active-width: 3px;
-  --orbit-line-flash-dur: 400ms;
-  --orbit-line-settle-alpha: 0.35;
 }
 
 /* 主题切换平滑过渡 - 只在根元素和直接子元素上 */
@@ -85,7 +76,7 @@ html.light {
   --surface-rgb: 235 235 240; /* #ebebf0 */
   --accent-rgb: 0 113 227;    /* #0071e3 */
 
-  /* v2 浅色主题覆盖：分类亮度提亮成 pastel，边框提对比 */
+  /* 浅色主题：分类亮度提亮成 pastel，边框提对比 */
   --orbit-cat-s: 55%;
   --orbit-cat-l: 88%;
   --orbit-chip-border-alpha: 0.55;
@@ -302,35 +293,140 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* ── 轨道视图（orbit）组件样式 ──────────────────────────────────────────
-   轨道项的定位只允许 transform（docs §8.6）：节点用 left:50%; top:50% 定到舞台中心，
-   margin 负半宽/半高回拉，之后全部靠 inline transform 摆放，布局树永不失效。
-   高亮/发光一律走 class（orbit-chip--matched），不写 border-accent/40 这类
-   CSS 变量透明度变体（Tailwind 不会生成对应规则）。 */
-.orbit-item {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transition:
-    transform var(--orbit-dur-move) var(--orbit-ease-move),
-    opacity var(--orbit-dur-fade) var(--orbit-ease-fade);
+/* ── 网格视图（grid）组件样式 ──────────────────────────────────────────
+   网格卡片定位只允许 transform：子项 absolute 定位，
+   全部靠 inline transform 摆放（位移、缩放），布局树永不失效。
+   高亮/发光一律走 class。 */
+.grid-home {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-/* will-change 只在搜索交互期挂载（searchQuery !== ''），清空后必须移除 */
-.orbit-item--interacting {
+.grid-home__search {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px 8px;
+}
+
+.grid-home__search-inner {
+  width: 100%;
+  max-width: 520px;
+}
+
+.grid-home__search-count {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.grid-home__zones {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.grid-home__fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 200px;
+}
+
+/* ── 区域 ── */
+.grid-zone {
+  position: absolute;
+  pointer-events: none;
+}
+
+.grid-zone[data-zone="top"] {
+  left: 0;
+  right: 0;
+  top: 0;
+}
+
+.grid-zone[data-zone="bottom"] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.grid-zone[data-zone="left"] {
+  left: 0;
+  top: 20%;
+  bottom: 25%;
+}
+
+.grid-zone[data-zone="right"] {
+  right: 0;
+  top: 20%;
+  bottom: 25%;
+}
+
+.grid-zone__label {
+  position: absolute;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.grid-zone[data-zone="top"] .grid-zone__label {
+  top: -16px;
+  left: 8px;
+}
+
+.grid-zone[data-zone="bottom"] .grid-zone__label {
+  bottom: -16px;
+  left: 8px;
+}
+
+.grid-zone[data-zone="left"] .grid-zone__label {
+  top: -16px;
+  left: 4px;
+}
+
+.grid-zone[data-zone="right"] .grid-zone__label {
+  top: -16px;
+  right: 4px;
+}
+
+.grid-zone__count {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.grid-zone__container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+/* ── 卡片 ── */
+.grid-item {
+  transition:
+    transform var(--grid-dur-move) var(--grid-ease-move),
+    opacity var(--grid-dur-fade) var(--grid-ease-fade);
+}
+
+.grid-item--interacting {
   will-change: transform;
 }
 
-.orbit-item__float {
-  width: 100%;
-  height: 100%;
-}
-
-.orbit-item__float--idle {
-  animation: orbit-float 6.5s ease-in-out infinite;
-}
-
-.orbit-chip {
+.grid-item__chip {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -345,19 +441,19 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text);
   cursor: pointer;
   transition:
-    border-color var(--orbit-dur-fade) var(--orbit-ease-fade),
-    box-shadow var(--orbit-dur-fade) var(--orbit-ease-fade);
-  animation: orbit-enter 0.35s ease-out both;
+    border-color var(--grid-dur-fade) var(--grid-ease-fade),
+    box-shadow var(--grid-dur-fade) var(--grid-ease-fade);
+  animation: grid-enter 0.35s ease-out both;
 }
 
-.orbit-chip__icon {
+.grid-item__icon {
   width: 20px;
   height: 20px;
   color: rgb(var(--accent-rgb) / 0.9);
   flex-shrink: 0;
 }
 
-.orbit-chip__name {
+.grid-item__name {
   margin-top: 4px;
   font-size: 11px;
   line-height: 1.15;
@@ -369,199 +465,115 @@ h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
 }
 
-/* v2 分类色填充：背景从统一灰卡片切换为分类色相派生的半透明色（颜色单源 = CSS 变量，
-   `--orbit-cat-{id}-h` ↔ orbitConstants.ts 的 CATEGORY_CHIP_HUE 成对镜像）。
-   ⚠️ 必须写在 --matched / --pushed / --dimmed 之前（同级选择器后者胜），
-   保证状态 class 的 accent 边框 / dimmed 边框能盖住分类边框。 */
-.orbit-chip--cat-everyday {
+/* 分类色填充 */
+.grid-item--cat-everyday .grid-item__chip {
   background: hsl(var(--orbit-cat-everyday-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
   border-color: hsl(var(--orbit-cat-everyday-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
 }
 
-.orbit-chip--cat-finance {
+.grid-item--cat-finance .grid-item__chip {
   background: hsl(var(--orbit-cat-finance-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
   border-color: hsl(var(--orbit-cat-finance-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
 }
 
-.orbit-chip--cat-health {
+.grid-item--cat-health .grid-item__chip {
   background: hsl(var(--orbit-cat-health-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
   border-color: hsl(var(--orbit-cat-health-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
 }
 
-.orbit-chip--cat-image {
+.grid-item--cat-image .grid-item__chip {
   background: hsl(var(--orbit-cat-image-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
   border-color: hsl(var(--orbit-cat-image-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
 }
 
-.orbit-chip--cat-fun {
+.grid-item--cat-fun .grid-item__chip {
   background: hsl(var(--orbit-cat-fun-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
   border-color: hsl(var(--orbit-cat-fun-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
 }
 
-/* v2 高亮光晕（D1 = A：单次弹 0.5s）：静态 2px ring + 18px 微扩散 halo。
-   与 v1 的 scale 1.18 + z=6（排斥内核产出）叠加，box-shadow 随父级 scale 一起缩放，互不冲突。 */
-.orbit-chip--matched {
+/* 高亮光晕（匹配） */
+.grid-item--matched .grid-item__chip {
   border-color: var(--accent);
   box-shadow:
-    0 0 0 var(--orbit-ring-width) rgb(var(--accent-rgb) / var(--orbit-ring-alpha)),
-    0 0 var(--orbit-halo-radius) rgb(var(--accent-rgb) / var(--orbit-halo-alpha));
+    0 0 0 2px rgb(var(--accent-rgb) / 0.9),
+    0 0 var(--grid-glow-radius) rgb(var(--accent-rgb) / 0.35);
 }
 
-/* 光晕 pop 动画**只**放在 ::after 伪元素（独立动画载体）：
-   若放在 .orbit-chip 本体，会替换 orbit-enter → 清空搜索时命中项闪烁重放入场（关键防回归点）。 */
-.orbit-chip--matched::after {
+.grid-item--matched .grid-item__chip::after {
   content: '';
   position: absolute;
   inset: -2px;
   border-radius: inherit;
   pointer-events: none;
-  animation: orbit-glow-pop var(--orbit-glow-pop-dur) var(--orbit-glow-ease) both;
+  animation: grid-glow-pop 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.orbit-chip--pushed {
+/* hover 卡片 */
+.grid-item--hovered .grid-item__chip {
+  border-color: var(--accent);
+  box-shadow: 0 0 var(--grid-glow-radius) rgb(var(--accent-rgb) / 0.25);
+}
+
+/* 被推开 */
+.grid-item--pushed .grid-item__chip {
   border-color: rgb(var(--accent-rgb) / 0.3);
 }
 
-.orbit-chip--dimmed {
+/* 搜索打暗 */
+.grid-item--dimmed .grid-item__chip {
   border-color: var(--border);
 }
 
-/* v2 卡片间细光线：1px 极细，常态静态；命中项相邻边短暂加粗发光（电路连通）。
-   alpha 由 stroke-opacity 承担（可动画），stroke 颜色本身不带 alpha ——
-   避免「颜色 alpha × stroke-opacity 叠加」把亮度吃没。 */
-.orbit-lines {
+/* ── 细光线（需求#5）：相邻卡片间的水平/垂直线段 ──
+   水平线：.grid-item__chip::before（不与其他动画冲突）
+   垂直线：.grid-item::after（外容器，不干扰 chip 的 ::after 光晕） */
+
+/* 右侧水平线 */
+.grid-item--ray-right .grid-item__chip::before {
+  content: '';
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: visible;
-}
-
-.orbit-line {
-  fill: none;
-  stroke: hsl(var(--orbit-cat-everyday-h) var(--orbit-cat-s) var(--orbit-cat-l));
-  stroke-width: 1px;
-  stroke-opacity: var(--orbit-line-base-alpha);
-}
-
-.orbit-line--cat-finance {
-  stroke: hsl(var(--orbit-cat-finance-h) var(--orbit-cat-s) var(--orbit-cat-l));
-}
-
-.orbit-line--cat-health {
-  stroke: hsl(var(--orbit-cat-health-h) var(--orbit-cat-s) var(--orbit-cat-l));
-}
-
-.orbit-line--cat-image {
-  stroke: hsl(var(--orbit-cat-image-h) var(--orbit-cat-s) var(--orbit-cat-l));
-}
-
-.orbit-line--cat-fun {
-  stroke: hsl(var(--orbit-cat-fun-h) var(--orbit-cat-s) var(--orbit-cat-l));
-}
-
-.orbit-line--accent {
-  stroke: var(--accent);
-}
-
-.orbit-line--active {
-  animation: orbit-line-flash var(--orbit-line-flash-dur) ease-out both;
-}
-
-/* 引导线：绝对定位的椭圆描边，pointer-events:none */
-.orbit-ring-guide {
-  position: absolute;
-  left: 50%;
+  right: -7px;
   top: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 1px dashed rgb(var(--accent-rgb) / 0.10);
+  width: 14px;
+  height: 1px;
+  transform: translateY(-50%);
+  background: rgb(var(--accent-rgb) / var(--grid-line-base-alpha));
   pointer-events: none;
+  transition:
+    height 0.4s ease-out,
+    background 0.4s ease-out;
 }
 
-.orbit-ring-guide--active {
-  border-color: rgb(var(--accent-rgb) / 0.4);
-}
-
-.orbit-ring-label {
+/* 下方垂直线（在外层 .grid-item 上，不干扰 chip 的 ::after 光晕） */
+.grid-item--ray-below::after {
+  content: '';
   position: absolute;
+  bottom: -7px;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  color: rgb(var(--accent-rgb) / 0.6);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.orbit-ring-label--active {
-  color: var(--accent);
-}
-
-/* 中心搜索区：z-10 定位层，CommandSearch 内部结构一律不碰 */
-.orbit-center {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10;
-  text-align: center;
-}
-
-.orbit-center__title {
-  margin-bottom: 12px;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: 18px;
-  line-height: 1.3;
-  color: var(--text);
-}
-
-.orbit-center__count {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.orbit-stage__skeleton {
-  position: absolute;
-  inset: 0;
-}
-
-/* 溢出兜底行（极端窄屏时出现在环下方，绝不静默丢工具） */
-.orbit-overflow {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
+  width: 1px;
+  height: 14px;
   transform: translateX(-50%);
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  max-width: 90%;
-  font-size: 12px;
-  color: var(--text-secondary);
+  background: rgb(var(--accent-rgb) / var(--grid-line-base-alpha));
+  pointer-events: none;
+  transition:
+    width 0.4s ease-out,
+    background 0.4s ease-out;
 }
 
-.orbit-overflow__chip {
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color var(--orbit-dur-fade) var(--orbit-ease-fade);
+/* hover/匹配时水平线提亮加粗 */
+.grid-item--hovered .grid-item__chip::before,
+.grid-item--matched .grid-item__chip::before {
+  background: rgb(var(--accent-rgb) / var(--grid-line-active-alpha));
+  height: 2px;
 }
 
-.orbit-overflow__chip:hover {
-  border-color: var(--accent);
-}
-
-/* 轨道项入场：opacity+scale 淡入，stagger 由 inline animation-delay 控制，只跑一次 */
-@keyframes orbit-enter {
+/* hover/匹配时垂直线提亮加粗 */
+.grid-item--hovered.grid-item--ray-below::after,
+.grid-item--matched.grid-item--ray-below::after {
+  background: rgb(var(--accent-rgb) / var(--grid-line-active-alpha));
+  width: 2px;
+}/* 卡片入场 */
+@keyframes grid-enter {
   from {
     opacity: 0;
     transform: scale(0.92);
@@ -572,44 +584,32 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* idle 呼吸浮动（默认关，见 ENABLE_IDLE_FLOAT；开启时 duration 6.5s、幅度 ±3px） */
-@keyframes orbit-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-/* v2 高亮光晕单次弹（D1 = A，0.5s 快进慢出；只挂在 .orbit-chip--matched::after，绝不挂 .orbit-chip 本体） */
-@keyframes orbit-glow-pop {
+/* 网格高亮光晕单次弹 */
+@keyframes grid-glow-pop {
   0% {
     box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0.6);
   }
   40% {
-    box-shadow: 0 0 var(--orbit-glow-pop-halo) 0 rgb(var(--accent-rgb) / 0.35);
+    box-shadow: 0 0 24px 0 rgb(var(--accent-rgb) / 0.35);
   }
   100% {
     box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
 }
 
-/* v2 连线电路连通脉冲（D3 = 回落，0.4s 单向；stroke-opacity 可动画，stroke 颜色不带 alpha） */
-@keyframes orbit-line-flash {
-  0% {
-    stroke-opacity: var(--orbit-line-base-alpha);
-    stroke-width: 1px;
-  }
-  30% {
-    stroke-opacity: var(--orbit-line-active-alpha);
-    stroke-width: var(--orbit-line-active-width);
-  }
-  100% {
-    stroke-opacity: var(--orbit-line-base-alpha);
-    stroke-width: 1px;
-  }
+/* 细光线：相邻卡片间水平/垂直线段，hover/匹配时激活 */
+.grid-item--hovered .grid-item__chip::before,
+.grid-item--matched .grid-item__chip::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: rgb(var(--accent-rgb) / var(--grid-line-active-alpha));
+}
+
+/* 水平细光线（同排左右相邻） */
+.grid-item--hovered .grid-item__chip::before,
+.grid-item--matched .grid-item__chip::before {
+  /* 由具体布局决定方向 */
 }
 
 @keyframes fade-in {
@@ -768,22 +768,13 @@ input[type="color"]::-webkit-color-swatch {
     animation: spin 1.5s linear infinite !important;
   }
 
-  /* 轨道视图：入场淡入与 idle 呼吸浮动都是纯装饰，直接关掉。
-     排斥位移在 useOrbitHighlight 里已通过 reducedMotion 归零，不在这里处理。 */
-  .orbit-chip,
-  .orbit-item__float--idle {
+  /* 网格视图：入场淡入与光晕 pop 都是纯装饰，直接关掉。
+     排斥位移在 useGridHighlight 里已通过 reducedMotion 归零。 */
+  .grid-item__chip {
     animation: none !important;
   }
 
-  /* v2：光晕 pop 是纯装饰，隐藏伪元素动画；静态 ring 保留在 .orbit-chip--matched 上 */
-  .orbit-chip--matched::after {
+  .grid-item--matched .grid-item__chip::after {
     display: none;
-  }
-
-  /* v2：连线脉冲改为静态微亮（settleAlpha 0.35），不闪 */
-  .orbit-line--active {
-    animation: none !important;
-    stroke-opacity: var(--orbit-line-settle-alpha);
-    stroke-width: 1px;
   }
 }

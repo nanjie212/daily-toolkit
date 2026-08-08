@@ -1,850 +1,523 @@
-# 系统设计文档 —— 首页「工具环绕搜索框」同心圆环探索视图
+# 首页网格布局改造 — 系统设计文档
 
-- **项目**：普通日常工具箱（React18 + TS + Vite6 + Tailwind3 + Zustand，HashRouter，零后端 / 离线可用）
-- **架构师**：高见远（Bob）
-- **版本**：v1.0
-- **状态**：设计稿（未写任何实现代码，未改动 `src/` 下任何文件）
-
----
-
-## 0. 代码现状核实（已 Read 逐一确认）
-
-| 项 | 核实结果 |
-|---|---|
-| 工具总数 | **66**（`grep category:` 统计：everyday 27 = life 23 + ai 3 + document 1；finance 6；health 7；image 15 = image 10 + magic 4 + pdf 1；fun 11 = fun 6 + magic 4 + media 1）✅ 与主理人给的数字一致 |
-| 分类定义 | `src/tools/categories.ts`，5 类，含 `order`：everyday 1 / finance 2 / health 3 / image 4 / fun 5 |
-| 首页 | `src/pages/Home.tsx`：sticky 品牌条(z-40) → `HomeHero` → sticky 分类条(z-30) → 已固定/收藏/最近/全部 `ToolGrid` → `DonateSection` → `OnboardingModal`(z-50) |
-| 搜索 | `src/components/CommandSearch.tsx`（受控 `query`，内置下拉建议 / ↑↓ / Enter 跳转 / Esc；`forwardRef` 暴露 input，供 `Ctrl+K` 聚焦）。**搜索容器 `relative` 无 z-index**，下拉面板 `z-10`——这就是之前修过的层叠 bug，不得回退 |
-| 匹配口径 | `matchPinyin(`${name} ${description} ${id}`, q)`，Home 与 CommandSearch 完全一致，**必须沿用** |
-| 图标 | `ToolGrid.tsx` 导出 `iconMap` / `getToolIcon(name)`，可直接复用 |
-| 分类配色 | `ToolGrid.tsx` 内部 `categoryColors`（未导出，需提升为共享常量） |
-| 现有 z 轴 | 品牌条 40、分类条 30、CommandSearch 下拉 10、ToolPreviewCard 50、OnboardingModal 50、MobileNav 50、ShareButton 300/400 |
-| 动效基建 | `src/index.css` 已有 `.shadow-glow`、`animate-fade-in`，且 **已全局处理 `prefers-reduced-motion`**（transition/animation 压到 0.01ms） |
-| 主题色陷阱 | accent/card/bg 走 `rgb(var(--x-rgb) / <alpha-value>)`；**裸 `var(--accent)` 的透明度变体不会生成 CSS**（`border-accent/40` 无效） |
-| 回归测试 | `src/components/__tests__/HomeHero.test.tsx` 用 `renderToStaticMarkup` **锁死**了首屏三句文案 + 常用工具 + 营销腔禁用词。它直接渲染 `HomeHero`，只要该组件文件保留就不会挂 |
-| 现有依赖 | 无任何动画库（无 framer-motion / react-spring / gsap） |
+> 版本：v3.0-grid  
+> 日期：2026-08-08  
+> 作者：Bob（架构师）  
+> 前置：PRD（15 条已锁定需求，team-lead 提供）
 
 ---
 
-# Part A：系统设计
+## 目录
 
-## 1. 实现方案（Implementation Approach）
-
-### 1.1 三个真正的技术难点
-
-**难点一：66 个可读标签塞不进一个「同心圆」。**
-一个轨道项要看清 2–8 个汉字，最小可用尺寸是「图标在上、标签两行 11px 在下」的 **76×62** 方块，沿弧长最小占位 `slot ≈ 90px`。66 项总共需要约 **5,940px 的环周长**。
-如果用**正圆**，4 环等距（r = 300/396/492/588）总周长 ≈ 8,900px 够用，但**竖直方向要 2×588+62 = 1,238px**，远超任何笔记本视口的可用高度（约 700–780px）。中心搜索框会被顶到屏幕外，交互直接崩坏。
-
-> **结论：必须用椭圆环（ellipse ring），而不是正圆环。**
-> 视口是横向的（16:9 / 16:10），横向空间富余、纵向稀缺。令扁率 `k = ry/rx = 可用高/可用宽`（约 0.53），把环「压扁」贴合视口。
-> 在 1440×760 的可用区里，4 环椭圆（rx = 313/428/543/658，ry = 166/227/288/349）总周长 ≈ 9,555px，**容量 104 项 ≫ 66**，纵向只占 760px，中心搜索框稳稳在正中。
-
-椭圆带来一个副作用：**等角度步进在椭圆上不是等距的**（`ds/dθ = √(a²sin²θ + b²cos²θ)`，长轴两端最挤、短轴两端最疏）。
-解法是 **等弧长参数化**：每环预先对 θ∈[0,2π) 采样 720 点建累积弧长表，第 i 项的目标弧长 `s_i = s_start + i·Δs`，二分反查得到 θ_i。720 点 × 4 环 = 2,880 次三角运算，一次性 <1ms，且随布局 memo 缓存。
-
-**难点二：分类要「分层」，但 5 个分类的数量极不均衡（27/6/7/15/11）。**
-若「一类一环」，27 项的 everyday 挤在最内环（周长最短）必然重叠；而 6 项的 finance 独占一整环则空得离谱，还白白多出两圈让 stage 变大。
-解法是 **容量贪心装箱 + 分类段（segment）**：
-- 环半径由**容器尺寸**决定（不是由分类决定），容量 `cap_j = floor(C(k)·rx_j / slot)` 自然算出；
-- 按 `category.order` **顺序**把工具装进由内向外的环，一个分类可以**跨环**（仅当它足够大，`minSegment` 兜底防止出现「孤儿 1 项」），一个环也可以承载 **1–2 个分类**；
-- 同一环上不同分类各占一段**连续角度扇区**，扇区之间留 `sectorGap = 6°` 的视觉缺口 + 一枚分类小标签。
-这样既满足用户描述的「内圈日常、外圈图片/趣味」，又不会因为分类数量不均而爆炸。装箱结果在 1440×760 下典型为：
-`ring0(cap 17) = everyday×17` → `ring1(cap 23) = everyday×10 + finance×6 + health×7` → `ring2(cap 29) = image×15 + fun×11` → `ring3` 未启用（容量足够时自动省掉）。
-
-**难点三：66 个 DOM 节点同时动，不能掉帧。**
-- 只改 `transform` 和 `opacity`——**绝对禁止**改 `left/top/width/height/margin`。基础坐标 `(bx, by)` 也走 `translate3d`，节点用 `left:50%; top:50%; margin:-h/2 0 0 -w/2` 定位到中心后全部靠 transform 摆放，布局树永不失效。
-- 排斥计算是 **O(n × maxSources) = 66 × 8 = 528 次**距离运算，`useMemo` 只在 `highlightIds` 变化时跑，实测量级 <0.1ms，放主线程完全安全，**不需要 rAF 循环、不需要 Web Worker、不需要物理引擎**。
-- `React.memo` + 稳定 `onActivate` 引用，保证只有 transform 真变了的节点才重渲染。
-- `will-change: transform` **不常驻**（66 个常驻合成层会吃显存），只在 `searchQuery !== ''` 期间挂上，清空后移除。
-
-### 1.2 动画方案选型：**纯 CSS transition，不引入任何新依赖**
-
-| 方案 | 体积 | 结论 |
-|---|---|---|
-| **CSS `transition: transform, opacity` + inline transform** | **0 KB** | ✅ **采用** |
-| framer-motion | ~40 KB gzip | ❌ 否决 |
-| react-spring | ~20 KB gzip | ❌ 否决 |
-| motion（mini 版） | ~5 KB gzip | ❌ 否决（仍无必要） |
-
-理由：
-1. 本项目硬约束是**零后端、离线可用、依赖精简**，首页为了一个位移效果加 40KB runtime 不划算。
-2. 我们**不需要动画库最值钱的那几个能力**——没有 FLIP（元素永不改变文档流位置）、没有手势拖拽、没有编排时间线、没有 exit 动画（节点常驻）。
-3. 需要的「弹性/呼吸感」用一条带轻微回弹的 cubic-bezier 就能拿到：
-   `cubic-bezier(0.34, 1.24, 0.44, 1)` —— 比常见的 `(0.34,1.56,0.64,1)` 收敛，66 个元素同时回弹时不会显得躁。
-4. `prefers-reduced-motion` 已被 `src/index.css` 全局兜住，用 CSS 方案可以免费继承；用 JS 动画库反而要额外处理。
-
-**唯一需要小心的点**：CSS keyframe 动画（如 idle 呼吸浮动）会**覆盖** inline 的 `transform`。
-解法是 **两层 DOM**：
-```
-<div class="orbit-item" style="transform: translate3d(bx+dx, by+dy, 0) scale(s)">   ← 定位 + 排斥（inline，JS 驱动）
-  <div class="orbit-item__float">                                                   ← idle 浮动（CSS keyframe，独立 transform）
-    <button class="orbit-chip">图标 + 标签</button>                                  ← 高亮态（class 驱动的发光/描边）
-  </div>
-</div>
-```
-两层各自拥有独立的 transform 上下文，互不打架。
-
-### 1.3 架构模式
-
-**纯函数内核 + 薄 Hook 适配 + 无状态展示组件**（近似 MVVM 的 M / VM / V 三分）：
-
-```
-M  src/lib/orbit/*        纯 TS，零 React、零 DOM，可 100% 单测
-VM src/hooks/useOrbit*    ResizeObserver + useMemo，把内核结果适配成 React 状态
-V  src/components/orbit/* 只读 props，只吐 JSX + inline transform
-```
-好处：布局算法和排斥算法可以在 `vitest`（当前 `environment: 'node'`）里直接跑数值断言，不需要 jsdom，也不依赖渲染。
+1. [Part A：系统设计](#part-a系统设计)
+   - [1. 实现方案](#1-实现方案)
+   - [2. 文件清单](#2-文件清单)
+   - [3. 数据结构与接口](#3-数据结构与接口)
+   - [4. 程序调用流程](#4-程序调用流程)
+   - [5. 待明确事项](#5-待明确事项)
+2. [Part B：任务拆解](#part-b任务拆解)
+   - [6. 依赖包列表](#6-依赖包列表)
+   - [7. 任务列表](#7-任务列表)
+   - [8. 共享知识](#8-共享知识)
+   - [9. 任务依赖图](#9-任务依赖图)
 
 ---
 
-## 2. 文件列表（File List）
+## Part A：系统设计
 
-### 2.1 新建
+### 1. 实现方案
 
-| 相对路径 | 类型 | 职责 |
-|---|---|---|
-| `src/lib/orbit/types.ts` | 纯 TS | 全部接口定义（OrbitConfig / OrbitRing / OrbitSegment / OrbitNode / OrbitLayout / OrbitTransform / RepulsionConfig） |
-| `src/lib/orbit/orbitConstants.ts` | 纯 TS | 断点表、各断点布局配置、排斥参数、动画时长/缓动、z 轴常量、分类配色、分类圈层顺序、功能开关 |
-| `src/lib/orbit/ellipse.ts` | 纯 TS | 椭圆几何：周长系数 `C(k)`、Ramanujan 周长、等弧长采样表、`thetaAtArcLength`、`pointAt` |
-| `src/lib/orbit/layout.ts` | 纯 TS | 布局内核：`resolveConfig` / `planRings` / `planBands` / `placeNodes` / `computeOrbitLayout` |
-| `src/lib/orbit/repulsion.ts` | 纯 TS | 排斥内核：`falloffValue` / `computeRepulsion` |
-| `src/lib/orbit/__tests__/layout.test.ts` | 测试 | 66 项全部落位、无重叠、不越界、分类连续、跨断点稳定 |
-| `src/lib/orbit/__tests__/repulsion.test.ts` | 测试 | 方向正确（径向朝外）、衰减单调、幅值钳制、空高亮集恒等、匹配项零位移 |
-| `src/hooks/useStageMetrics.ts` | Hook | ResizeObserver 量化尺寸（40px 桶）+ 断点判定 + `prefers-reduced-motion` 探测 |
-| `src/hooks/useOrbitLayout.ts` | Hook | `useMemo` 包装 `computeOrbitLayout` |
-| `src/hooks/useOrbitHighlight.ts` | Hook | `matchPinyin` 过滤 → `highlightIds` → `computeRepulsion` → `transforms` |
-| `src/components/orbit/ToolOrbit.tsx` | 组件 | 舞台容器：测量、组装三个 Hook、渲染引导环 / 中心 / 66 个项 |
-| `src/components/orbit/OrbitItem.tsx` | 组件 | 单个轨道项（`React.memo`），三层 DOM，consume `OrbitTransform` |
-| `src/components/orbit/OrbitRingsLayer.tsx` | 组件 | 装饰性椭圆引导线 + 每段分类小标签（`pointer-events:none`） |
-| `src/components/orbit/OrbitCenter.tsx` | 组件 | 中心插槽：标题一行 + 复用 `CommandSearch` + 「找到 N 个工具」计数 |
-| `src/components/orbit/OrbitFallback.tsx` | 组件 | 小屏降级视图（默认复用 `HomeHero` + 分类 `ToolGrid`） |
-| `src/components/orbit/__tests__/ToolOrbit.test.tsx` | 测试 | SSR 快照：66 个工具名全部出现、无营销腔词、z 轴不超过 20 |
+#### 1.1 核心技术挑战
 
-### 2.2 修改
+| 挑战 | 分析 |
+|------|------|
+| **66 工具一屏展示** | 1920×1080 可用面积约 1880×900px，每个工具卡片 84×76px + 6px gap，四区网格天然容纳 200+ 格位，容量充裕 |
+| **邻居推开在网格中的实现** | 轨道排斥是径向的（`repulsion.ts`），网格排斥是**轴向的**：同排相邻卡片沿 X 轴推开，同列沿 Y 轴推开，距离衰减公式可复用，但方向计算需重写 |
+| **细光线在网格中的呈现** | 轨道细光线沿椭圆弧连接，网格细光线是**水平/垂直短线**连接同排相邻卡片，只在 hover/search 时激活 |
+| **一屏不滚动** | 使用 `100vh` 或 `100dvh` 容器 + `overflow: hidden`，内容区 flex 分配空间 |
+| **性能（66 DOM 动画）** | 只改 `transform` / `opacity` / `stroke-opacity`，will-change 仅在交互期挂载，`prefers-reduced-motion` 兜底 |
 
-| 相对路径 | 改动 |
-|---|---|
-| `src/pages/Home.tsx` | 用 `<ToolOrbit>` / `<OrbitFallback>` 替换 `<HomeHero>`；`Ctrl+K` 的 `searchRef` 透传到 ToolOrbit；**保留** URL `?q=` / `?category=` 同步、Onboarding、已固定/收藏/最近/全部网格与赞赏区（下移到圆环下方） |
-| `src/components/ToolGrid.tsx` | 仅一处：把内部 `categoryColors` 提升为 `export const`（或迁至 `orbitConstants.ts` 后从这里 re-export），**其余逻辑一律不动** |
-| `src/index.css` | 新增 `@layer utilities` 段：`.orbit-item` / `.orbit-item__float` / `.orbit-chip` 的动效 token（CSS 变量形式），以及 `@keyframes orbit-float`；在既有 `prefers-reduced-motion` 块中追加禁用 `orbit-float` |
-| `src/components/HomeHero.tsx` | **不改**（保留原样，被 `OrbitFallback` 复用，`HomeHero.test.tsx` 因此零风险） |
+#### 1.2 框架选型
 
-> **明确不动**：`CommandSearch.tsx`（含那处已修复的层叠结构）、`OnboardingModal.tsx`、`Layout.tsx`、`App.tsx`、`store/index.ts`、`lib/pinyinSearch.ts`、所有工具实现。
+| 层面 | 选型 | 理由 |
+|------|------|------|
+| 布局 | CSS Grid + Flexbox（Tailwind） | 零依赖，已有 Tailwind 3 |
+| 状态 | Zustand（现有 store） | 不改动 |
+| 动效 | CSS transition + inline style transform | 只触发合成层，不触发 layout |
+| 搜索 | 复用 `CommandSearch` 组件 | 不改内部逻辑（约束 #6） |
+| 图标 | lucide-react（现有） | 不改动 |
+
+#### 1.3 网格布局设计方案
+
+##### 整体结构
+
+```
+┌──────────────────────────────────────────────┐
+│  LeadBar: [社区留言] [分享]   ← fixed top-right│
+├──────────────────────────────────────────────┤
+│              TOP ZONE（上区）                  │
+│  ┌─────────┬─────────┬─────┬─────┬─────────┐ │
+│  │ QR 生成 │ QR 识别 │ ... │ ... │ ...     │ │ ← Row 0（置顶行）
+│  ├─────────┼─────────┼─────┼─────┼─────────┤ │
+│  │ 工具 3  │ 工具 4  │ ... │ ... │ ...     │ │ ← Row 1~N（日常必备）
+│  └─────────┴─────────┴─────┴─────┴─────────┘ │
+├──────────────┬──────────────┬────────────────┤
+│  LEFT ZONE   │              │  RIGHT ZONE    │
+│  ┌────┬────┐ │   SEARCH     │  ┌────┬────┐   │
+│  │理财│健康│ │     BOX      │  │趣味│趣味│   │
+│  ├────┼────┤ │  ┌────────┐  │  ├────┼────┤   │
+│  │理财│健康│ │  │搜索工具 │  │  │趣味│趣味│   │
+│  ├────┼────┤ │  └────────┘  │  ├────┼────┤   │
+│  │... │... │ │              │  │... │... │   │
+│  └────┴────┘ │              │  └────┴────┘   │
+│  理财+健康   │              │   趣味娱乐     │
+├──────────────┴──────────────┴────────────────┤
+│            BOTTOM ZONE（下区）                 │
+│  ┌────┬────┬────┬────┬────┬────┬────┬────┐  │
+│  │图片│图片│图片│图片│图片│图片│图片│图片│  │
+│  ├────┼────┼────┼────┼────┼────┼────┼────┤  │
+│  │... │... │... │... │... │... │... │... │  │
+│  └────┴────┴────┴────┴────┴────┴────┴────┘  │
+│              图片与PDF                       │
+├──────────────────────────────────────────────┤
+│  FOOTER: 访问时长 + 访问数量 | 双行 slogan    │
+└──────────────────────────────────────────────┘
+```
+
+##### 工具分区规则
+
+| 区域 | 分类 | 数量 | 说明 |
+|------|------|------|------|
+| **Top（上）** | everyday（日常必备） | 27 | 含 Row 0 固定置顶 QR 生成 / QR 识别 |
+| **Left（左）** | finance（理财）+ health（健康） | 6 + 7 = 13 | 纵向排列，2~3 列 |
+| **Right（右）** | fun（趣味娱乐） | 11 | 纵向排列，2~3 列 |
+| **Bottom（下）** | image（图片与PDF） | 15 | 横向排列 |
+
+> 合计：27 + 13 + 11 + 15 = **66** ✓
+
+##### 各断点网格参数
+
+| 断点 | 视口宽 | 搜索框宽 | 卡片尺寸 | 卡片 gap | Top 行数 | Bot 行数 | L/R 列数 | 降级 |
+|------|--------|---------|---------|---------|---------|---------|---------|------|
+| **xl** | ≥1280 | 520px | 84×76 | 6px | 3 | 3 | 3 | — |
+| **lg** | ≥1024 | 440px | 76×68 | 5px | 3 | 2 | 2 | — |
+| **md** | ≥768 | 360px | 68×60 | 4px | 2 | 2 | 2 | — |
+| **sm** | <768 | 100% | 全宽列表 | 4px | — | — | — | 堆叠：搜索→全部工具网格（复用 ToolGrid） |
+
+> **sm 降级方案**：<768px 时整个四区布局退化为纵向堆叠——搜索框在上、下方为 `ToolGrid` 全宽卡片列表（与当前 OrbitFallback → HomeHero 的降级路径一致，但展示从 HomeHero 切换为 ToolGrid 紧凑视图）。此方案保证小屏可用性，且全在一屏内。
+
+##### 邻居推开 + 细光线 实现方案（选最优方案 A）
+
+| 方案 | 描述 | 优劣 |
+|------|------|------|
+| **A：CSS transform + pseudo-element 光线** | hover/匹配卡片 `scale(1.12)`，同排相邻卡片 `translateX(±6px)`，同列相邻 `translateY(±4px)`；细光线用 `::before`/`::after` 伪元素绘制相邻卡片间的水平/垂直线段 | ✅ 纯 CSS 驱动，GPU 合成，零 JS 帧循环<br>✅ 与现有 orbit 排斥内核思路一致，但改用 CSS 实现<br>⚠️ 伪元素光线需精确计算偏移位置 |
+| B：JS rAF 循环 | 每帧计算所有卡片 transform | ❌ 66 个 DOM 的 rAF 开销大，违反性能红线 |
+| C：CSS Grid gap 动画 | 通过 grid-gap 变化推开 | ❌ grid-gap 变化触发全局 layout，违反性能红线 |
+
+**选择方案 A**。卡片使用 `absolute` 定位（由 GridZone 计算 x/y），transform 驱动所有位移和缩放，CSS transition 控制动画曲线。
+
+#### 1.4 repulsion.ts 可复用分析
+
+| 模块 | 是否复用 | 方式 |
+|------|---------|------|
+| `falloffValue()` | ✅ 复用 | 距离衰减公式完全适用，从 `repulsion.ts` 提取到 `src/lib/grid/interaction.ts`（独立副本，不改 orbit 源文件） |
+| `computeRepulsion()` | ❌ 不适用 | 径向排斥 → 轴向排斥，方向计算逻辑完全不同 |
+| `RepulsionConfig` 结构 | ⚠️ 参考 | 新定义 `GridInteractionConfig`，结构类似但参数不同 |
+| `useOrbitHighlight` 匹配口径 | ✅ 复用 | `matchPinyin` 搜索匹配逻辑直接复用 |
+
+### 2. 文件清单
+
+#### 2.1 删除（整个目录或单文件）
+
+```
+src/lib/orbit/                          # 整个目录（types.ts, orbitConstants.ts,
+                                        #   ellipse.ts, layout.ts, repulsion.ts + __tests__/）
+src/components/orbit/                   # 整个目录（ToolOrbit.tsx, OrbitItem.tsx,
+                                        #   OrbitCenter.tsx, OrbitFallback.tsx,
+                                        #   OrbitRingsLayer.tsx, OrbitConnections.tsx + __tests__/）
+src/hooks/useOrbitLayout.ts             # orbit 专用 hook
+src/hooks/useOrbitHighlight.ts          # orbit 专用 hook（匹配口径在新 hook 中复用）
+src/components/DonateSection.tsx        # 赞赏改为按钮形式
+src/components/HomeHero.tsx             # 被 GridHome 替代（确认无其他引用后删除）
+```
+
+#### 2.2 修改
+
+```
+src/pages/Home.tsx                      # 完全重写：orbit → 网格布局
+src/components/FooterBar.tsx            # slogan 改为双行，统计移到底部居中
+src/components/Layout.tsx               # ShareButton 替换为 LeadBar
+src/components/ShareButton.tsx          # 视觉强化（或合并进 LeadBar）
+src/index.css                           # 删除所有 orbit-* 样式，新增 grid-* 样式
+```
+
+#### 2.3 新建
+
+```
+src/lib/grid/types.ts                   # 网格布局类型定义
+src/lib/grid/gridConstants.ts           # 网格断点/尺寸常量
+src/lib/grid/zoneAssigner.ts            # 66 工具 → 四区分区逻辑
+src/lib/grid/interaction.ts             # 网格排斥（轴向）+ 距离衰减
+src/hooks/useGridLayout.ts              # 网格布局计算 hook（useMemo 封装）
+src/hooks/useGridInteraction.ts         # 搜索匹配 + hover 推开 + 光线激活
+src/components/GridHome.tsx             # 网格首页主组件（组装四区 + 搜索 + 页脚）
+src/components/GridZone.tsx             # 单区网格组件（渲染一批 GridItem）
+src/components/GridItem.tsx             # 单个工具卡片（图标 + 名称 + 状态）
+src/components/LeadBar.tsx              # 顶部固定按钮条（分享 + 社区留言）
+src/components/AppreciateButton.tsx     # 赞赏按钮（悬停弹出微信+支付宝二维码）
+```
+
+### 3. 数据结构与接口
+
+```mermaid
+classDiagram
+    %% ── 网格布局类型 ──
+    class GridBreakpoint {
+        <<enumeration>>
+        sm
+        md
+        lg
+        xl
+    }
+
+    class GridConfig {
+        +GridBreakpoint breakpoint
+        +number itemW
+        +number itemH
+        +number gap
+        +number searchW
+        +number searchH
+        +number topRows
+        +number bottomRows
+        +number sideCols
+        +number maxColsPerRow
+    }
+
+    class GridSlot {
+        +string toolId
+        +string categoryId
+        +number zone
+        +number row
+        +number col
+        +number cx
+        +number cy
+    }
+
+    class ZoneAssignment {
+        +ToolRecord[] top
+        +ToolRecord[] bottom
+        +ToolRecord[] left
+        +ToolRecord[] right
+        +string[] pinnedTop
+    }
+
+    class GridLayout {
+        +GridConfig config
+        +number stageW
+        +number stageH
+        +GridSlot[] slots
+        +Record~string, GridSlot~ slotById
+        +ZoneAssignment zones
+    }
+
+    class GridTransform {
+        +number dx
+        +number dy
+        +number scale
+        +number opacity
+        +number z
+        +GridItemState state
+    }
+
+    class GridItemState {
+        <<enumeration>>
+        idle
+        matched
+        hovered
+        pushed
+        dimmed
+    }
+
+    class GridInteractionConfig {
+        +boolean enabled
+        +number pushRadius
+        +number pushStrength
+        +number maxPushX
+        +number maxPushY
+        +number matchedScale
+        +number hoverScale
+        +number dimmedScale
+        +number dimmedOpacity
+    }
+
+    class GridInteractionResult {
+        +Set~string~ highlightIds
+        +Record~string, GridTransform~ transforms
+        +string hoveredId
+        +number matchCount
+        +boolean isSearching
+    }
+
+    %% ── 关系 ──
+    GridLayout --> GridConfig
+    GridLayout --> GridSlot
+    GridLayout --> ZoneAssignment
+    GridTransform --> GridItemState
+    GridInteractionResult --> GridTransform
+
+    %% ── 组件 Props ──
+    class GridHomeProps {
+        +ToolRecord[] tools
+        +string searchQuery
+        +(value: string) => void onSearchChange
+        +() => void onSearchFocus
+        +RefObject~HTMLInputElement~ searchInputRef
+    }
+
+    class GridZoneProps {
+        +ToolRecord[] tools
+        +string zone
+        +GridSlot[] slots
+        +Record~string, GridTransform~ transforms
+        +string hoveredId
+        +(id: string | null) => void onHover
+        +(tool: ToolRecord) => void onActivate
+    }
+
+    class GridItemProps {
+        +ToolRecord tool
+        +GridSlot slot
+        +GridTransform transform
+        +boolean isHovered
+        +boolean hasActiveNeighbor
+        +() => void onHover
+        +() => void onLeave
+        +() => void onActivate
+    }
+```
+
+### 4. 程序调用流程
+
+#### 4.1 搜索输入 → 过滤匹配 → 高亮发光 → 邻居微退 → 细光线激活
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CommandSearch
+    participant Store as Zustand Store
+    participant GridHome
+    participant useGridInteraction
+    participant GridZone
+    participant GridItem
+    participant CSS
+
+    User->>CommandSearch: 输入搜索词
+    CommandSearch->>Store: setSearchQuery(value)
+    Store->>GridHome: searchQuery 变化
+    GridHome->>useGridInteraction: query, tools, layout, hoveredId
+    useGridInteraction->>useGridInteraction: matchPinyin 过滤 → highlightIds
+    useGridInteraction->>useGridInteraction: 计算轴向排斥 transforms
+    Note over useGridInteraction: highlightIds 内: scale=1.12, z=6, state=matched<br/>半径内邻居: translateX/Y 推开, state=pushed<br/>其余: opacity=0.35, scale=0.94, state=dimmed
+    useGridInteraction-->>GridHome: {highlightIds, transforms, matchCount}
+    GridHome->>GridZone: transforms + highlightIds
+    GridZone->>GridItem: transform (dx, dy, scale, opacity, z, state)
+    GridItem->>CSS: inline style transform + opacity
+    CSS->>CSS: transition 340ms cubic-bezier
+    Note over CSS: .grid-item--matched: border accent + box-shadow glow<br/>.grid-item--pushed: border accent/30<br/>.grid-item--dimmed: border var(--border)
+    GridItem->>CSS: ::after 细光线激活（相邻 matched/hovered 项）
+```
+
+#### 4.2 鼠标悬停卡片 → 放大 + 邻居推开 + 细光线
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant GridItem
+    participant GridZone
+    participant GridHome
+    participant useGridInteraction
+    participant CSS
+
+    User->>GridItem: mouseenter
+    GridItem->>GridZone: onHover(toolId)
+    GridZone->>GridHome: setHoveredId(toolId)
+    GridHome->>useGridInteraction: 更新 hoveredId
+    useGridInteraction->>useGridInteraction: hoveredId → 虚拟 highlightIds(单元素)
+    useGridInteraction->>useGridInteraction: 计算推开: hover项 scale=1.12<br/>同排邻居 translateX(±6px max)<br/>同列邻居 translateY(±4px max)
+    useGridInteraction-->>GridHome: 更新 transforms
+    GridHome->>GridZone: 更新 transforms
+    GridZone->>GridItem: transform 更新
+    GridItem->>CSS: transition transform 200ms ease-out
+    CSS->>CSS: .grid-item--hovered: border accent, bg 提亮
+    Note over CSS: 同排相邻 GridItem::after 显示细光线<br/>stroke: accent, stroke-opacity: 0.35
+```
+
+### 5. 待明确事项
+
+| # | 事项 | 当前假设 | 影响 |
+|---|------|---------|------|
+| 1 | 四区工具分配是否严格按分类？ | 是：everyday→Top, finance+health→Left, fun→Right, image→Bottom | 如果用户希望混排或自定义，`zoneAssigner.ts` 需要支持可配置规则 |
+| 2 | sm 降级时是否保留「邻居推开」效果？ | 不保留，降级为纯 ToolGrid 列表 | 小屏性能优先级 > 动画效果 |
+| 3 | ShareButton 是独立文件改造还是合并进 LeadBar？ | 保持 ShareButton 独立，LeadBar 只做容器包装 | 改动面最小，ShareButton 自身逻辑（QR 生成、复制链接）不碰 |
+| 4 | 细光线的色相来源？ | 取发送方分类 hue（复用 orbitConstants `CATEGORY_CHIP_HUE`），CSS 变量仍然可用 | 需要把 `CATEGORY_CHIP_HUE` 从 orbitConstants 迁移到共享常量 |
+| 5 | FooterBar 导航链接（首页/社区/关于）是否保留在原位？ | 保留导航链接在 Footer，但「今日/本周时长」和「访问次数」移到 Footer 最下方居中 | 需求 #8 明确「页面最下方居中」 |
 
 ---
 
-## 3. 数据结构与接口（Data Structures and Interfaces）
+## Part B：任务拆解
 
-### 3.1 TypeScript 接口定义（`src/lib/orbit/types.ts`）
-
-```ts
-/** 断点：sm = <640 降级；md = 640~1023；lg = >=1024 */
-export type OrbitBreakpoint = 'sm' | 'md' | 'lg';
-
-/** 轨道项的视觉状态，驱动 class 而非 style */
-export type OrbitItemState = 'idle' | 'matched' | 'pushed' | 'dimmed';
-
-export type FalloffKind = 'quadratic' | 'linear';
-
-export interface Point { x: number; y: number }
-
-export interface StageBox {
-  /** 舞台可用宽（px，已量化到 40px 桶） */
-  width: number;
-  /** 舞台可用高（px，已量化到 40px 桶） */
-  height: number;
-}
-
-/** 单个断点下的布局配置，全部单位 px（除 sectorGapRad 为弧度） */
-export interface OrbitConfig {
-  breakpoint: OrbitBreakpoint;
-  /** 轨道项外框尺寸 */
-  itemW: number;
-  itemH: number;
-  /** 沿弧长的理想占位（itemW + 呼吸间隙） */
-  slotIdeal: number;
-  /** 装不下时允许压缩到的下限 */
-  slotMin: number;
-  /** 中心搜索框的安全椭圆半轴，ring0 不得侵入 */
-  centerSafeRx: number;
-  centerSafeRy: number;
-  /** ring0 半长轴相对 rxMax 的比例（在 centerSafe 之上取大者） */
-  innerRatio: number;
-  /** 环数上限 */
-  maxRings: number;
-  /** 一个分类被允许拆分到相邻环时，每段的最小项数（防孤儿） */
-  minSegment: number;
-  /** 同环相邻两个分类段之间的角度缺口（弧度） */
-  sectorGapRad: number;
-  /** 椭圆扁率下限/上限，k = ry/rx */
-  kMin: number;
-  kMax: number;
-}
-
-/** 一个环上属于同一分类的连续角度扇区 */
-export interface OrbitSegment {
-  categoryId: string;
-  /** 该段在本环上的项数 */
-  count: number;
-  /** 段起止角（弧度，0 = 3 点钟方向，顺时针为正，因 CSS y 轴向下） */
-  startTheta: number;
-  endTheta: number;
-  /** 分类标签的锚点（段中点在椭圆上的坐标，相对舞台中心） */
-  labelAnchor: Point;
-}
-
-export interface OrbitRing {
-  index: number;            // 由内向外，从 0 开始
-  rx: number;               // 半长轴（水平）
-  ry: number;               // 半短轴（垂直）
-  perimeter: number;        // Ramanujan 近似周长
-  capacity: number;         // floor(perimeter / slot)
-  segments: OrbitSegment[]; // 按角度顺序
-}
-
-/** 单个工具在轨道上的静态落位（与搜索无关，只随尺寸变化） */
-export interface OrbitNode {
-  toolId: string;
-  categoryId: string;
-  ringIndex: number;
-  indexInRing: number;
-  /** 弧度 */
-  theta: number;
-  /** 基础坐标：相对舞台中心，px，右为 +x、下为 +y */
-  bx: number;
-  by: number;
-}
-
-export interface OrbitLayout {
-  config: OrbitConfig;
-  stage: StageBox;
-  /** 实际采用的扁率 ry/rx */
-  k: number;
-  /** 实际采用的弧长占位 */
-  slot: number;
-  rings: OrbitRing[];
-  nodes: OrbitNode[];
-  nodeById: Record<string, OrbitNode>;
-  /** 极端窄屏下容量仍不足时被挤出的工具 id（正常应为空数组，非空需上报） */
-  overflowIds: string[];
-  /** 舞台实际需要的内容盒（用于外层容器 min-height） */
-  contentW: number;
-  contentH: number;
-}
-
-/** 每帧要写到 DOM 上的视觉量，全部只影响合成层 */
-export interface OrbitTransform {
-  dx: number;      // 排斥位移 x（px）
-  dy: number;      // 排斥位移 y（px）
-  scale: number;   // 缩放
-  opacity: number; // 透明度
-  z: number;       // z-index（恒 <= 20）
-  state: OrbitItemState;
-}
-
-export interface RepulsionConfig {
-  enabled: boolean;
-  /** 影响半径：超出则完全不受该高亮源影响（px） */
-  radius: number;
-  /** 距离为 0 时的峰值位移（px） */
-  strength: number;
-  /** 单个节点的位移幅值上限（px） */
-  maxOffset: number;
-  /** 参与叠加的高亮源数量上限（取最近的 N 个） */
-  maxSources: number;
-  falloff: FalloffKind;
-  /** 匹配项的放大倍数 */
-  matchedScale: number;
-  /** 未匹配项的缩小倍数 */
-  dimmedScale: number;
-  /** 未匹配项的透明度 */
-  dimmedOpacity: number;
-}
-
-export interface OrbitHighlightResult {
-  highlightIds: Set<string>;
-  transforms: Record<string, OrbitTransform>;
-  matchCount: number;
-  isSearching: boolean;
-}
-```
-
-### 3.2 内核函数签名
-
-```ts
-// ── src/lib/orbit/ellipse.ts ───────────────────────────────────────────────
-/** Ramanujan 周长的线性因子：perimeter = C(k) * rx，k = ry/rx。k=0.53 → ≈4.92 */
-export function perimeterFactor(k: number): number;
-export function ellipsePerimeter(rx: number, ry: number): number;
-
-export interface ArcTable { rx: number; ry: number; total: number; cum: Float64Array }
-/** samples 默认 720 */
-export function buildArcTable(rx: number, ry: number, samples?: number): ArcTable;
-/** 二分 + 线性插值，返回 [0, 2π) 内的 θ */
-export function thetaAtArcLength(table: ArcTable, s: number): number;
-export function pointAt(rx: number, ry: number, theta: number): Point;
-
-// ── src/lib/orbit/layout.ts ────────────────────────────────────────────────
-export function resolveConfig(stage: StageBox): OrbitConfig;
-
-export interface CategoryGroup { categoryId: string; toolIds: string[] }
-/** 按 categories.order 分组并保持组内原始顺序 */
-export function groupByCategory(tools: ToolRecord[]): CategoryGroup[];
-
-/** 只算半径与容量，不装箱 */
-export function planRings(
-  stage: StageBox, cfg: OrbitConfig, slot: number, ringCount: number
-): Omit<OrbitRing, 'segments'>[];
-
-/** 容量贪心装箱：决定每环放哪些分类、各放几项 */
-export function planBands(
-  rings: Omit<OrbitRing, 'segments'>[], groups: CategoryGroup[], cfg: OrbitConfig
-): { rings: OrbitRing[]; ringToolIds: string[][]; overflowIds: string[] };
-
-/** 段内等弧长求角 → 落位 */
-export function placeNodes(
-  rings: OrbitRing[], ringToolIds: string[][], groups: CategoryGroup[]
-): OrbitNode[];
-
-/** 唯一对外入口，内部含 slot 递减的 fit-loop */
-export function computeOrbitLayout(tools: ToolRecord[], stage: StageBox): OrbitLayout;
-
-// ── src/lib/orbit/repulsion.ts ─────────────────────────────────────────────
-export function falloffValue(dist: number, radius: number, kind: FalloffKind): number;
-export function computeRepulsion(
-  nodes: OrbitNode[], highlightIds: Set<string>, cfg: RepulsionConfig
-): Record<string, OrbitTransform>;
-```
-
-### 3.3 组件 Props
-
-```ts
-// src/components/orbit/ToolOrbit.tsx
-export interface ToolOrbitProps {
-  tools: ToolRecord[];
-  searchQuery: string;
-  onSearchChange: (v: string) => void;
-  onSearchFocus?: () => void;                 // Home 用它关闭 Onboarding
-  searchInputRef: RefObject<HTMLInputElement>; // Ctrl+K 聚焦
-  /** 分类条选中态：该分类整段高亮，仅影响引导线与标签，不参与排斥 */
-  activeCategoryId?: string | null;
-  className?: string;
-}
-
-// src/components/orbit/OrbitItem.tsx
-export interface OrbitItemProps {
-  node: OrbitNode;
-  tool: ToolRecord;
-  transform: OrbitTransform;
-  itemW: number;
-  itemH: number;
-  /** 入场 stagger 序号 */
-  enterIndex: number;
-  onActivate: (toolId: string) => void;   // 必须 useCallback 稳定
-}
-
-// src/components/orbit/OrbitRingsLayer.tsx
-export interface OrbitRingsLayerProps {
-  rings: OrbitRing[];
-  activeCategoryId?: string | null;
-  showLabels: boolean;      // sm/md 下关闭
-}
-
-// src/components/orbit/OrbitCenter.tsx
-export interface OrbitCenterProps {
-  tools: ToolRecord[];
-  query: string;
-  matchCount: number;
-  onQueryChange: (v: string) => void;
-  onFocus?: () => void;
-  inputRef: RefObject<HTMLInputElement>;
-  maxWidth: number;         // = centerSafeRx * 2 - 40
-}
-
-// src/components/orbit/OrbitFallback.tsx
-export interface OrbitFallbackProps {
-  tools: ToolRecord[];
-  searchQuery: string;
-  onSearchChange: (v: string) => void;
-  onSearchFocus?: () => void;
-  searchInputRef: RefObject<HTMLInputElement>;
-}
-
-// src/hooks/useStageMetrics.ts
-export interface StageMetrics {
-  stage: StageBox;                 // 已量化
-  breakpoint: OrbitBreakpoint;
-  reducedMotion: boolean;
-  ready: boolean;                  // 首次测量完成前为 false（避免 0×0 布局闪烁）
-}
-export function useStageMetrics(ref: RefObject<HTMLElement>): StageMetrics;
-```
-
-### 3.4 布局算法伪代码（Engineer 直接照抄的规格）
+### 6. 依赖包列表
 
 ```
-computeOrbitLayout(tools, stage):
-  cfg   = resolveConfig(stage)
-  total = tools.length                                  # 66
-  groups = groupByCategory(tools)                       # 按 category.order
-
-  # 椭圆扁率跟随容器纵横比，钳制在 [kMin, kMax]
-  k = clamp(stage.height / stage.width, cfg.kMin, cfg.kMax)
-  C = perimeterFactor(k)
-
-  # 外圈上限：横向、纵向都不能溢出
-  rxMax = min((stage.width  - cfg.itemW) / 2,
-              (stage.height - cfg.itemH) / (2 * k))
-  rx0   = max(cfg.centerSafeRx, rxMax * cfg.innerRatio)
-
-  # fit-loop：先加环，再压 slot
-  for slot in [cfg.slotIdeal, cfg.slotIdeal-4, ..., cfg.slotMin]:
-      for n in [3 .. cfg.maxRings]:
-          rings = planRings(stage, cfg, slot, n)        # rx_j 等差，ry_j = rx_j * k
-          if sum(rings.capacity) >= total * 1.05:       # 留 5% 装箱余量
-              plan = planBands(rings, groups, cfg)
-              if plan.overflowIds is empty: goto DONE
-  # 兜底（极端窄屏）：用 maxRings + slotMin，把溢出项记入 overflowIds 上报
-DONE:
-  nodes = placeNodes(plan.rings, plan.ringToolIds, groups)
-  return { ..., k, slot, rings, nodes, nodeById, overflowIds, contentW, contentH }
-
-
-planRings(stage, cfg, slot, n):
-  step = n > 1 ? (rxMax - rx0) / (n - 1) : 0
-  for j in 0..n-1:
-      rx = rx0 + j * step
-      ry = rx * k
-      perimeter = C * rx                                # 线性，无需数值积分
-      capacity  = floor(perimeter / slot)
-
-
-planBands(rings, groups, cfg):
-  # 贪心：按 order 顺序把分类装进由内向外的环
-  j = 0; remaining = rings[0].capacity
-  for g in groups:
-      left = g.toolIds.length
-      while left > 0:
-          if remaining >= left:                          # 整类塞得下
-              put(j, g, left); remaining -= left; left = 0
-          else if remaining >= cfg.minSegment and (left - remaining) >= cfg.minSegment:
-              put(j, g, remaining); left -= remaining    # 允许跨环拆，两段都不小于 minSegment
-              j++; remaining = rings[j].capacity
-          else:                                          # 拆了会产生孤儿 → 整类顺延
-              j++; remaining = rings[j].capacity
-  # 角度分配：本环 m 个段，总可用角 = 2π - m * sectorGapRad
-  for each ring:
-      usable = 2π - segments.length * cfg.sectorGapRad
-      theta  = ringStartOffset(ring.index)               # 见「共享知识」错位规则
-      for seg in segments:
-          span = usable * seg.count / ring.itemCount
-          seg.startTheta = theta
-          seg.endTheta   = theta + span
-          theta = seg.endTheta + cfg.sectorGapRad
-
-
-placeNodes(rings, ringToolIds, groups):
-  for ring in rings:
-      table = buildArcTable(ring.rx, ring.ry, 720)
-      for seg in ring.segments:
-          sStart = arcLengthAt(table, seg.startTheta)
-          sEnd   = arcLengthAt(table, seg.endTheta)
-          # 段内首尾各留半个步长，避免紧贴扇区缺口
-          step   = (sEnd - sStart) / seg.count
-          for i in 0..seg.count-1:
-              theta   = thetaAtArcLength(table, sStart + step * (i + 0.5))
-              (bx,by) = pointAt(ring.rx, ring.ry, theta)
+无新增 npm 依赖（约束 #1：Tailwind/CSS 变量解决全部样式）
+现有依赖不变：
+- react@^18.3.0
+- react-dom@^18.3.0
+- react-router-dom@^6.x
+- zustand@^4.x
+- lucide-react@^0.x
+- qrcode@^1.x
+- tailwindcss@^3.x
+- vite@^6.x
+- typescript@^5.x
 ```
 
-### 3.5 排斥算法伪代码
-
-```
-computeRepulsion(nodes, H, cfg):
-  out = {}
-  if H is empty or not cfg.enabled:
-      for n in nodes: out[n.toolId] = {dx:0, dy:0, scale:1, opacity:1, z:Z.item, state:'idle'}
-      return out
-
-  for n in nodes:
-      if H.has(n.toolId):
-          # 匹配项：不位移，只放大 + 提层 + 发光（发光由 class 做）
-          out[n.toolId] = {dx:0, dy:0, scale:cfg.matchedScale, opacity:1,
-                           z:Z.matched, state:'matched'}
-          continue
-
-      # 取最近的 maxSources 个高亮源（先按距离排序再截断，避免大匹配集下方向抵消成噪声）
-      srcs = nearest(H, n, cfg.maxSources)
-      ax = 0; ay = 0; hit = 0
-      for h in srcs:
-          vx = n.bx - h.bx; vy = n.by - h.by
-          d  = hypot(vx, vy)
-          if d >= cfg.radius: continue
-          if d < 1e-3: continue                       # 同点保护
-          w  = cfg.strength * falloffValue(d, cfg.radius, cfg.falloff)
-          ax += w * vx / d; ay += w * vy / d          # 单位向量 × 权重，方向 = 背离高亮项
-          hit++
-
-      if hit > 1:                                     # 多源叠加做能量归一，防止爆量
-          ax /= sqrt(hit); ay /= sqrt(hit)
-
-      mag = hypot(ax, ay)
-      if mag > cfg.maxOffset:                         # 幅值钳制
-          ax *= cfg.maxOffset / mag; ay *= cfg.maxOffset / mag
-
-      out[n.toolId] = {
-        dx: ax, dy: ay,
-        scale: cfg.dimmedScale,
-        opacity: cfg.dimmedOpacity,
-        z: hit > 0 ? Z.pushed : Z.item,
-        state: hit > 0 ? 'pushed' : 'dimmed'
-      }
-  return out
-
-falloffValue(d, R, kind):
-  t = 1 - d / R                    # t ∈ (0, 1]
-  return kind == 'quadratic' ? t*t : t
-```
-
-> **关键语义**：位移方向 = `高亮项 → 邻居` 的单位向量，即**背离高亮项**径向推开，与需求「往远离高亮工具的方向位移」完全一致。
-> **匹配项之间互不排斥**（H 内元素位移恒为 0），否则多匹配时整个环会集体炸开，观感失控。
+### 7. 任务列表（按实现顺序）
 
 ---
 
-## 4. 程序调用流程（Program Call Flow）
+#### T01：网格引擎（类型 + 常量 + 分区逻辑 + 交互计算）
 
-完整时序图见 [`docs/sequence-diagram.mermaid`](./sequence-diagram.mermaid)，包含 5 段：
-- **A 初始化与布局构建** —— 挂载 → ResizeObserver → `computeOrbitLayout`（fit-loop → 等弧长落位）→ 首帧 stagger 入场
-- **B 搜索输入 → 高亮 + 排斥**（核心链路）—— `CommandSearch.onQueryChange` → `store.setSearchQuery` → `useOrbitHighlight` → `matchPinyin` ×66 → `highlightIds` → `computeRepulsion` → `transforms` → `OrbitItem` inline transform → CSS transition → 合成层
-- **C 清空复位** —— 同一条 transition 反向播放，弹性归位
-- **D 打开工具** —— `onActivate` → `updateRecentUse` → `navigate('/tool/:id')`（既有能力保持不变）
-- **E 视口变化** —— 40px 桶去抖 → 重算布局 → 仍走 transform 平滑迁移；跨 640px 时由 Home 切换 Orbit / Fallback
-
-类图见 [`docs/class-diagram.mermaid`](./class-diagram.mermaid)。
-
-**关键调用顺序（浓缩）**：
-
-```
-输入 "压缩"
-  → CommandSearch.handleChange
-  → onQueryChange → OrbitCenter → ToolOrbit → Home.onSearchChange
-  → useStore.setSearchQuery("压缩")            [唯一状态源，与现有网格过滤共用]
-  → Home 重渲染 → ToolOrbit 收到新 searchQuery
-  → useOrbitHighlight(tools, layout, "压缩")
-      ├─ trimmed = "压缩"；空则短路
-      ├─ tools.filter(t => matchPinyin(`${t.name} ${t.description} ${t.id}`, q))  → highlightIds
-      └─ computeRepulsion(layout.nodes, highlightIds, repCfg)                     → transforms
-  → ToolOrbit 把 transforms[toolId] 传给对应 OrbitItem（React.memo 逐项比对）
-  → OrbitItem: style.transform = `translate3d(${bx+dx}px, ${by+dy}px, 0) scale(${scale})`
-               style.opacity   = opacity
-               className      += state 对应的高亮/暗淡 class
-  → 浏览器按 `transition: transform 340ms var(--orbit-ease-move), opacity 200ms ease-out`
-    在合成层插值，全程 0 次 layout、0 次 paint
-```
+| 字段 | 内容 |
+|------|------|
+| **Task ID** | T01 |
+| **Task Name** | 网格引擎：类型定义、断点常量、四区分区、交互计算 |
+| **Source Files** | `src/lib/grid/types.ts`（新建）<br>`src/lib/grid/gridConstants.ts`（新建）<br>`src/lib/grid/zoneAssigner.ts`（新建）<br>`src/lib/grid/interaction.ts`（新建）<br>`src/hooks/useGridLayout.ts`（新建）<br>`src/hooks/useGridInteraction.ts`（新建） |
+| **Dependencies** | 无 |
+| **Priority** | P0 |
+| **描述** | 1. `types.ts`：定义 `GridBreakpoint`、`GridConfig`、`GridSlot`、`ZoneAssignment`、`GridLayout`、`GridTransform`、`GridItemState`、`GridInteractionConfig`、`GridInteractionResult` 等类型<br>2. `gridConstants.ts`：定义四个断点的 `GridConfig`（卡片尺寸、gap、搜索框尺寸、行列数），`GRID_Z`（z 轴预算 ≤20），`CATEGORY_CHIP_HUE`（从 orbitConstants 迁移），动效 token（`--grid-dur-*` CSS 变量配对常量）<br>3. `zoneAssigner.ts`：`assignZones(tools)` 函数，按分类把 66 个工具分配到 top/bottom/left/right 四个区，QR 生成/QR 识别固定到 top[0] 和 top[1]<br>4. `interaction.ts`：`computeGridRepulsion(slots, highlightIds, hoveredId, config)` 函数，轴向排斥计算（同排 X 推开、同列 Y 推开），复用 `falloffValue` 距离衰减<br>5. `useGridLayout.ts`：`useGridLayout(tools, stageWidth, stageHeight)` → `GridLayout`，useMemo 封装布局计算<br>6. `useGridInteraction.ts`：`useGridInteraction(tools, layout, query, hoveredId, reducedMotion)` → `GridInteractionResult`，复用 `matchPinyin` 匹配口径 |
 
 ---
 
-## 5. 待明确事项（Anything UNCLEAR）
+#### T02：网格 UI 组件（GridItem + GridZone + GridHome）+ CSS
 
-> 以下 9 项**需要主理人/用户拍板**。每项我都给了「建议默认值」，Engineer 可以按建议先跑通，回头再按最终决策改常量——所有决策点都被收敛到 `orbitConstants.ts` 一个文件里，改动成本极低。
-
-| # | 问题 | 我的建议默认 |
-|---|---|---|
-| **Q1** | **小屏 (<640px) 到底怎么办？** 我算过了：390px 宽的视口，半长轴上限只有 165px，即使把项压到 52×48（标签 9px，已经不可读），3 环最多容纳约 58 项，**装不下 66 项**。「同心圆环 + 可读标签」在竖屏手机上**数学上不成立**，必须降级。<br>**A**（省）复用现有 `HomeHero` + 分类网格；**B**（概念统一）中心搜索框 + **仅 5 个分类节点**环绕成一圈，点分类在下方展开紧凑网格，搜索时网格项高亮 + 邻居微位移 | **A**（T04 基线，零回归风险）；若要 B，作为 T05 增强单独排期 |
-| **Q2** | 未匹配的工具是**变暗**还是**保持原样**？ | 变暗但不灰度：`opacity 0.32` + `scale 0.94`。**不要用 `filter: grayscale()`**，66 个节点上的 filter 会显著加重合成开销 |
-| **Q3** | 多匹配时排斥如何叠加？ | 向量求和 → 除以 `√(生效源数)` 归一 → 钳幅 28px；只取最近 8 个高亮源；**匹配项之间互不排斥** |
-| **Q4** | 圆环下方是否**保留**现有的「已固定 / 收藏 / 最近 / 全部工具网格 / 赞赏区」？ | **保留**，放在圆环 section 下方，滚动可达。直接删掉会丢功能（固定/收藏/最近使用是既有能力） |
-| **Q5** | 现有首屏三句文案（「一个网页，解决你的日常小问题」/「无需安装…」/ 搜索 placeholder）在环形版**是否保留**？注意 `HomeHero.test.tsx` 锁死了这些字符串 | 主标题放在中心搜索框**正上方一行**（环内），副标题省略（环内空间宝贵），placeholder 原样保留。`HomeHero.tsx` 文件保留 → 老测试不受影响 |
-| **Q6** | 分类的**由内向外顺序**是否就用 `categories.order`（everyday→finance→health→image→fun）？ | 是。与用户举例的「内圈日常、外圈图片/趣味」一致 |
-| **Q7** | 现有 sticky 分类横向滚动条（z-30）在环形首页**是否保留**？点分类是「过滤」还是「高亮该圈层」？ | 保留控件；语义改为**高亮该分类的圈层段**（引导线加亮 + 该段项微微外扩），**不过滤**——过滤会让环出现大片空缺，很难看 |
-| **Q8** | idle「呼吸浮动」动画默认**开还是关**？66 个无限 CSS 动画会持续占用合成器（笔记本耗电、低端机掉帧） | **默认关**（`ENABLE_IDLE_FLOAT = false`）。代码通路完整保留，一个常量即可开启；开启时 duration 6–9s、幅度 ±3px、按 index 错开 delay |
-| **Q9** | 键盘可达性：66 个环上按钮的 Tab 顺序如何定？是否需要方向键在环上导航？ | DOM 顺序 = 分类顺序 = 视觉顺序，自然 Tab 即可；**不做**方向键环形导航（成本高、收益低）。给 stage 加 `role="list"`、每项 `role="listitem"`，并提供一个视觉隐藏的「跳过工具环」锚点 |
-
-**其他已做的假设（如与预期不符请纠正）**：
-- 舞台高度取 `min(视口高 - 顶部品牌条 56px - 上下留白, 780px)`，不占满整屏，保证下方内容有「还有东西」的暗示。
-- `overflowIds` 非空时（理论上只会出现在极端窄视口）在环下方追加一行「其余 N 个工具」的紧凑胶囊列表兜底，绝不静默丢工具。
-- 轨道项的可点击热区 ≥ 44×44（移动端 a11y 下限）。
+| 字段 | 内容 |
+|------|------|
+| **Task ID** | T02 |
+| **Task Name** | 网格 UI 组件：卡片、分区、首页框架 + index.css 更新 |
+| **Source Files** | `src/components/GridItem.tsx`（新建）<br>`src/components/GridZone.tsx`（新建）<br>`src/components/GridHome.tsx`（新建）<br>`src/index.css`（修改） |
+| **Dependencies** | T01 |
+| **Priority** | P0 |
+| **描述** | 1. `GridItem.tsx`：单个工具卡片，`absolute` 定位由 `slot.cx/cy` + `transform(dx,dy)` 决定。渲染图标（复用 `getToolIcon`）+ 名称文字（11px/两行）。状态 class：`idle`/`matched`/`hovered`/`pushed`/`dimmed`。`::after` 伪元素承载同排相邻细光线<br>2. `GridZone.tsx`：单个区域（top/bottom 横向 grid，left/right 纵向 grid）。接收 `tools`、`slots`、`transforms`。计算子 GridItem 定位。渲染区域内细光线 SVG 层<br>3. `GridHome.tsx`：首页主组件。组合：顶部品牌条（复用现有 sticky bar）→ LeadBar 占位 → 搜索框居中（复用 `CommandSearch`）→ 四区 GridZone → Footer 统计+slogan。使用 `useStageMetrics`（复用现有 hook）获取容器尺寸，驱动 `useGridLayout` + `useGridInteraction`<br>4. `index.css`：删除所有 `orbit-*` 样式（约 200 行），新增 `grid-*` 样式（卡片状态、细光线、动效 token CSS 变量）。保留 `prefers-reduced-motion` 规则并扩展覆盖网格动画 |
 
 ---
 
-# Part B：任务拆解
+#### T03：顶部按钮条（LeadBar + AppreciateButton + ShareButton 强化）
 
-## 6. 依赖包（Required Packages）
+| 字段 | 内容 |
+|------|------|
+| **Task ID** | T03 |
+| **Task Name** | 顶部按钮条：分享强化 + 社区留言 + 赞赏按钮 |
+| **Source Files** | `src/components/LeadBar.tsx`（新建）<br>`src/components/AppreciateButton.tsx`（新建）<br>`src/components/ShareButton.tsx`（修改） |
+| **Dependencies** | 无（纯 UI 组件，可与 T01/T02 并行） |
+| **Priority** | P0 |
+| **描述** | 1. `LeadBar.tsx`：fixed top-right 容器，z-[350]，包含 ShareButton + 社区留言按钮。两个按钮并排，统一样式（圆角胶囊、玻璃态、相同尺寸）。社区留言按钮点击导航到 `/community`<br>2. `AppreciateButton.tsx`：固定按钮（ThumbsUp 图标 + "赞赏"），位置在右下或右上（与 LeadBar 协调）。hover 触发 popover 浮层（z-[360]），展示微信赞赏码 + 支付宝赞赏码（两张图并排，复用 `/wechat-donate.jpg` 和 `/alipay-donate.jpg`）。使用 `useFocusTrap` 保证无障碍<br>3. `ShareButton.tsx`：视觉强化——更大尺寸（min-h-[48px]）、更明显的 accent 色边框、hover 时微发光。保持现有 QR 生成/复制链接逻辑不变 |
 
-### 需要新增的 npm 包
+---
 
-**无。一个都不加。**
+#### T04：首页集成 + Footer 改造
 
-理由已在 §1.2 展开：动画走纯 CSS transition + inline transform；椭圆几何是 30 行数学；排斥是 528 次浮点运算。引入 framer-motion（~40KB gzip）与本项目「零后端、离线可用、依赖精简」的定位冲突，且它最值钱的 FLIP / 手势 / 编排能力这里一个都用不上。
+| 字段 | 内容 |
+|------|------|
+| **Task ID** | T04 |
+| **Task Name** | Home.tsx 重写 + FooterBar 改造 + Layout.tsx 更新 |
+| **Source Files** | `src/pages/Home.tsx`（重写）<br>`src/components/FooterBar.tsx`（修改）<br>`src/components/Layout.tsx`（修改） |
+| **Dependencies** | T01, T02, T03 |
+| **Priority** | P0 |
+| **描述** | 1. `Home.tsx`：完全重写。删除所有 orbit 相关 import（ToolOrbit、OrbitFallback、ORBIT_FALLBACK_MAX_WIDTH、DonateSection）。新增 GridHome 替换英雄区。删除「全部工具」模块（下方 ToolGrid 区域）。删除 DonateSection 引用。保留 Ctrl+K 搜索、URL 同步（category/q 参数）、OnboardingModal(z-50)。保留分类标签 sticky 行（如果需要）。`<640px` 降级直接使用 GridHome 的 sm 模式（内部自适应）<br>2. `FooterBar.tsx`：slogan 替换为双行——上行「普通日常工具箱 · 所有工具永久免费 · 无需注册 · 工具数据本地处理」；下行「一个网页，解决你的问题」。访问量统计（visitCount）移到 Footer 最下方居中展示，与使用时长（todayMinutes/weekMinutes）并排。「访问时长」「访问数量」两个统计放在页面最下方居中。保留现有导航链接和 ThemeToggle<br>3. `Layout.tsx`：将 `<ShareButton />` 替换为 `<LeadBar />`，保留 ShareButton 作为 LeadBar 的子组件。Layout 其余结构不变 |
 
-### 复用的既有依赖
+---
+
+#### T05：清理 + 回归验证
+
+| 字段 | 内容 |
+|------|------|
+| **Task ID** | T05 |
+| **Task Name** | 删除 orbit 模块 + DonateSection + 最终集成验证 |
+| **Source Files** | 删除：`src/lib/orbit/`（全部）<br>删除：`src/components/orbit/`（全部）<br>删除：`src/hooks/useOrbitLayout.ts`<br>删除：`src/hooks/useOrbitHighlight.ts`<br>删除：`src/components/DonateSection.tsx`<br>删除：`src/components/HomeHero.tsx`（确认无其他引用）<br>修改：`src/index.css`（清理残留 orbit 引用） |
+| **Dependencies** | T04 |
+| **Priority** | P1 |
+| **描述** | 1. 删除所有 orbit 相关文件和目录<br>2. 删除 DonateSection.tsx（已被 AppreciateButton 替代）<br>3. 检查 HomeHero.tsx 是否还有其他引用（OrbitFallback 引用它，OrbitFallback 已删除 → 应无引用；检查测试文件）<br>4. 检查 index.css 中是否还有未清理的 orbit 样式<br>5. 验证：`npm run build` 无报错，`npm run dev` 首页正常渲染<br>6. 验证：留言板（/community）页面不受影响，Footer 统计正常<br>7. 验证：Ctrl+K 搜索、URL 参数同步、OnboardingModal 均正常工作 |
+
+### 8. 共享知识
 
 ```
-react@^18.3.1              视图层
-react-dom@^18.3.1
-react-router-dom@^7.3.0    useNavigate 跳转 /tool/:id（HashRouter，不变）
-zustand@^5.0.3             searchQuery / selectedCategory 单一状态源
-lucide-react@^0.511.0      工具图标（经 ToolGrid.getToolIcon 复用同一套 iconMap）
-clsx@^2.1.1                轨道项状态 class 组合
-tailwind-merge@^3.0.2      class 去冲突
-tailwindcss@^3.4.17        样式
-vitest@^4.1.10             内核单测（environment: 'node'，纯函数直接跑，无需 jsdom）
+# 坐标系约定
+- 网格使用 CSS 坐标系：原点在左上角，+x 向右，+y 向下
+- GridSlot.cx/cy = 卡片中心相对舞台原点的像素坐标
+- GridTransform.dx/dy = 排斥位移增量（叠加到 cx/cy 上）
+
+# z 轴预算（全站统一）
+- GridItem idle: 1
+- GridItem pushed: 2
+- GridItem hovered: 4
+- GridItem matched: 6
+- 搜索框 dropdown: 10
+- GridZone 细光线 SVG: 0（pointer-events: none）
+- 分类标签 sticky 行: z-30
+- 顶部品牌条 sticky: z-40
+- OnboardingModal: z-50
+- LeadBar: z-[350]
+- ShareButton panel: z-[400]
+- AppreciateButton popover: z-[360]
+
+# CSS 变量（index.css 与 gridConstants.ts 成对镜像）
+- --grid-dur-move: 340ms（transform transition）
+- --grid-dur-fade: 200ms（opacity transition）
+- --grid-ease-move: cubic-bezier(0.34, 1.24, 0.44, 1)
+- --grid-ease-fade: ease-out
+- --grid-line-base-alpha: 0.15（细光线常态透明度）
+- --grid-line-active-alpha: 0.5（细光线激活透明度）
+- --grid-glow-radius: 18px（匹配卡片发光扩散）
+
+# 性能铁律
+- 只改 transform / opacity / stroke-opacity
+- will-change 仅在 searchQuery !== '' 或 hoveredId !== null 时挂载
+- prefers-reduced-motion: reduce → 所有动画 0.01ms，位移归零
+
+# 搜索匹配口径（三处必须一致）
+- matchPinyin(`${tool.name} ${tool.description} ${tool.id}`, query.trim())
+- 三处：CommandSearch 下拉 / useGridInteraction 高亮 / Home 过滤（如保留）
+
+# 图标映射
+- 复用 ToolGrid.tsx 的 iconMap 和 getToolIcon()，不新建映射
+
+# 分类色相
+- 从 orbitConstants.ts 的 CATEGORY_CHIP_HUE 迁移到 gridConstants.ts
+- CSS 变量 --orbit-cat-*-h 重命名为 --grid-cat-*-h（或保留原名以避免影响社区/其他页面）
+- 实际决策：保留 CSS 变量名不变（--orbit-cat-*-h），因为其他组件可能引用；
+  只把 JS 端常量从 orbitConstants 迁移到 gridConstants
 ```
 
-### 浏览器 API 依赖（均无需 polyfill，目标浏览器全支持）
-
-```
-ResizeObserver             舞台尺寸测量
-matchMedia                 prefers-reduced-motion 探测
-Float64Array               等弧长累积表
-```
-
----
-
-## 7. 任务列表（按依赖顺序）
-
-### T01 · 轨道计算内核（类型 / 常量 / 几何 / 布局 / 排斥 + 单测）
-
-- **Priority**: P0
-- **Dependencies**: 无
-- **Source Files**:
-  - `src/lib/orbit/types.ts`（新建）
-  - `src/lib/orbit/orbitConstants.ts`（新建）
-  - `src/lib/orbit/ellipse.ts`（新建）
-  - `src/lib/orbit/layout.ts`（新建）
-  - `src/lib/orbit/repulsion.ts`（新建）
-  - `src/lib/orbit/__tests__/layout.test.ts`（新建）
-  - `src/lib/orbit/__tests__/repulsion.test.ts`（新建）
-- **要点**：
-  - 严格按 §3.1 接口、§3.4 / §3.5 伪代码实现，**零 React、零 DOM 引用**（除了从 `@/types` 引 `ToolRecord`、从 `@/tools/categories` 引 `categories`）。
-  - `orbitConstants.ts` 必须承载全部可调参数（三个断点的 `OrbitConfig`、`RepulsionConfig`、动画时长/缓动、`ORBIT_Z`、`ENABLE_IDLE_FLOAT`、分类配色），§5 的所有决策点都要能在这一个文件里改。
-  - 单测断言（必须全绿）：
-    1. `computeOrbitLayout(builtInTools, {1440,760})` → `nodes.length === 66`、`overflowIds` 为空；
-    2. 任意两节点的**中心距 ≥ min(itemW, itemH) × 0.9**（无重叠）；
-    3. 所有 `|bx| + itemW/2 <= stage.width/2` 且 `|by| + itemH/2 <= stage.height/2`（不越界）；
-    4. 每个分类的节点在「环序 + 环内角序」上**连续**（不出现 A-B-A 交错）；
-    5. 环序满足 `categories.order`（everyday 的最小 ringIndex ≤ fun 的最小 ringIndex）；
-    6. 在 `{1024,640} / {1280,700} / {1440,760} / {1920,900}` 四种尺寸下均无 overflow；
-    7. `computeRepulsion(nodes, new Set(), cfg)` → 全部 `{dx:0,dy:0,scale:1,opacity:1}`；
-    8. 单高亮源时，邻居位移向量与 `(邻居 - 高亮)` 的**夹角 < 1e-6**（方向正确）；
-    9. 位移幅值随距离**单调不增**，且恒 `<= maxOffset`；
-    10. 高亮项自身位移恒为 0。
-- **验收**：`npm run test` 全绿，`npm run check` 无 TS 报错。
-
----
-
-### T02 · React 接入层 Hooks + 动效样式 token
-
-- **Priority**: P0
-- **Dependencies**: T01
-- **Source Files**:
-  - `src/hooks/useStageMetrics.ts`（新建）
-  - `src/hooks/useOrbitLayout.ts`（新建）
-  - `src/hooks/useOrbitHighlight.ts`（新建）
-  - `src/index.css`（修改：新增 orbit 动效 token 与 keyframes，并在既有 `prefers-reduced-motion` 块中追加 `orbit-float` 禁用）
-  - `src/components/ToolGrid.tsx`（修改：仅把 `categoryColors` 提升为 `export const`，其余不动）
-- **要点**：
-  - `useStageMetrics`：`ResizeObserver` 观测容器；宽高**量化到 40px 桶**（`Math.round(v/40)*40`）后才 `setState`，避免拖拽窗口时每像素重算；同时输出 `breakpoint` 与 `matchMedia('(prefers-reduced-motion: reduce)')` 结果；首次测量完成前 `ready=false`（外层渲染骨架，避免 0×0 布局闪一下）；卸载时 `disconnect()`。
-  - `useOrbitLayout`：`useMemo(() => computeOrbitLayout(tools, stage), [tools, stage.width, stage.height])`，**依赖数组只放基本类型**。
-  - `useOrbitHighlight`：`highlightIds` 与 `transforms` 分成两个 `useMemo`；`reducedMotion` 为真时把 `RepulsionConfig.enabled` 置 false（**只保留高亮，不做位移**）；匹配口径必须与 `Home.tsx` / `CommandSearch.tsx` 逐字一致：`matchPinyin(\`${t.name} ${t.description} ${t.id}\`, q)`。
-  - `src/index.css` 新增（`@layer utilities` 内）：
-    ```
-    :root { --orbit-dur-move: 340ms; --orbit-dur-fade: 200ms;
-            --orbit-ease-move: cubic-bezier(0.34, 1.24, 0.44, 1); }
-    .orbit-item  { position:absolute; left:50%; top:50%;
-                   transition: transform var(--orbit-dur-move) var(--orbit-ease-move),
-                               opacity   var(--orbit-dur-fade)  ease-out; }
-    .orbit-item--interacting { will-change: transform; }
-    .orbit-item__float { /* 独立 transform 层，承载 orbit-float keyframe */ }
-    @keyframes orbit-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
-    ```
-    发光一律复用既有 `.shadow-glow`；**颜色禁止写 `border-accent/40` 这类带透明度的变体**（accent 是 CSS 变量色，Tailwind 不会生成规则）——要透明度就用 `rgb(var(--accent-rgb) / .4)`。
-- **验收**：`npm run check` 通过；Hook 层可在 Node 环境下被间接单测（内核已覆盖，这里不强求 jsdom 测试）。
-
----
-
-### T03 · 轨道展示层组件（引导环 / 单项 / 舞台容器）
-
-- **Priority**: P0
-- **Dependencies**: T01, T02
-- **Source Files**:
-  - `src/components/orbit/OrbitItem.tsx`（新建）
-  - `src/components/orbit/OrbitRingsLayer.tsx`（新建）
-  - `src/components/orbit/ToolOrbit.tsx`（新建）
-  - `src/components/orbit/__tests__/ToolOrbit.test.tsx`（新建）
-- **要点**：
-  - `OrbitItem` 用 §1.2 的**三层 DOM**（定位层 / 浮动层 / chip 层），`React.memo` 包裹，比较函数只看 `transform` 四个数值 + `state`。
-  - chip 内容：图标（`getToolIcon`，20–24px）在上，工具名在下（`text-[11px] leading-[1.15]`，最多两行 `line-clamp-2`，`text-balance`）。热区 ≥ 44×44。
-  - 定位方式**只能**是 `left:50%; top:50%; margin:-h/2 0 0 -w/2` + `translate3d(bx+dx, by+dy, 0) scale(s)`。**禁止**写 `left:${x}px`。
-  - z 轴：引导线 `z-0`、普通项 `z-[1]`、被推开项 `z-[2]`、匹配项 `z-[6]`、中心 `z-[10]`。**上限 20，绝不触碰 30/40/50**（否则会压过 sticky 分类条 / 品牌条 / OnboardingModal）。
-  - `OrbitRingsLayer`：绝对定位的 `<div>` + `border-radius:50%` + `1px dashed rgb(var(--accent-rgb)/.10)`，`pointer-events:none`；分类小标签锚在段中点（`showLabels` 为 false 时不渲染）。
-  - `ToolOrbit`：组装 `useStageMetrics` / `useOrbitLayout` / `useOrbitHighlight`；`onActivate` 用 `useCallback` 稳定引用；`searchQuery !== ''` 时给所有项挂 `orbit-item--interacting`（`will-change`），清空后移除；`overflowIds` 非空时在环下方渲染兜底胶囊行。
-  - 入场：`enterIndex` → `transition-delay: min(index*8, 320)ms` 的 opacity+scale 淡入，只跑一次。
-  - 测试（SSR，`renderToStaticMarkup` + `MemoryRouter`，沿用 HomeHero.test 的写法）：66 个工具名全部出现在 HTML 里；输出中不含 `z-30`/`z-40`/`z-50`；不含营销腔禁用词。
-- **验收**：`npm run test` 全绿；本地 `npm run dev` 目视：66 项均匀分布、无重叠、标签可读。
-
----
-
-### T04 · 中心搜索联动 + 小屏降级 + 首页接入
-
-- **Priority**: P0
-- **Dependencies**: T03
-- **Source Files**:
-  - `src/components/orbit/OrbitCenter.tsx`（新建）
-  - `src/components/orbit/OrbitFallback.tsx`（新建）
-  - `src/pages/Home.tsx`（修改）
-- **要点**：
-  - `OrbitCenter` **必须包裹复用** `CommandSearch`，不得复制其逻辑——它承载着「下拉建议 / ↑↓ / Enter 跳转 / Esc / 点击外部关闭」和**那处已修复的层叠结构**（容器 `relative` 无 z-index、下拉面板 `z-10`）。外层只加宽度约束与 `z-[10]` 定位，**不得给 CommandSearch 内部容器加 z-index**。
-  - 中心区自上而下：主标题一行（见 Q5）→ `CommandSearch` → 「找到 N 个工具」计数（`aria-live="polite"`，无输入时不渲染）。
-  - `OrbitFallback`（Q1 方案 A）：直接组合既有 `HomeHero` + 分类 `ToolGrid`，**零新逻辑**。
-  - `Home.tsx` 改动清单（逐条核对，防回归）：
-    1. `<HomeHero>` → `bp === 'sm' ? <OrbitFallback/> : <ToolOrbit/>`（断点由 `useStageMetrics` 或一个轻量 `matchMedia` 给出）；
-    2. `searchRef` 继续透传（`Ctrl+K` 聚焦不能坏）；
-    3. `?q=` / `?category=` 的 URL 同步 `useEffect` **原样保留**；
-    4. 首次进入清空 `selectedCategory/searchQuery` 的 `useEffect` **原样保留**；
-    5. `dismissOnboarding` 继续挂在搜索框 `onFocus` 上；
-    6. sticky 品牌条（z-40）、sticky 分类条（z-30）、`OnboardingModal`（z-50）**位置与 z 值一律不动**；
-    7. 「已固定 / 收藏 / 最近 / 全部工具 / 赞赏」整块下移到圆环 section 之后（Q4）。
-- **验收**：`npm run test && npm run check && npm run build` 全绿；手测清单——输入可搜、点环上工具能跳转、`Ctrl+K` 能聚焦、Esc 能清空、Onboarding 正常置顶且能关闭、`#/?q=压缩` 直达时环上已高亮。
-
----
-
-### T05 · 响应式适配 · 无障碍 · 性能打磨 · 回归
-
-- **Priority**: P1
-- **Dependencies**: T04
-- **Source Files**:
-  - `src/lib/orbit/orbitConstants.ts`（修改：按真机实测回填 md / lg 的 `itemW/itemH/slot/maxRings/kMin/kMax`、`RepulsionConfig` 手感参数）
-  - `src/components/orbit/ToolOrbit.tsx`（修改：a11y 语义、`will-change` 生命周期、`reducedMotion` 分支、`overflowIds` 兜底 UI）
-  - `src/components/orbit/OrbitItem.tsx`（修改：焦点环、`aria-label`、hover/focus 态与匹配态的样式优先级）
-  - `src/index.css`（修改：浅色主题下引导线/发光的对比度补丁，参照文件内既有 `html.light` 段的写法）
-  - `src/lib/orbit/__tests__/layout.test.ts`（修改：补齐真实断点尺寸矩阵的回归用例）
-- **要点**：
-  - **尺寸矩阵实测**：1920×1080 / 1440×900 / 1280×800 / 1024×768 / 834×1112(iPad 竖) / 768×1024 / 640×960 —— 每档确认「无重叠、无越界、标签可读（≥11px）、中心搜索框不被遮挡」。
-  - **深浅主题双跑**：`html.light` 下 accent 是蓝色 `#0071e3`，引导线与发光都要重新校对对比度；注意 `.shadow-glow` 浅色版已在 CSS 里单独定义。
-  - **a11y**：stage `role="list"` + 项 `role="listitem"`；每项 `aria-label="${name}：${description}"`；提供视觉隐藏的「跳过工具环」跳转锚；键盘焦点环沿用全局 `:focus-visible`（已有 3px outline + 外发光），确认在轨道项上不被 `overflow` 裁掉。
-  - **性能**：Chrome Performance 录制一次「输入 3 个字符」，要求 —— 无 Layout / Recalculate Style 尖峰、无 Layout Shift、合成帧稳定在 60fps；`will-change` 仅在交互期存在。
-  - **减少动效**：系统开启「减少动态效果」时，`RepulsionConfig.enabled=false`（不位移）、`ENABLE_IDLE_FLOAT` 强制 false，仅保留颜色/透明度高亮。
-  - **回归**：`HomeHero.test.tsx`、`OnboardingModal.test.tsx`、`FirstTimeGuide.test.tsx`、`ShareButton.test.tsx` 必须全部保持绿色。
-- **验收**：`npm run test && npm run check && npm run lint && npm run build` 全绿；尺寸矩阵与主题矩阵手测通过。
-
----
-
-## 8. 共享知识（Shared Knowledge）—— 跨文件硬约定
-
-> Engineer 请把这一节当作契约，任何一条被违反都会引发难查的 bug。
-
-### 8.1 坐标系
-- **单位一律 px**，禁止用 `%` 表达轨道坐标（`%` 相对父容器尺寸，会在 resize 时与 JS 计算结果失配）。
-- 原点 = **舞台中心**；`+x` 向右，`+y` **向下**（与 CSS 一致，不是数学坐标系）。
-- 角度用**弧度**；`θ = 0` 指向 **3 点钟方向**，θ 增大 = **顺时针**（因为 y 轴向下）。
-- 落位公式：`bx = rx·cos θ`，`by = ry·sin θ`。
-- DOM 落位只允许：`left:50%; top:50%; margin:-h/2 0 0 -w/2;` + `transform: translate3d(bx+dx, by+dy, 0) scale(s)`。
-
-### 8.2 动效 token（唯一来源：`src/index.css` 的 CSS 变量 + `orbitConstants.ts` 的同名常量）
-
-| token | 值 | 用途 |
-|---|---|---|
-| `--orbit-dur-move` | `340ms` | transform（位移 + 缩放） |
-| `--orbit-dur-fade` | `200ms` | opacity |
-| `--orbit-ease-move` | `cubic-bezier(0.34, 1.24, 0.44, 1)` | 轻回弹 |
-| `--orbit-ease-fade` | `ease-out` | 淡入淡出 |
-| 入场 stagger | `min(index * 8, 320)ms` | 只跑一次 |
-| idle float | `6.5s ease-in-out infinite`，±3px | 默认关（Q8） |
-
-CSS 变量与 TS 常量**必须成对修改**，就像项目里 `--accent` / `--accent-rgb` 那样。
-
-### 8.3 z 轴分配（硬上限 20）
-
-```
-0   OrbitRingsLayer 引导线（pointer-events:none）
-1   普通轨道项
-2   被推开的轨道项
-6   匹配高亮的轨道项
-10  中心搜索区（OrbitCenter 外壳）
-────────── 以上是 orbit 的全部预算 ──────────
-30  Home sticky 分类条        ← 不得触碰
-40  Home sticky 品牌条        ← 不得触碰
-50  OnboardingModal / MobileNav / ToolPreviewCard  ← 不得触碰
-300/400 ShareButton           ← 不得触碰
-```
-**`CommandSearch` 的外层容器保持 `relative` 且不加 z-index**，其下拉面板保持 `z-10` —— 这是之前修过的层叠 bug，改动它会直接复发。
-
-### 8.4 分类 → 圈层映射规则
-- 由内向外严格按 `categories.order`：`everyday(1) → finance(2) → health(3) → image(4) → fun(5)`。
-- 一个分类可跨环，但**两段都必须 ≥ `minSegment`（默认 4）**，否则整类顺延到下一环。
-- 一个环可承载多个分类，各占**连续角度扇区**，段间留 `sectorGapRad = 6° ≈ 0.105 rad`。
-- **每环起始角错位**：`ringStartOffset(j) = -π/2 + j * 0.37 rad`（从 12 点钟起排，每环转一点），避免各环项子在竖直方向连成一条「柱子」。
-- 分类配色沿用 `ToolGrid.categoryColors`（T02 中提升为共享导出），保证环上和下方网格视觉一致。
-
-### 8.5 搜索匹配口径（三处必须逐字一致）
-```ts
-matchPinyin(`${tool.name} ${tool.description} ${tool.id}`, query.trim())
-```
-出现在 `Home.tsx`（网格过滤）、`CommandSearch.tsx`（下拉建议）、`useOrbitHighlight.ts`（环上高亮）。**任何一处改了，另外两处必须同步**，否则会出现「下拉里有、环上不亮」的诡异现象。建议 T02 顺手抽一个 `matchTool(tool, q)` 放进 `src/lib/pinyinSearch.ts` 统一（可选优化，不强制）。
-
-### 8.6 性能红线
-- 只允许改 `transform` / `opacity`。**禁止**在动画路径上出现 `left/top/width/height/margin/padding/font-size/filter`。
-- `will-change: transform` **只在 `searchQuery !== ''` 期间**挂载，空查询时必须移除。
-- 所有列表项组件必须 `React.memo`；回调必须 `useCallback`；布局必须 `useMemo` 且依赖数组只放基本类型。
-- ResizeObserver 回调里的尺寸**必须量化到 40px 桶**再 `setState`。
-- 排斥计算是同步纯函数，**不要**塞进 `requestAnimationFrame` 循环——它只在 query 变化时跑一次。
-
-### 8.7 主题色陷阱（项目历史坑，务必遵守）
-- `accent` / `bg` / `card` / `surface` 是 `rgb(var(--x-rgb) / <alpha-value>)` 形式，Tailwind 的透明度变体**只对它们有效**。
-- 反过来，`.text-accent` / `.bg-accent` / `.border-accent` 这几个是 `index.css` 里手写的 utility，走的是裸 `var(--accent)`，**它们的透明度变体（`border-accent/40`）不会生成任何 CSS**。
-- 需要「accent + 透明度」时，要么用 Tailwind 的 `bg-accent/20`（走 `-rgb` 通道，有效），要么在 CSS 里写 `rgb(var(--accent-rgb) / .4)`。**不要**写 `border-accent/40`。
-- 浅色主题必须单独验证：`html.light` 下 accent 变蓝、`.shadow-glow` 有独立定义。
-
-### 8.8 不得破坏的既有能力（回归 checklist）
-1. `Ctrl/Cmd + K` 聚焦中心搜索框
-2. 搜索下拉：↑↓ 选择 / Enter 打开 / Esc 收起或清空 / 点击外部关闭
-3. 点击工具 → `navigate('/tool/:id')`（HashRouter）+ `updateRecentUse`
-4. URL `#/?q=xxx` 与 `#/?category=xxx` 深链
-5. Onboarding 首次弹出、z-50 正常置顶、「不再提示」持久化
-6. 已固定 / 收藏 / 最近使用 三个区块
-7. 深浅主题切换
-8. `prefers-reduced-motion` 生效
-9. 现有 4 个组件测试文件保持绿色
-
----
-
-## 9. 任务依赖图（Task Dependency Graph）
+### 9. 任务依赖图
 
 ```mermaid
 graph TD
-    T01["T01 · 轨道计算内核<br/>types / constants / ellipse<br/>layout / repulsion + 单测<br/><b>P0 · 无依赖</b>"]
-    T02["T02 · React 接入层<br/>useStageMetrics / useOrbitLayout<br/>useOrbitHighlight + CSS token<br/><b>P0</b>"]
-    T03["T03 · 轨道展示层<br/>OrbitItem / OrbitRingsLayer<br/>ToolOrbit + SSR 测试<br/><b>P0</b>"]
-    T04["T04 · 搜索联动 + 首页接入<br/>OrbitCenter / OrbitFallback<br/>Home.tsx<br/><b>P0</b>"]
-    T05["T05 · 响应式 · a11y · 性能<br/>尺寸矩阵 / 双主题 / 回归<br/><b>P1</b>"]
+    T01["T01: 网格引擎<br/>types + constants + zoneAssigner + interaction"]
+    T02["T02: 网格 UI 组件<br/>GridItem + GridZone + GridHome + CSS"]
+    T03["T03: 顶部按钮条<br/>LeadBar + AppreciateButton + ShareButton"]
+    T04["T04: 首页集成<br/>Home.tsx + FooterBar + Layout"]
+    T05["T05: 清理 + 验证<br/>删除 orbit/DonateSection/HomeHero"]
 
     T01 --> T02
-    T02 --> T03
+    T01 --> T04
+    T02 --> T04
     T03 --> T04
     T04 --> T05
-
-    T01 -.->|"纯函数可先行<br/>单测独立验证"| V1{{"可独立跑<br/>npm run test"}}
-    T04 -.->|"此处产出可交互 Demo"| V2{{"首个可演示版本"}}
-
-    style T01 fill:#dbeafe,stroke:#2563eb,stroke-width:2px
-    style T02 fill:#dcfce7,stroke:#16a34a,stroke-width:2px
-    style T03 fill:#fef9c3,stroke:#ca8a04,stroke-width:2px
-    style T04 fill:#fae8ff,stroke:#a21caf,stroke-width:2px
-    style T05 fill:#f1f5f9,stroke:#64748b,stroke-width:2px
-    style V1 fill:#ffffff,stroke:#94a3b8,stroke-dasharray: 4 3
-    style V2 fill:#ffffff,stroke:#94a3b8,stroke-dasharray: 4 3
 ```
 
-**关键路径**：T01 → T02 → T03 → T04 → T05（严格线性）。
-
-之所以是线性而非并行：T01 的类型定义是后续所有文件的编译前提，T03 的 props 形状直接由 T02 的 Hook 返回值决定。好消息是 **T01 完全不依赖 React，可以先写完并用单测锁死数值正确性**——这是整个改造里唯一有算法风险的部分，把它前置并单测覆盖，后面三个任务就只剩「把数字贴到 DOM 上」，风险陡降。
-
-**建议的验证节奏**：
-- T01 完成 → `npm run test` 看 10 条数值断言（此时还没有任何画面，但正确性已经锁死）
-- T04 完成 → 第一个可交互 Demo，找主理人过一遍手感（排斥幅度 28px 是否合适、340ms 是否跟手）
-- T05 完成 → 尺寸矩阵 + 双主题 + 全量回归
+> **并行提示**：T01 和 T03 可并行开发（T03 是纯 UI 组件，不依赖网格引擎）。T02 依赖 T01。T04 依赖 T01+T02+T03。T05 依赖 T04。
 
 ---
 
-**设计稿结束。** §5 的 9 个待确认项中，**Q1（小屏降级方案）** 和 **Q4（是否保留下方网格与赞赏区）** 影响任务范围，建议在 T04 开工前拍板；其余 7 项都只是 `orbitConstants.ts` 里的常量，可以在 T05 手感调优阶段一起定。
+*文档结束*
