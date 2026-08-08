@@ -1,12 +1,10 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
 import type { ToolRecord } from '@/types';
 import CommandSearch from '@/components/CommandSearch';
 import GridZone from './GridZone';
-import { useStageMetrics } from '@/hooks/useStageMetrics';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useGridHighlight } from '@/hooks/useGridHighlight';
-import { ZONE_ORDER } from '@/lib/grid/constants';
 
 export interface GridHomeProps {
   tools: ToolRecord[];
@@ -17,12 +15,18 @@ export interface GridHomeProps {
 }
 
 /**
- * 网格首页主组件。
+ * 网格首页：CSS Grid 3×3 布局。
  *
- * 组合：搜索框居中 → 四区 GridZone → Footer 统计+slogan 由外部 Layout 提供。
+ * ┌─────────┬─────────┬─────────┐
+ * │  Top     │  Top     │  Top     │
+ * ├─────────┼─────────┼─────────┤
+ * │  Left    │ 🔍搜索  │  Right   │
+ * ├─────────┼─────────┼─────────┤
+ * │  Bottom  │  Bottom │  Bottom  │
+ * └─────────┴─────────┴─────────┘
  *
- * 使用 useStageMetrics（复用现有 hook）获取容器尺寸，
- * 驱动 useGridLayout + useGridHighlight。
+ * 搜索框 getCenterCell() 返回 center cell 尺寸，传给 useGridLayout。
+ * GridItem 的 cx/cy 是 zone-local 坐标。
  */
 export default function GridHome({
   tools,
@@ -31,34 +35,77 @@ export default function GridHome({
   onSearchFocus,
   searchInputRef,
 }: GridHomeProps) {
-  const stageRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [stageW, setStageW] = useState(0);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const metrics = useStageMetrics(stageRef as RefObject<HTMLElement | null>);
+  // 用 ResizeObserver 拿容器宽（断点判定用）
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      setStageW(Math.round(w / 40) * 40);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  const layout = useGridLayout(tools, metrics.stage.width, metrics.stage.height);
+  // 用 window 宽兜底
+  useEffect(() => {
+    if (stageW > 0) return;
+    setStageW(window.innerWidth);
+  }, [stageW]);
 
-  const { highlightIds, transforms, matchCount, isSearching } = useGridHighlight({
+  const layout = useGridLayout(tools, stageW, 0);
+
+  const { transforms, matchCount } = useGridHighlight({
     tools,
     layout,
     query: searchQuery,
     hoveredId,
-    reducedMotion: metrics.reducedMotion,
+    reducedMotion: false,
   });
 
   const handleHover = useCallback((id: string | null) => {
     setHoveredId(id);
   }, []);
 
-  const handleActivate = useCallback((_tool: ToolRecord) => {
-    // 点击时不做额外处理，导航由 GridItem 内部负责
-  }, []);
+  const handleActivate = useCallback((_tool: ToolRecord) => {}, []);
 
   const showGrid = layout.config.breakpoint !== 'sm' && layout.slots.length > 0;
 
   return (
-    <div className="grid-home" ref={stageRef}>
-      {/* 搜索框居中 */}
+    <div className="grid-home" ref={containerRef}>
+      {/* Top zone */}
+      {showGrid && (
+        <GridZone
+          tools={tools}
+          zone="top"
+          slots={layout.slots}
+          transforms={transforms}
+          hoveredId={hoveredId}
+          config={layout.config}
+          onHover={handleHover}
+          onActivate={handleActivate}
+        />
+      )}
+
+      {/* Left zone */}
+      {showGrid && (
+        <GridZone
+          tools={tools}
+          zone="left"
+          slots={layout.slots}
+          transforms={transforms}
+          hoveredId={hoveredId}
+          config={layout.config}
+          onHover={handleHover}
+          onActivate={handleActivate}
+        />
+      )}
+
+      {/* 搜索框：正中央 */}
       <div className="grid-home__search">
         <div className="grid-home__search-inner">
           <CommandSearch
@@ -69,7 +116,6 @@ export default function GridHome({
             onFocus={onSearchFocus}
           />
         </div>
-        {/* 搜索统计 */}
         {searchQuery.trim() && (
           <p className="grid-home__search-count">
             搜索 "<span className="text-white">{searchQuery.trim()}</span>" 找到{' '}
@@ -78,30 +124,36 @@ export default function GridHome({
         )}
       </div>
 
-      {/* 四区网格 */}
-      {showGrid ? (
-        <div
-          className={`grid-home__zones ${isSearching || hoveredId ? 'grid-home--interacting' : ''}`}
-          style={{
-            width: layout.stageW,
-          }}
-        >
-          {ZONE_ORDER.map((zone) => (
-            <GridZone
-              key={zone}
-              tools={tools}
-              zone={zone}
-              slots={layout.slots}
-              transforms={transforms}
-              hoveredId={hoveredId}
-              config={layout.config}
-              onHover={handleHover}
-              onActivate={handleActivate}
-            />
-          ))}
-        </div>
-      ) : (
-        /* sm 降级：ToolGrid 列表视图由 Home.tsx 负责 */
+      {/* Right zone */}
+      {showGrid && (
+        <GridZone
+          tools={tools}
+          zone="right"
+          slots={layout.slots}
+          transforms={transforms}
+          hoveredId={hoveredId}
+          config={layout.config}
+          onHover={handleHover}
+          onActivate={handleActivate}
+        />
+      )}
+
+      {/* Bottom zone */}
+      {showGrid && (
+        <GridZone
+          tools={tools}
+          zone="bottom"
+          slots={layout.slots}
+          transforms={transforms}
+          hoveredId={hoveredId}
+          config={layout.config}
+          onHover={handleHover}
+          onActivate={handleActivate}
+        />
+      )}
+
+      {/* sm 降级 */}
+      {!showGrid && (
         <div className="grid-home__fallback">
           <span className="text-gray-500 text-sm">工具加载中...</span>
         </div>

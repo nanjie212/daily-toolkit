@@ -294,27 +294,29 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── 网格视图（grid）组件样式 ──────────────────────────────────────────
-   网格卡片定位只允许 transform：子项 absolute 定位，
-   全部靠 inline transform 摆放（位移、缩放），布局树永不失效。
-   高亮/发光一律走 class。 */
+   3×3 CSS Grid：搜索框正中央，四区在角落 cell。 */
 .grid-home {
-  position: relative;
+  display: grid;
+  grid-template-areas:
+    "top    top    top"
+    "left   search right"
+    "bottom bottom bottom";
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: 1fr auto 1fr;
+  height: 100vh;
   width: 100%;
-  height: 100%;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
+/* 搜索框在正中央 */
 .grid-home__search {
-  position: relative;
-  z-index: 10;
-  width: 100%;
+  grid-area: search;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 16px 8px;
+  justify-content: center;
+  z-index: 10;
+  padding: 12px 16px;
 }
 
 .grid-home__search-inner {
@@ -329,30 +331,24 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
 }
 
-.grid-home__zones {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-}
-
 .grid-home__fallback {
+  grid-area: search;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  min-height: 200px;
 }
 
-/* ── 区域 ──
-   所有 zone 都使用 inset:0 覆盖整个 grid-home__zones 区域。
-   GridItem 的 cx/cy 在 stage-global 坐标系下计算，zone 容器原点必须与 stage 原点一致。
-   不再按 data-zone 做差异化定位——标签改为在 stage 坐标下手动放置。 */
+/* ── 区域：每个 zone 放一个 grid cell ── */
 .grid-zone {
-  position: absolute;
-  inset: 0;
+  position: relative;
   pointer-events: none;
+  overflow: hidden;
 }
+
+.grid-zone[data-zone="top"]    { grid-area: top; }
+.grid-zone[data-zone="left"]   { grid-area: left; }
+.grid-zone[data-zone="right"]  { grid-area: right; }
+.grid-zone[data-zone="bottom"] { grid-area: bottom; }
 
 .grid-zone__label {
   position: absolute;
@@ -363,8 +359,6 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.6;
 }
 
-/* 标签定位：top 标签在 stage 顶部，left/right 紧贴两侧上沿，
-   bottom 标签贴在 stage 底部 */
 .grid-zone[data-zone="top"] .grid-zone__label {
   top: 4px;
   left: 8px;
