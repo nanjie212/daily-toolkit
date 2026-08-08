@@ -12,6 +12,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const siteUrl = (env.VITE_SITE_URL || DEFAULT_SITE_URL).trim().replace(/\/$/, '');
 
+  // 部署基础路径：默认 '/'（CloudStudio 把 dist 挂在根目录）。
+  // GitHub Pages 项目页需要子路径前缀，构建时用环境变量覆盖：
+  //   BASE_PATH=/daily-toolkit/ npx vite build
+  // 注意必须以 '/' 结尾，下方 navigateFallback / start_url 依赖这一约定。
+  const base = process.env.BASE_PATH || '/';
+
   // 在 HTML 构建期把 %VITE_SITE_URL% 占位符替换为部署绝对地址，
   // 让 og:image / og:url / twitter:image 等元信息在任意域名下都保持绝对 URL。
   const siteUrlHtmlPlugin = (): Plugin => ({
@@ -22,16 +28,16 @@ export default defineConfig(({ mode }) => {
     },
   });
 
-  // 按根路径 '/' 托管。历史上这里是 '/daily-toolkit/'（GitHub Pages 子路径场景），
-  // 但当前托管方（CloudStudio）把 dist 挂在根目录，真实资源位于 /assets/*。
-  // 若保留子路径前缀，index.html 会去请求 /daily-toolkit/assets/*.js —— 该路径
-  // 在服务器上不存在，被网关的 SPA 回退返回 index.html（text/html），
-  // 浏览器把 HTML 当 JS 执行 → 整站白屏。
-  // 注：路由用的是 HashRouter（见 src/App.tsx），不依赖 base，故此改动不影响路由；
-  // 同时也让 workbox 的 navigateFallback:'/index.html' 与 public/manifest.json
-  // 里的 start_url:'/' 恢复自洽（这两处此前就是根路径写法）。
+  // base 由上面的 BASE_PATH 决定，两种托管场景各自自洽：
+  // 1) CloudStudio（默认，base='/'）：部署工具把 dist 挂在根目录，真实资源位于 /assets/*。
+  //    此时若误用子路径前缀，index.html 会去请求 /daily-toolkit/assets/*.js —— 该路径
+  //    在服务器上不存在，被网关的 SPA 回退返回 index.html（text/html），
+  //    浏览器把 HTML 当 JS 执行 → 整站白屏。
+  // 2) GitHub Pages 项目页（BASE_PATH='/daily-toolkit/'）：资源位于 /daily-toolkit/assets/*。
+  // workbox 的 navigateFallback 与 manifest 的 start_url 都跟随 base，避免两者脱节。
+  // 注：路由用的是 HashRouter（见 src/App.tsx），不依赖 base，故 base 切换不影响路由。
   return {
-    base: '/',
+    base,
   define: {
     __APP_VERSION__: JSON.stringify('1.2.1'),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
@@ -49,6 +55,7 @@ export default defineConfig(({ mode }) => {
         theme_color: '#00E5A0',
         background_color: '#0A0A0F',
         display: 'standalone',
+        start_url: base,
         icons: [
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
@@ -61,7 +68,7 @@ export default defineConfig(({ mode }) => {
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/^\/__.*$/],
       },
     }),
