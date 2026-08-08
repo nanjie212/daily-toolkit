@@ -1,4 +1,4 @@
-import{j as e}from"./index-Czq5qn7H.js";import{r as s,h as C}from"./vendor-CR0zKoQR.js";import{aD as k,l as j,t as N,r as v,K as T,b as O,e as I,P as D,am as E}from"./lucide-DAhqC6zD.js";import"./qrcode-DpynCwP9.js";function F(){const[a,r]=s.useState(""),[i,h]=s.useState(""),[u,p]=s.useState(""),[x,n]=s.useState(""),[d,g]=s.useState(!1),[c,f]=s.useState(null),y=()=>{if(!a.trim())return;const t=a.slice(0,20).replace(/\s+/g,"-"),l=`你是一个工具开发助手。请根据以下描述生成一个ToolBox工具：
+import{j as e}from"./index-Do9tZiYs.js";import{r as s,f as C}from"./vendor-C5FzE17K.js";import{aD as k,l as j,t as N,r as v,K as T,b as O,e as I,P as D,am as E}from"./lucide-CHlLN2cv.js";import"./qrcode-DpynCwP9.js";function F(){const[a,r]=s.useState(""),[i,h]=s.useState(""),[u,p]=s.useState(""),[x,n]=s.useState(""),[d,g]=s.useState(!1),[c,f]=s.useState(null),y=()=>{if(!a.trim())return;const t=a.slice(0,20).replace(/\s+/g,"-"),l=`你是一个工具开发助手。请根据以下描述生成一个ToolBox工具：
 
 工具描述：${a}
 
