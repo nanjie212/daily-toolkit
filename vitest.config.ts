@@ -14,6 +14,9 @@ export default defineConfig({
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
   },
   test: {
+    // 本机 vitest 4.1.10 默认 forks pool 间歇性报 `Cannot find package '@/...'` 等，
+    // 换用 threads pool 稳定全绿（QA 验证过 --pool=threads 全量通过）。
+    pool: 'threads',
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },

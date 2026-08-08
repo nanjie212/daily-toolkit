@@ -30,6 +30,12 @@
      与改造前的结构保持一致，不影响装饰文字工具的 SMP 字符渲染。 */
   --font-heading: 'Space Grotesk', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
   --font-body: 'DM Sans', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+
+  /* ── 轨道视图动效 token（与 orbitConstants.ts 的 ORBIT_MOTION 成对，改一处必须改另一处） ── */
+  --orbit-dur-move: 340ms;
+  --orbit-dur-fade: 200ms;
+  --orbit-ease-move: cubic-bezier(0.34, 1.24, 0.44, 1);
+  --orbit-ease-fade: ease-out;
 }
 
 /* 主题切换平滑过渡 - 只在根元素和直接子元素上 */
@@ -265,6 +271,202 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ── 轨道视图（orbit）组件样式 ──────────────────────────────────────────
+   轨道项的定位只允许 transform（docs §8.6）：节点用 left:50%; top:50% 定到舞台中心，
+   margin 负半宽/半高回拉，之后全部靠 inline transform 摆放，布局树永不失效。
+   高亮/发光一律走 class（orbit-chip--matched），不写 border-accent/40 这类
+   CSS 变量透明度变体（Tailwind 不会生成对应规则）。 */
+.orbit-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transition:
+    transform var(--orbit-dur-move) var(--orbit-ease-move),
+    opacity var(--orbit-dur-fade) var(--orbit-ease-fade);
+}
+
+/* will-change 只在搜索交互期挂载（searchQuery !== ''），清空后必须移除 */
+.orbit-item--interacting {
+  will-change: transform;
+}
+
+.orbit-item__float {
+  width: 100%;
+  height: 100%;
+}
+
+.orbit-item__float--idle {
+  animation: orbit-float 6.5s ease-in-out infinite;
+}
+
+.orbit-chip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 6px 4px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--orbit-dur-fade) var(--orbit-ease-fade),
+    box-shadow var(--orbit-dur-fade) var(--orbit-ease-fade);
+  animation: orbit-enter 0.35s ease-out both;
+}
+
+.orbit-chip__icon {
+  width: 20px;
+  height: 20px;
+  color: rgb(var(--accent-rgb) / 0.9);
+  flex-shrink: 0;
+}
+
+.orbit-chip__name {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.15;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: balance;
+}
+
+.orbit-chip--matched {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.35);
+}
+
+.orbit-chip--pushed {
+  border-color: rgb(var(--accent-rgb) / 0.3);
+}
+
+.orbit-chip--dimmed {
+  border-color: var(--border);
+}
+
+/* 引导线：绝对定位的椭圆描边，pointer-events:none */
+.orbit-ring-guide {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgb(var(--accent-rgb) / 0.10);
+  pointer-events: none;
+}
+
+.orbit-ring-guide--active {
+  border-color: rgb(var(--accent-rgb) / 0.4);
+}
+
+.orbit-ring-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: rgb(var(--accent-rgb) / 0.6);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.orbit-ring-label--active {
+  color: var(--accent);
+}
+
+/* 中心搜索区：z-10 定位层，CommandSearch 内部结构一律不碰 */
+.orbit-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  text-align: center;
+}
+
+.orbit-center__title {
+  margin-bottom: 12px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.orbit-center__count {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.orbit-stage__skeleton {
+  position: absolute;
+  inset: 0;
+}
+
+/* 溢出兜底行（极端窄屏时出现在环下方，绝不静默丢工具） */
+.orbit-overflow {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 90%;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.orbit-overflow__chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color var(--orbit-dur-fade) var(--orbit-ease-fade);
+}
+
+.orbit-overflow__chip:hover {
+  border-color: var(--accent);
+}
+
+/* 轨道项入场：opacity+scale 淡入，stagger 由 inline animation-delay 控制，只跑一次 */
+@keyframes orbit-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* idle 呼吸浮动（默认关，见 ENABLE_IDLE_FLOAT；开启时 duration 6.5s、幅度 ±3px） */
+@keyframes orbit-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -419,5 +621,12 @@ input[type="color"]::-webkit-color-swatch {
      这里放慢到 1.5s 匀速，既不晃眼也保留状态提示。 */
   .animate-spin {
     animation: spin 1.5s linear infinite !important;
+  }
+
+  /* 轨道视图：入场淡入与 idle 呼吸浮动都是纯装饰，直接关掉。
+     排斥位移在 useOrbitHighlight 里已通过 reducedMotion 归零，不在这里处理。 */
+  .orbit-chip,
+  .orbit-item__float--idle {
+    animation: none !important;
   }
 }

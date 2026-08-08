@@ -1,0 +1,133 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant HP as Home (page)
+    participant TO as ToolOrbit
+    participant USM as useStageMetrics
+    participant UOL as useOrbitLayout
+    participant LAY as lib/orbit/layout
+    participant ELL as lib/orbit/ellipse
+    participant OC as OrbitCenter
+    participant CS as CommandSearch (existing)
+    participant ST as useStore (zustand)
+    participant UOH as useOrbitHighlight
+    participant MP as matchPinyin
+    participant REP as lib/orbit/repulsion
+    participant OI as OrbitItem xN
+    participant GPU as 浏览器合成层
+    participant RT as react-router
+
+    %% ═══════════ A. 初始化 / 布局构建 ═══════════
+    rect rgb(238, 246, 255)
+    note over U,GPU: A. 首屏挂载与轨道布局构建（每个尺寸桶只算一次）
+    U->>HP: 打开 "/"
+    HP->>ST: useStore() 读取 tools(66) / searchQuery
+    ST-->>HP: tools, searchQuery=""
+    HP->>HP: 判定断点 bp = width < 640 ? 'sm' : ...
+    alt bp === 'sm'（小屏降级，见待确认 Q1）
+        HP->>HP: 渲染 OrbitFallback（HomeHero + 分类网格）
+    else bp >= 'md'
+        HP->>TO: <ToolOrbit tools searchQuery onSearchChange searchInputRef/>
+        TO->>USM: useStageMetrics(stageRef)
+        USM->>USM: ResizeObserver 观测容器，宽高量化到 40px 桶
+        USM-->>TO: stage {width, height}
+        TO->>UOL: useOrbitLayout(tools, stage)
+        UOL->>LAY: computeOrbitLayout(tools, stage, cfg)
+        LAY->>LAY: resolveConfig() 取断点配置(itemW/H, slot, maxRings...)
+        LAY->>LAY: k = clamp(availH/availW, 0.42, 1.0) 椭圆扁率
+        LAY->>ELL: perimeterFactor(k) → C(k)
+        ELL-->>LAY: C(k)
+        loop slot 从 slotIdeal 递减到 slotMin，直到能装下 66 项
+            LAY->>LAY: planRings() 求 rx0..rxMax、每环 capacity = floor(C*rx/slot)
+            LAY->>LAY: planBands() 按 category.order 顺序装箱，<br/>段过小不拆(minSegment)，超容量则整类顺延到下一环
+        end
+        LAY->>ELL: buildArcTable(rx, ry, 720) 每环建等弧长表
+        ELL-->>LAY: ArcTable
+        loop 每个分类段内的每个工具
+            LAY->>ELL: thetaAtArcLength(table, s_i) 等弧长反查角度
+            ELL-->>LAY: theta
+            LAY->>ELL: pointAt(rx, ry, theta)
+            ELL-->>LAY: (bx, by) 相对 stage 中心的基础坐标
+        end
+        LAY-->>UOL: OrbitLayout {rings, nodes, nodeById, overflowIds}
+        UOL-->>TO: layout（useMemo 缓存，仅 stage 桶变化时重算）
+        TO->>OI: 渲染 66 个 OrbitItem，<br/>inline style: translate3d(bx,by,0) scale(1)
+        OI->>GPU: 提交合成层（仅 transform/opacity）
+        note over OI,GPU: 入场用 staggered opacity + scale，<br/>delay = min(index*8ms, 320ms)
+    end
+    end
+
+    %% ═══════════ B. 搜索输入 → 高亮 + 排斥 ═══════════
+    rect rgb(240, 255, 244)
+    note over U,GPU: B. 核心交互：输入 → 匹配 → 高亮 → 邻居径向推开
+    U->>CS: 在中心搜索框键入 "压缩"
+    CS->>CS: 内部维护下拉建议（既有能力，不动）
+    CS->>OC: onQueryChange("压缩")
+    OC->>HP: onSearchChange("压缩")
+    HP->>ST: setSearchQuery("压缩")
+    ST-->>HP: 触发重渲染 searchQuery="压缩"
+    HP->>TO: 新的 searchQuery 透传
+    TO->>UOH: useOrbitHighlight(tools, layout, "压缩")
+    UOH->>UOH: query 去空白；空串则短路返回 idle transforms
+    loop 66 个工具
+        UOH->>MP: matchPinyin(`${name} ${description} ${id}`, "压缩")
+        MP-->>UOH: true / false
+    end
+    UOH->>UOH: 得到 highlightIds:Set（与既有 filteredTools 口径完全一致）
+    UOH->>REP: computeRepulsion(layout.nodes, highlightIds, repCfg)
+    loop 每个未匹配节点 i
+        REP->>REP: 取距离最近的 maxSources(8) 个高亮源 h
+        REP->>REP: v = p_i - p_h; dist = |v|
+        REP->>REP: w = strength * (1 - dist/radius)^2  (dist<radius 才有值)
+        REP->>REP: d_i += w * v/dist  （向量叠加）
+        REP->>REP: d_i /= sqrt(生效源数)，再按 maxOffset(28px) 钳幅
+    end
+    REP->>REP: 匹配项 dx=dy=0, scale=1.18, z=6, opacity=1
+    REP->>REP: 未匹配项 scale=0.94, z=2, opacity=dimOpacity(0.32)
+    REP-->>UOH: Record<toolId, OrbitTransform>
+    UOH-->>TO: {highlightIds, transforms, matchCount}
+    TO->>OI: 逐项传入 transform（React.memo，仅变化项重渲染）
+    OI->>OI: style.transform = translate3d(bx+dx, by+dy, 0) scale(s)
+    OI->>GPU: transition: transform 340ms cubic-bezier(.34,1.24,.44,1),<br/>opacity 200ms ease-out
+    GPU-->>U: 匹配项放大发光，邻居沿径向被推开（无 layout / paint）
+    OC-->>U: 中心显示 "找到 N 个工具"
+    end
+
+    %% ═══════════ C. 清空 / 复位 ═══════════
+    rect rgb(255, 250, 235)
+    note over U,GPU: C. 清空搜索 → 回弹归位
+    U->>CS: 点击清空 / 按 Esc
+    CS->>OC: onQueryChange("")
+    OC->>HP: onSearchChange("")
+    HP->>ST: setSearchQuery("")
+    ST-->>TO: searchQuery=""
+    TO->>UOH: useOrbitHighlight(..., "")
+    UOH-->>TO: 全量 idle transforms（dx=dy=0, scale=1, opacity=1）
+    TO->>OI: 更新 transform
+    OI->>GPU: 同一条 transition 反向播放 → 弹性归位
+    end
+
+    %% ═══════════ D. 打开工具 ═══════════
+    rect rgb(250, 240, 255)
+    note over U,RT: D. 点击轨道上的工具（保留既有跳转能力）
+    U->>OI: 点击某个轨道项
+    OI->>TO: onActivate(toolId)
+    TO->>ST: updateRecentUse(toolId)
+    TO->>RT: navigate(`/tool/${toolId}`)
+    RT-->>U: 进入 ToolWorkspace（HashRouter，行为与现状一致）
+    end
+
+    %% ═══════════ E. 视口变化 ═══════════
+    rect rgb(245, 245, 245)
+    note over U,GPU: E. 缩放窗口 / 旋转屏幕
+    U->>USM: resize
+    USM->>USM: 量化到 40px 桶；同桶则不派发
+    USM-->>TO: 新 stage
+    TO->>UOL: 重新 computeOrbitLayout（<2ms）
+    UOL-->>TO: 新 layout
+    TO->>OI: 新 bx/by（仍走 transform，不改 left/top）
+    OI->>GPU: 平滑过渡到新轨道
+    alt 断点跨过 640px
+        TO-->>HP: 由 Home 切换 ToolOrbit / OrbitFallback
+    end
+    end

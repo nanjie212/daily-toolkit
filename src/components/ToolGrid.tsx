@@ -164,7 +164,7 @@ export function getToolIcon(iconName: string): React.ElementType {
   return iconMap[iconName] || SparklesIcon;
 }
 
-const categoryColors: Record<string, string> = {
+export const categoryColors: Record<string, string> = {
   everyday: 'from-teal-500/20 to-emerald-500/20 hover:from-teal-500/30 hover:to-emerald-500/40',
   finance: 'from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/40',
   health: 'from-red-500/20 to-pink-500/20 hover:from-red-500/30 hover:to-pink-500/40',

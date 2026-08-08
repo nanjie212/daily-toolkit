@@ -13,9 +13,30 @@ import type { ToolRecord } from '@/types';
 import { matchPinyin } from '@/lib/pinyinSearch';
 import ThemeToggle from '@/components/ThemeToggle';
 import ToolGrid from '@/components/ToolGrid';
-import HomeHero from '@/components/HomeHero';
 import OnboardingModal, { isOnboardingDone, markOnboardingDone } from '@/components/OnboardingModal';
 import DonateSection from '@/components/DonateSection';
+import ToolOrbit from '@/components/orbit/ToolOrbit';
+import OrbitFallback from '@/components/orbit/OrbitFallback';
+import { ORBIT_FALLBACK_MAX_WIDTH } from '@/lib/orbit/orbitConstants';
+
+/** 视口宽度 < 640px 时为 true（docs §5 Q1：小屏降级为 OrbitFallback）。 */
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia(`(max-width: ${ORBIT_FALLBACK_MAX_WIDTH - 1}px)`).matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(`(max-width: ${ORBIT_FALLBACK_MAX_WIDTH - 1}px)`);
+    const handle = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener('change', handle);
+    return () => mq.removeEventListener('change', handle);
+  }, []);
+
+  return isMobile;
+}
 
 export default function Home() {
   const { tools, selectedCategory, recentToolIds, favoriteToolIds, pinnedToolIds, searchQuery } = useStore();
@@ -26,6 +47,7 @@ export default function Home() {
   const [scrolledRight, setScrolledRight] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
 
   const checkScroll = () => {
     const el = scrollRef.current;
@@ -121,14 +143,26 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 2~5. 首屏英雄区：大标题 → 中央搜索框 → 副标题 → 常用工具 */}
-      <HomeHero
-        tools={tools}
-        searchQuery={searchQuery}
-        onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
-        onSearchFocus={dismissOnboarding}
-        searchInputRef={searchRef}
-      />
+      {/* 2~5. 首屏英雄区：大标题 → 中央搜索框 → 副标题 → 常用工具
+             <640px 降级为 OrbitFallback（复用 HomeHero），否则渲染 ToolOrbit 圆环视图 */}
+      {isMobile ? (
+        <OrbitFallback
+          tools={tools}
+          searchQuery={searchQuery}
+          onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
+          onSearchFocus={dismissOnboarding}
+          searchInputRef={searchRef}
+        />
+      ) : (
+        <ToolOrbit
+          tools={tools}
+          searchQuery={searchQuery}
+          onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
+          onSearchFocus={dismissOnboarding}
+          searchInputRef={searchRef}
+          activeCategoryId={selectedCategory}
+        />
+      )}
 
       {/* 分类标签 - 横向滚动（从原固定头部下移到工具列表区上方，保持粘性） */}
       <div className="sticky top-12 md:top-14 z-30 bg-bg border-y border-white/5">
