@@ -79,7 +79,7 @@ function OrbitItemInner({
           type="button"
           onClick={() => onActivate(tool.id)}
           aria-label={`${tool.name}：${tool.description}`}
-          className={`orbit-chip${stateClass}`}
+          className={`orbit-chip orbit-chip--cat-${tool.category}${stateClass}`}
           // 入场：opacity+scale 淡入，stagger 由序号决定，只跑一次（React.memo 保证不重挂载）
           style={{
             animationDelay: `${Math.min(enterIndex * ORBIT_MOTION.enterStagger, ORBIT_MOTION.enterStaggerMax)}ms`,

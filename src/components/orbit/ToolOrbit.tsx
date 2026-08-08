@@ -7,6 +7,7 @@ import { useOrbitLayout } from '@/hooks/useOrbitLayout';
 import { useOrbitHighlight } from '@/hooks/useOrbitHighlight';
 import OrbitRingsLayer from './OrbitRingsLayer';
 import { OrbitItem } from './OrbitItem';
+import OrbitConnections from './OrbitConnections';
 import OrbitCenter from './OrbitCenter';
 import {
   ENABLE_CATEGORY_LABELS,
@@ -86,6 +87,8 @@ export default function ToolOrbit({
 
       {ready && stage.width > 0 ? (
         <>
+          {/* v2 卡片间细光线层：纯装饰，pointer-events:none，位于引导环之前（z 无新增） */}
+          <OrbitConnections nodes={layout.nodes} transforms={transforms} stage={stage} />
           <OrbitRingsLayer
             rings={layout.rings}
             activeCategoryId={activeCategoryId}

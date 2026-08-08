@@ -36,6 +36,32 @@
   --orbit-dur-fade: 200ms;
   --orbit-ease-move: cubic-bezier(0.34, 1.24, 0.44, 1);
   --orbit-ease-fade: ease-out;
+
+  /* ── v2 装饰层 token（与 orbitConstants.ts 的 v2 块成对镜像，改一处必须改另一处） ── */
+  /* 分类 chip 背景：色相只定义在这一处，`--orbit-cat-{id}-h` ↔ CATEGORY_CHIP_HUE */
+  --orbit-cat-everyday-h: 152;  /* 日常淡绿 */
+  --orbit-cat-finance-h: 42;    /* 财务淡金 */
+  --orbit-cat-health-h: 205;    /* 健康淡蓝 */
+  --orbit-cat-image-h: 265;     /* 图片淡紫 */
+  --orbit-cat-fun-h: 330;       /* 趣味淡粉 */
+  --orbit-cat-s: 60%;
+  --orbit-cat-l: 58%;
+  --orbit-chip-bg-alpha: 0.72;
+  --orbit-chip-border-alpha: 0.45;
+  /* 高亮光晕（D1 = A：单次弹 0.5s） */
+  --orbit-ring-width: 2px;
+  --orbit-ring-alpha: 0.9;
+  --orbit-halo-radius: 18px;
+  --orbit-halo-alpha: 0.35;
+  --orbit-glow-pop-halo: 24px;
+  --orbit-glow-pop-dur: 500ms;
+  --orbit-glow-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* 卡片间细光线（D2 = 分类色相 / D3 = 回落） */
+  --orbit-line-base-alpha: 0.15;
+  --orbit-line-active-alpha: 0.6;
+  --orbit-line-active-width: 3px;
+  --orbit-line-flash-dur: 400ms;
+  --orbit-line-settle-alpha: 0.35;
 }
 
 /* 主题切换平滑过渡 - 只在根元素和直接子元素上 */
@@ -58,6 +84,11 @@ html.light {
   --card-rgb: 255 255 255;    /* #ffffff */
   --surface-rgb: 235 235 240; /* #ebebf0 */
   --accent-rgb: 0 113 227;    /* #0071e3 */
+
+  /* v2 浅色主题覆盖：分类亮度提亮成 pastel，边框提对比 */
+  --orbit-cat-s: 55%;
+  --orbit-cat-l: 88%;
+  --orbit-chip-border-alpha: 0.55;
 }
 
 html.light .text-white,
@@ -338,9 +369,53 @@ h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
 }
 
+/* v2 分类色填充：背景从统一灰卡片切换为分类色相派生的半透明色（颜色单源 = CSS 变量，
+   `--orbit-cat-{id}-h` ↔ orbitConstants.ts 的 CATEGORY_CHIP_HUE 成对镜像）。
+   ⚠️ 必须写在 --matched / --pushed / --dimmed 之前（同级选择器后者胜），
+   保证状态 class 的 accent 边框 / dimmed 边框能盖住分类边框。 */
+.orbit-chip--cat-everyday {
+  background: hsl(var(--orbit-cat-everyday-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
+  border-color: hsl(var(--orbit-cat-everyday-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
+}
+
+.orbit-chip--cat-finance {
+  background: hsl(var(--orbit-cat-finance-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
+  border-color: hsl(var(--orbit-cat-finance-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
+}
+
+.orbit-chip--cat-health {
+  background: hsl(var(--orbit-cat-health-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
+  border-color: hsl(var(--orbit-cat-health-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
+}
+
+.orbit-chip--cat-image {
+  background: hsl(var(--orbit-cat-image-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
+  border-color: hsl(var(--orbit-cat-image-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
+}
+
+.orbit-chip--cat-fun {
+  background: hsl(var(--orbit-cat-fun-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-bg-alpha));
+  border-color: hsl(var(--orbit-cat-fun-h) var(--orbit-cat-s) var(--orbit-cat-l) / var(--orbit-chip-border-alpha));
+}
+
+/* v2 高亮光晕（D1 = A：单次弹 0.5s）：静态 2px ring + 18px 微扩散 halo。
+   与 v1 的 scale 1.18 + z=6（排斥内核产出）叠加，box-shadow 随父级 scale 一起缩放，互不冲突。 */
 .orbit-chip--matched {
   border-color: var(--accent);
-  box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.35);
+  box-shadow:
+    0 0 0 var(--orbit-ring-width) rgb(var(--accent-rgb) / var(--orbit-ring-alpha)),
+    0 0 var(--orbit-halo-radius) rgb(var(--accent-rgb) / var(--orbit-halo-alpha));
+}
+
+/* 光晕 pop 动画**只**放在 ::after 伪元素（独立动画载体）：
+   若放在 .orbit-chip 本体，会替换 orbit-enter → 清空搜索时命中项闪烁重放入场（关键防回归点）。 */
+.orbit-chip--matched::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: orbit-glow-pop var(--orbit-glow-pop-dur) var(--orbit-glow-ease) both;
 }
 
 .orbit-chip--pushed {
@@ -349,6 +424,47 @@ h1, h2, h3, h4, h5, h6 {
 
 .orbit-chip--dimmed {
   border-color: var(--border);
+}
+
+/* v2 卡片间细光线：1px 极细，常态静态；命中项相邻边短暂加粗发光（电路连通）。
+   alpha 由 stroke-opacity 承担（可动画），stroke 颜色本身不带 alpha ——
+   避免「颜色 alpha × stroke-opacity 叠加」把亮度吃没。 */
+.orbit-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.orbit-line {
+  fill: none;
+  stroke: hsl(var(--orbit-cat-everyday-h) var(--orbit-cat-s) var(--orbit-cat-l));
+  stroke-width: 1px;
+  stroke-opacity: var(--orbit-line-base-alpha);
+}
+
+.orbit-line--cat-finance {
+  stroke: hsl(var(--orbit-cat-finance-h) var(--orbit-cat-s) var(--orbit-cat-l));
+}
+
+.orbit-line--cat-health {
+  stroke: hsl(var(--orbit-cat-health-h) var(--orbit-cat-s) var(--orbit-cat-l));
+}
+
+.orbit-line--cat-image {
+  stroke: hsl(var(--orbit-cat-image-h) var(--orbit-cat-s) var(--orbit-cat-l));
+}
+
+.orbit-line--cat-fun {
+  stroke: hsl(var(--orbit-cat-fun-h) var(--orbit-cat-s) var(--orbit-cat-l));
+}
+
+.orbit-line--accent {
+  stroke: var(--accent);
+}
+
+.orbit-line--active {
+  animation: orbit-line-flash var(--orbit-line-flash-dur) ease-out both;
 }
 
 /* 引导线：绝对定位的椭圆描边，pointer-events:none */
@@ -464,6 +580,35 @@ h1, h2, h3, h4, h5, h6 {
   }
   50% {
     transform: translateY(-3px);
+  }
+}
+
+/* v2 高亮光晕单次弹（D1 = A，0.5s 快进慢出；只挂在 .orbit-chip--matched::after，绝不挂 .orbit-chip 本体） */
+@keyframes orbit-glow-pop {
+  0% {
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0.6);
+  }
+  40% {
+    box-shadow: 0 0 var(--orbit-glow-pop-halo) 0 rgb(var(--accent-rgb) / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
+  }
+}
+
+/* v2 连线电路连通脉冲（D3 = 回落，0.4s 单向；stroke-opacity 可动画，stroke 颜色不带 alpha） */
+@keyframes orbit-line-flash {
+  0% {
+    stroke-opacity: var(--orbit-line-base-alpha);
+    stroke-width: 1px;
+  }
+  30% {
+    stroke-opacity: var(--orbit-line-active-alpha);
+    stroke-width: var(--orbit-line-active-width);
+  }
+  100% {
+    stroke-opacity: var(--orbit-line-base-alpha);
+    stroke-width: 1px;
   }
 }
 
@@ -628,5 +773,17 @@ input[type="color"]::-webkit-color-swatch {
   .orbit-chip,
   .orbit-item__float--idle {
     animation: none !important;
+  }
+
+  /* v2：光晕 pop 是纯装饰，隐藏伪元素动画；静态 ring 保留在 .orbit-chip--matched 上 */
+  .orbit-chip--matched::after {
+    display: none;
+  }
+
+  /* v2：连线脉冲改为静态微亮（settleAlpha 0.35），不闪 */
+  .orbit-line--active {
+    animation: none !important;
+    stroke-opacity: var(--orbit-line-settle-alpha);
+    stroke-width: 1px;
   }
 }

@@ -233,3 +233,72 @@ export const ENABLE_RING_GUIDES = true;
 
 /** 溢出工具是否在环下方以紧凑胶囊行兜底展示（绝不静默丢工具） */
 export const ENABLE_OVERFLOW_FALLBACK_ROW = true;
+
+/* ─────────────────────── v2 装饰层参数块（仅追加，旧参数一行不动） ───────────────────────
+ * 与 `src/index.css` 的 `--orbit-cat-*` / `--orbit-ring-*` / `--orbit-halo-*` /
+ * `--orbit-glow-*` / `--orbit-line-*` CSS 变量**成对镜像**（docs/orbit-v2-visual-spec.md §8 硬约定 #1）。
+ * 改一处必须改另一处；颜色一律走 CSS 变量，禁止硬编码 hex。
+ */
+
+/**
+ * 分类 chip 背景的 HSL 色相（值 = index.css `--orbit-cat-{id}-h`，成对镜像）。
+ * S / L 是共享旋钮，见 CSS `--orbit-cat-s` / `--orbit-cat-l`。
+ */
+export const CATEGORY_CHIP_HUE: Record<string, number> = {
+  everyday: 152,
+  finance: 42,
+  health: 205,
+  image: 265,
+  fun: 330,
+};
+
+/** 是否启用分类色填充背景（false = 回到 v1 的统一 --card 灰卡片） */
+export const ENABLE_CATEGORY_CHIP_BG = true;
+
+/**
+ * 高亮光晕（D1 = A：单次弹 0.5s，快进慢出）。
+ * 值 = index.css `--orbit-ring-*` / `--orbit-halo-*` / `--orbit-glow-*`，成对镜像。
+ */
+export const ORBIT_GLOW_V2 = {
+  /** 静态 ring 厚度（px） */
+  ringWidth: 2,
+  /** 静态 ring 不透明度（accent） */
+  ringAlpha: 0.9,
+  /** 静态光晕扩散半径（px） */
+  haloRadius: 18,
+  /** 静态光晕不透明度 */
+  haloAlpha: 0.35,
+  /** pop 最大扩散（px）；必须 < 排斥 maxOffset 28px，配合邻居被推开不盖住 */
+  popHalo: 24,
+  /** 单次弹一下时长（ms） */
+  popDuration: 500,
+  /** 快进慢出 */
+  popEase: 'cubic-bezier(0.22, 1, 0.36, 1)',
+  /** 方案 B（循环呼吸）周期（ms）；未启用但保留通路 */
+  breathDuration: 1200,
+} as const;
+
+/**
+ * 卡片间细光线（D2 = 分类色相 / D3 = 回落 / D4 = 跨环 spoke 关）。
+ * 值 = index.css `--orbit-line-*`，成对镜像；拓扑开关仅供 buildOrbitEdges 消费。
+ */
+export const ORBIT_LINES_V2 = {
+  /** 常态不透明度（stroke-opacity 承担，可动画） */
+  baseAlpha: 0.15,
+  /** 高亮发光不透明度 */
+  activeAlpha: 0.6,
+  /** 高亮加粗宽度（px） */
+  activeWidth: 3,
+  /** 电路连通脉冲时长（ms） */
+  flashDuration: 400,
+  /** reducedMotion 静态微亮不透明度 */
+  settleAlpha: 0.35,
+  /** 同环下一个（首尾闭环） */
+  sameRingNext: true,
+  /** 跳过跨分类段连线（发送方与接收方 categoryId 不同时跳过） */
+  skipCrossSegment: true,
+  /** 跨环径向线（默认关，feature flag 留通路） */
+  crossRingSpoke: false,
+  /** 色相来源：'category' = 每线取发送方分类 hue；可改 'accent' 走统一 accent */
+  colorSource: 'category',
+} as const;
