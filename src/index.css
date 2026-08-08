@@ -302,19 +302,28 @@ h1, h2, h3, h4, h5, h6 {
     "left   search right"
     "bottom bottom bottom";
   grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: 1fr auto 1fr;
-  height: 100vh;
+  /* 中间行给足高度，Left/Right 才不挤扁：
+     - xl(1440): left=13 工具/3列=5行 ×82px ≈410px；right=11 工具/3列=4行 ≈328px
+     - lg(1280): left=13 工具/3列=5行 ×59px ≈295px
+     minmax(420px, 1fr)：至少 420px 保证 left 全展示，剩余空间按 1fr 分配。
+     ⚠ 不能改成 `auto 1fr auto`：.grid-zone 内卡片全用 position:absolute，
+        intrinsic height=0，auto 行会塌成 0px（已实测 rows="0px 900px 0px"）。 */
+  grid-template-rows: 1fr minmax(420px, 1fr) 1fr;
+  /* 撑满父容器（Home.tsx 中为 calc(100vh - header)，正好一屏）。
+     不再设 min-height:100vh：父容器是 <100vh 的显式高度，
+     设了会强制 grid=100vh → 溢出父容器被 overflow:hidden 裁掉底部。 */
+  height: 100%;
   width: 100%;
   overflow: hidden;
 }
 
-/* 搜索框在正中央 */
+/* 搜索框在正中央：用 grid 对齐双保险，避免受 flex / 内容尺寸干扰 */
 .grid-home__search {
   grid-area: search;
+  align-self: center;
+  justify-self: center;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   z-index: 10;
   padding: 12px 16px;
 }
@@ -333,7 +342,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .grid-home__fallback {
   grid-area: search;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
 }

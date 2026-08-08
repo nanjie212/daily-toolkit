@@ -168,8 +168,10 @@ export default function Home() {
           <ToolGrid tools={filteredTools} />
         </div>
       ) : (
-        /* 桌面端：网格首页（100vh 一屏不滚动） */
-        <div className="h-[calc(100vh-48px-180px)] md:h-[calc(100vh-56px-180px)] overflow-hidden">
+        /* 桌面端：网格首页（一屏不滚动）
+           高度 = 100vh - 顶部品牌条，正好一屏；grid 用 height:100% 跟随，
+           不再预留 180px（下方 pinned/favorites/recent 区块若存在则自然滚动出现） */
+        <div className="h-[calc(100vh-48px)] md:h-[calc(100vh-56px)] overflow-hidden">
           <GridHome
             tools={tools}
             searchQuery={searchQuery}
