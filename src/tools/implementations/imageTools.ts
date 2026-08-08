@@ -856,8 +856,9 @@ export async function imageCrop(input: Record<string, unknown>): Promise<ToolOut
     if (!file) return { success: false, error: '请上传图片' };
 
     const reader = new FileReader();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      reader.onload = () => resolve(reader.result as string);
+    // 预读取校验文件可读性；裁剪界面内由用户重新选择图片，dataUrl 本身不直接使用
+    await new Promise<void>((resolve, reject) => {
+      reader.onload = () => resolve();
       reader.onerror = () => reject(new Error('图片读取失败'));
       reader.readAsDataURL(file);
     });
@@ -1185,7 +1186,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) doCrop();
   if (e.key === 'r' || e.key === 'R') resetCrop();
 });
-<\/script>
+</script>
 </body>
 </html>`;
 
@@ -1207,9 +1208,6 @@ export async function pdfMerge(input: Record<string, unknown>): Promise<ToolOutp
     }
 
     if (files.length < 2) return { success: false, error: '请至少上传2个PDF文件' };
-
-    const JSZip = (await import('jszip')).default;
-    const zip = new JSZip();
 
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith('.pdf')) {

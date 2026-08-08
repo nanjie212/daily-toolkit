@@ -71,7 +71,9 @@ export default function GridHome({
     setHoveredId(id);
   }, []);
 
-  const handleActivate = useCallback((_tool: ToolRecord) => {}, []);
+  const handleActivate = useCallback((_tool: ToolRecord) => {
+    // 激活行为由 GridItem 内部自行导航，此处为接口占位
+  }, []);
 
   const showGrid = layout.config.breakpoint !== 'sm' && layout.slots.length > 0;
 

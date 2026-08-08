@@ -14,11 +14,13 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 export const ONBOARDING_STORAGE_KEY = 'onboarding-done';
 
 /** 新手引导是否已经看过（读取失败 / 隐私模式下一律当作没看过，由 safeStorage 兜底）。 */
+// eslint-disable-next-line react-refresh/only-export-components -- 该 helper 被 Home.tsx 复用，与存储 key 定义同文件避免两套状态
 export function isOnboardingDone(): boolean {
   return safeStorage.getItem(ONBOARDING_STORAGE_KEY) !== null;
 }
 
 /** 写入「不再提示」标记。 */
+// eslint-disable-next-line react-refresh/only-export-components -- 与 ONBOARDING_STORAGE_KEY 同源，Home.tsx 静默关闭时复用
 export function markOnboardingDone(): void {
   safeStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
 }

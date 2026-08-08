@@ -65,6 +65,10 @@ export default function Home() {
       }, 100);
       return () => clearTimeout(timer);
     }
+    // 初始化重置逻辑：刻意只在挂载时检查一次「从带筛选状态返回首页但 URL 无参数」
+    // 的场景；把 location.search/searchQuery/selectedCategory 加入依赖会在用户后续
+    // 正常搜索时误触发清空，改变既有行为。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

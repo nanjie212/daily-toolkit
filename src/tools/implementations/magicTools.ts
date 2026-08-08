@@ -6,11 +6,8 @@ import type { ToolOutput } from '@/types';
  * ============================================
  */
 
-async function blobFromImageFile(file: File): Promise<Blob> {
-  return file;
-}
-
-function downloadBlobUrl(blob: Blob, filename: string): string {
+// filename 仅用于语义化标注；返回的 objectURL 由调用方决定下载文件名
+function downloadBlobUrl(blob: Blob, _filename: string): string {
   return URL.createObjectURL(blob);
 }
 
@@ -513,7 +510,7 @@ export function extractWordFrequencies(text: string): WordFrequency[] {
 
   // 移除标点符号与空白，保留中英文与数字
   const cleaned = text.replace(
-    /[，。！？、；：""''（）【】《》〈〉\n\r\t\s,.!?;:'"()\[\]{}<>_`~@#$%^&*+=|\\/—–…·]+/g,
+    /[，。！？、；：""''（）【】《》〈〉\n\r\t\s,.!?;:'"()[\]{}<>_`~@#$%^&*+=|\\/—–…·]+/g,
     ' ',
   );
 
@@ -714,7 +711,6 @@ export async function pixelArtConvert(input: Record<string, unknown>): Promise<T
     }
 
     colorBuckets.sort((a, b) => b.count - a.count);
-    const topColors = colorBuckets.slice(0, colorCount);
 
     const outputCanvas = document.createElement('canvas');
     outputCanvas.width = smallW;
@@ -937,9 +933,6 @@ export async function luckyWheel(input: Record<string, unknown>): Promise<ToolOu
     ctx.fillStyle = '#ecf0f1';
     ctx.textAlign = 'center';
     ctx.fillText(title, cx, 40);
-
-    const blob = await canvasToBlob(canvas, 'image/png');
-    const downloadUrl = downloadBlobUrl(blob, 'lucky-wheel.png');
 
     const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:20px;font-family:"PingFang SC","Microsoft YaHei",sans-serif}h1{color:#ecf0f1}canvas{cursor:pointer;border-radius:50%;box-shadow:0 0 40px rgba(255,255,255,.1)}button{padding:12px 40px;font-size:18px;border:none;border-radius:12px;background:#e74c3c;color:#fff;cursor:pointer;font-weight:bold}button:active{transform:scale(.95)}#result{color:#f1c40f;font-weight:bold;min-height:40px;font-size:24px}</style></head><body><h1>${title}</h1><canvas id="wheel" width="500" height="500"></canvas><button onclick="spin()">🎯 开始转动</button><div id="result"></div><script>const names=${JSON.stringify(nameList)};const colors=${JSON.stringify(colors)};let spinning=false;const canvas=document.getElementById('wheel');const ctx=canvas.getContext('2d');const cx=250,cy=250,radius=220;let currentAngle=0;const sliceAngle=360/names.length;function drawWheel(angle){ctx.clearRect(0,0,500,500);ctx.fillStyle='#1a1a2e';ctx.beginPath();ctx.arc(cx,cy,radius+15,0,Math.PI*2);ctx.fill();for(let i=0;i<names.length;i++){const startAngle=((i*sliceAngle-90)+angle)*Math.PI/180;const endAngle=(((i+1)*sliceAngle-90)+angle)*Math.PI/180;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,startAngle,endAngle);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();ctx.strokeStyle='#1a1a2e';ctx.lineWidth=2;ctx.stroke();const midAngle=(startAngle+endAngle)/2;const labelR=radius*.65;ctx.save();ctx.translate(cx+Math.cos(midAngle)*labelR,cy+Math.sin(midAngle)*labelR);ctx.rotate(midAngle+Math.PI/2);ctx.font='bold 14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(names[i].slice(0,6),0,0);ctx.restore()}ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);ctx.fillStyle='#2c3e50';ctx.fill();ctx.strokeStyle='#ecf0f1';ctx.lineWidth=3;ctx.stroke()}function spin(){if(spinning)return;spinning=true;document.getElementById('result').textContent='';const targetAngle=currentAngle+1800+Math.random()*1800;const startTime=Date.now();const duration=5000;function animate(){const elapsed=Date.now()-startTime;const progress=Math.min(elapsed/duration,1);const eased=1-Math.pow(1-progress,4);currentAngle=currentAngle+(targetAngle-currentAngle)*eased;drawWheel(currentAngle);if(progress<1){requestAnimationFrame(animate)}else{spinning=false;const normalizedAngle=((currentAngle%360)+360)%360;const winnerIndex=Math.floor((360-normalizedAngle+90)/sliceAngle)%names.length;document.getElementById('result').textContent='🎉 恭喜 '+names[winnerIndex]+' 中奖！'}}animate()}drawWheel(0)</script></body></html>`;
 

@@ -26,7 +26,7 @@ export default function IdiomChainGame() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [changeRemain, setChangeRemain] = useState(3);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [todayChallenges, setTodayChallenges] = useState<IdiomChallenge[]>([]);
+  const [, setTodayChallenges] = useState<IdiomChallenge[]>([]);
   const [completedToday, setCompletedToday] = useState(0);
   const [badges, setBadges] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -37,6 +37,9 @@ export default function IdiomChainGame() {
   // 初始化 - 加载数据
   useEffect(() => {
     loadData();
+    // loadData 只读取本地存储并写入 state，不依赖任何可变 props/state；
+    // 刻意仅在挂载时执行一次，加依赖会改变「每日首次打开重置挑战」的行为。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = () => {
@@ -134,7 +137,7 @@ export default function IdiomChainGame() {
   // 播放音效
   const playSound = (type: 'correct' | 'wrong') => {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     }
     const audioContext = audioCtxRef.current;
     if (audioContext.state === 'suspended') audioContext.resume();
@@ -253,7 +256,7 @@ export default function IdiomChainGame() {
         <div className="flex gap-2">
           <select
             value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value as any)}
+            onChange={(e) => setDifficulty(e.target.value as 'easy' | 'normal' | 'hard')}
             className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           >
             <option value="easy">简单</option>

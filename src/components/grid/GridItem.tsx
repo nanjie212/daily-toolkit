@@ -32,7 +32,7 @@ const GridItem = memo(function GridItem({
   tool,
   slot,
   transform,
-  isHovered,
+  isHovered: _isHovered,
   hasNeighborRight,
   hasNeighborBelow,
   itemW,

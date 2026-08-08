@@ -74,7 +74,6 @@ export function computeGridInteraction(
   for (const slot of slots) {
     const isActive = activeIds.has(slot.toolId);
     const isHovered = slot.toolId === hoveredId;
-    const isMatched = highlightIds.has(slot.toolId) && !isHovered;
 
     if (isActive) {
       // 活跃项：不位移，放大 + 提层

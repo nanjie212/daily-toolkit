@@ -76,11 +76,11 @@ import {
   TypeOutline,
   PinIcon,
   PinOffIcon,
-  TrendingDownIcon,
 } from 'lucide-react';
 import type { ToolRecord } from '@/types';
 import { useStore } from '@/store';
 
+// eslint-disable-next-line react-refresh/only-export-components -- iconMap 供 HomeHero / CommandSearch / GridItem 复用，迁至独立文件会放大变更面
 export const iconMap: Record<string, React.ElementType> = {
   ImageIcon,
   FileTextIcon,
@@ -160,10 +160,12 @@ export const iconMap: Record<string, React.ElementType> = {
  * 按 ToolRecord.icon 字符串取 lucide 图标组件，找不到时回退到 SparklesIcon。
  * 供 ToolGrid 之外的组件（HomeHero / CommandSearch）复用同一套图标映射。
  */
+// eslint-disable-next-line react-refresh/only-export-components -- 与 iconMap 配套的查询函数，需与映射表同文件保证一致性
 export function getToolIcon(iconName: string): React.ElementType {
   return iconMap[iconName] || SparklesIcon;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- 分类配色表被网格卡片与外部组件共用，跟随组件文件导出
 export const categoryColors: Record<string, string> = {
   everyday: 'from-teal-500/20 to-emerald-500/20 hover:from-teal-500/30 hover:to-emerald-500/40',
   finance: 'from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/40',
@@ -183,7 +185,7 @@ interface ToolPreviewData {
 
 export default function ToolGrid({ tools }: ToolGridProps) {
   const navigate = useNavigate();
-  const { favoriteToolIds, toggleFavorite, pinnedToolIds, togglePinned } = useStore();
+  const { favoriteToolIds, pinnedToolIds } = useStore();
   const [preview, setPreview] = useState<ToolPreviewData | null>(null);
   const [hoveredTool, setHoveredTool] = useState<string | null>(null);
   const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -253,7 +255,7 @@ export default function ToolGrid({ tools }: ToolGridProps) {
     <div className="relative">
       {/* 工具图标网格 */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-3 p-4">
-        {tools.map((tool, index) => {
+        {tools.map((tool) => {
           const Icon = iconMap[tool.icon] || SparklesIcon;
           const isFavorite = favoriteToolIds.includes(tool.id);
           const isPinned = pinnedToolIds.includes(tool.id);

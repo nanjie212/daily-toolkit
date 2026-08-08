@@ -162,10 +162,11 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>({
       document.removeEventListener('keydown', handleKeyDown, true);
 
       // 清理为兜底聚焦临时添加的 tabindex
-      const node = containerRef.current;
-      if (node && node.dataset.focusTrapTabindex === 'true') {
-        node.removeAttribute('tabindex');
-        delete node.dataset.focusTrapTabindex;
+      // 使用 effect 开头捕获的 container（而非 cleanup 时再读 ref.current），
+      // 保证清理的是同一个节点
+      if (container && container.dataset.focusTrapTabindex === 'true') {
+        container.removeAttribute('tabindex');
+        delete container.dataset.focusTrapTabindex;
       }
 
       // 4. 焦点归位

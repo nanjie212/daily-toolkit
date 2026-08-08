@@ -113,5 +113,6 @@ export function useGridLayout(
       slotById,
       zones,
     };
-  }, [tools, stageWidth, _stageHeight]);
+  // _stageHeight 当前不参与布局计算（zone-local 坐标系只依赖宽度），故不进依赖数组
+  }, [tools, stageWidth]);
 }

@@ -7,10 +7,16 @@ import {
   ShieldCheckIcon,
   FileTextIcon,
 } from 'lucide-react';
-import { useStore } from '@/store';
 import ThemeToggle from '@/components/ThemeToggle';
 import { safeStorage } from '@/lib/safeStorage';
 import { useEffect, useState, useRef } from 'react';
+
+/** 本地使用时长记录（localStorage `toolbox_usage_records` 的单条结构） */
+interface UsageRecord {
+  date: string;
+  timestamp: number;
+  duration?: number;
+}
 
 export default function FooterBar() {
   const navigate = useNavigate();
@@ -52,10 +58,10 @@ export default function FooterBar() {
       const today = new Date().toDateString();
       let totalToday = 0;
       let totalWeek = 0;
-      const records = JSON.parse(localStorage.getItem('toolbox_usage_records') || '[]');
+      const records: UsageRecord[] = JSON.parse(localStorage.getItem('toolbox_usage_records') || '[]');
       const now = Date.now();
       const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-      records.forEach((record: any) => {
+      records.forEach((record) => {
         if (record.date === today) totalToday += record.duration || 0;
         if (record.timestamp >= weekAgo) totalWeek += record.duration || 0;
       });
@@ -72,15 +78,15 @@ export default function FooterBar() {
     const today = new Date().toDateString();
     const saveDuration = () => {
       const duration = Math.round((Date.now() - startTime) / 1000);
-      const records = JSON.parse(localStorage.getItem('toolbox_usage_records') || '[]');
-      const existing = records.find((r: any) => r.date === today);
+      const records: UsageRecord[] = JSON.parse(localStorage.getItem('toolbox_usage_records') || '[]');
+      const existing = records.find((r) => r.date === today);
       if (existing) {
         existing.duration = (existing.duration || 0) + duration;
       } else {
         records.push({ date: today, timestamp: Date.now(), duration });
       }
       const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      const filtered = records.filter((r: any) => r.timestamp >= monthAgo);
+      const filtered = records.filter((r) => r.timestamp >= monthAgo);
       localStorage.setItem('toolbox_usage_records', JSON.stringify(filtered));
     };
     window.addEventListener('beforeunload', saveDuration);

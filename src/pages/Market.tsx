@@ -46,7 +46,10 @@ export default function Market() {
 
   const isInstalled = (id: string) => tools.some((t) => t.id === id);
 
-  const installedTools = useMemo(() => marketTools.filter(t => isInstalled(t.id)), [tools]);
+  const installedTools = useMemo(
+    () => marketTools.filter((t) => tools.some((installed) => installed.id === t.id)),
+    [tools],
+  );
   const hotTools = useMemo(() => [...marketTools].sort((a, b) => (toolLikes[b.id] || 0) - (toolLikes[a.id] || 0)), [toolLikes]);
 
   const filteredTools = useMemo(() => {

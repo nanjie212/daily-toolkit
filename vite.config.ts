@@ -4,9 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 import tsconfigPaths from "vite-tsconfig-paths";
 
 // 站点绝对地址：用于把必须「绝对 URL」的 OG / Twitter 元信息注入 HTML。
-// 当前托管在 CloudStudio（见 README / PROJECT_DOCUMENT.md），临时域名如下；
-// 生产域名确定后，用仓库根目录 .env 里的 VITE_SITE_URL 覆盖即可，无需改代码。
-const DEFAULT_SITE_URL = 'https://6c9131a380b24cd08741384565831c9b.bj9.agentos-app.net';
+// 部署时通过仓库根目录 .env 的 VITE_SITE_URL 注入（CloudStudio 部署流程会注入真实域名）。
+// 未配置时默认为空字符串：%VITE_SITE_URL% 占位符被替换为空，OG 标签退化为相对路径，
+// 不影响站点任何功能。
+const DEFAULT_SITE_URL = '';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -63,13 +64,37 @@ export default defineConfig(({ mode }) => {
         ],
       },
       workbox: {
+        // 预缓存只覆盖首屏必需资源；opencc / pdfjs / docx / modern-gif / jszip
+        // 均为按需动态加载的大 chunk（合计约 2MB），不预缓存，
+        // 由下方 runtimeCaching 在首次使用时 CacheFirst 落盘。
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        globIgnores: [
+          'assets/opencc-*',
+          'assets/pdf*',
+          'assets/docx-*',
+          'assets/modern-gif-*',
+          'assets/jszip*',
+        ],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
         navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/^\/__.*$/],
+        runtimeCaching: [
+          {
+            // 按需加载的大型库 chunk：首次请求成功后即本地缓存，后续离线可用
+            urlPattern: /\/assets\/(opencc|pdf|docx|modern-gif|jszip)[^/]*\.(js|mjs)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'heavy-libs-cache',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 天
+              },
+            },
+          },
+        ],
       },
     }),
     tsconfigPaths()
@@ -82,8 +107,8 @@ export default defineConfig(({ mode }) => {
           'lucide': ['lucide-react'],
           'opencc': ['opencc-js'],
           'qrcode': ['qrcode'],
-          'jszip': ['jszip'],
           'modern-gif': ['modern-gif'],
+          'docx': ['docx'],
           'vendor': ['react', 'react-dom', 'react-router-dom', 'zustand'],
         },
       },

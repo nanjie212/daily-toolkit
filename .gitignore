@@ -32,6 +32,15 @@ dist-ssr
 # AI 工具缓存
 .superpowers/
 .cache/
+.cache_a11y/
+.cache_qa_hero/
+.cache_tool_audit/
+
+# QA 验证构建产物
+dist_qa/
+
+# Cloudflare Wrangler 残留（已废弃，无 wrangler.toml）
+.wrangler/
 
 # 用户上传目录（运行时数据）
 .uploads/

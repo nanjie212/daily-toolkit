@@ -196,7 +196,6 @@ describe('GridItem 细光线（邻居关系）', () => {
 
 describe('GridItem 分类色覆盖', () => {
   const transform = makeTransform();
-  const slot = makeSlot();
 
   it('finance 分类渲染 grid-item--cat-finance', () => {
     const t = makeTool({ id: 'test-fin', category: 'finance', icon: 'DollarSignIcon' });

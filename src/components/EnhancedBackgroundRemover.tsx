@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { EraserIcon, PlusCircleIcon, DownloadIcon } from 'lucide-react';
 
 interface Point {

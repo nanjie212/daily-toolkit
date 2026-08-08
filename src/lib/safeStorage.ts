@@ -23,14 +23,17 @@ class SafeStorage {
   setItem(key: string, value: string): void {
     try {
       this.storage?.setItem(key, value);
-    } catch {
+    } catch (e) {
+      // 隐私模式/配额满时静默降级，仅留日志便于排查
+      console.warn('[safeStorage] setItem 失败:', key, e);
     }
   }
 
   removeItem(key: string): void {
     try {
       this.storage?.removeItem(key);
-    } catch {
+    } catch (e) {
+      console.warn('[safeStorage] removeItem 失败:', key, e);
     }
   }
 
@@ -46,7 +49,8 @@ class SafeStorage {
   setJSON(key: string, value: unknown): void {
     try {
       this.setItem(key, JSON.stringify(value));
-    } catch {
+    } catch (e) {
+      console.warn('[safeStorage] setJSON 失败:', key, e);
     }
   }
 }

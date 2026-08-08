@@ -1,10 +1,10 @@
 import type { ToolOutput } from '@/types';
 import { PDFDocument } from 'pdf-lib';
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
 import { decryptPDF } from '@pdfsmaller/pdf-decrypt';
 
-function downloadBlob(blob: Blob, filename: string): string {
+// filename 仅用于语义化标注下载意图；当前返回 objectURL 由调用方决定文件名
+function downloadBlob(blob: Blob, _filename: string): string {
   const url = URL.createObjectURL(blob);
   return url;
 }
@@ -21,15 +21,6 @@ async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
 async function fileToUint8Array(file: File): Promise<Uint8Array> {
   const ab = await fileToArrayBuffer(file);
   return new Uint8Array(ab);
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
 }
 
 export async function pdfSplit(input: Record<string, unknown>): Promise<ToolOutput> {
@@ -182,7 +173,9 @@ export async function pdfToWord(input: Record<string, unknown>): Promise<ToolOut
     const file = input.file as File;
     if (!file) return { success: false, error: '请选择PDF文件' };
 
+    // pdfjs-dist 及其 worker 体积较大（约 365KB + 1MB），按需动态加载
     const pdfjsLib = await import('pdfjs-dist');
+    const { default: pdfjsWorkerUrl } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
     const pdfData = await fileToUint8Array(file);
     const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() });
@@ -194,9 +187,9 @@ export async function pdfToWord(input: Record<string, unknown>): Promise<ToolOut
     for (let i = 1; i <= totalPages; i++) {
       const page = await pdfDoc.getPage(i);
       const content = await page.getTextContent();
-      const pageText = (content.items as any[])
-        .map((item: { str?: string }) => (item.str || ''))
-        .filter((s: string) => s.trim())
+      const pageText = content.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .filter((s) => s.trim())
         .join(' ');
       if (pageText.trim()) {
         textParts.push(`第 ${i} 页\n${pageText}`);

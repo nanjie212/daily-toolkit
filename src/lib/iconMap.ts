@@ -12,7 +12,6 @@ import {
   ShieldCheckIcon,
   QrCodeIcon,
   RulerIcon,
-  StarIcon,
   KeyRoundIcon,
   EyeOffIcon,
   CalculatorIcon,

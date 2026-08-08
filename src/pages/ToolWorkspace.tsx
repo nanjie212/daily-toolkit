@@ -24,7 +24,6 @@ export default function ToolWorkspace() {
   const [output, setOutput] = useState<ToolOutput | null>(null);
   const [loading, setLoading] = useState(false);
   const [showMobileOutput, setShowMobileOutput] = useState(false);
-  const [kinshipPath, setKinshipPath] = useState('');
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   const tool = tools.find((t) => t.id === id);
@@ -48,7 +47,8 @@ export default function ToolWorkspace() {
         });
       }
     }
-  }, [tool]);
+    // updateRecentUse 来自 zustand store，引用稳定，加入依赖不会引起额外执行
+  }, [tool, updateRecentUse]);
 
   if (!tool) {
     return (

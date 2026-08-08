@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { CopyIcon, CheckIcon, DownloadIcon, AlertCircleIcon } from 'lucide-react';
 import type { ToolOutput } from '@/types';
 
@@ -21,37 +21,8 @@ const LABEL_ICONS: Record<string, string> = {
   等级: '🏅', 各项明细: '📋',
 };
 
-const VALUE_ICONS: Record<string, string> = {
-  excellent: '🌟', good: '👍', normal: '👌', bad: '⚠️',
-};
-
-const KEYWORD_ICONS: Record<string, { icon: string; color: string }> = {
-  '结果': { icon: '✨', color: 'from-purple-500 to-pink-500' },
-  '总': { icon: '🏆', color: 'from-amber-500 to-orange-500' },
-  '到手': { icon: '🎯', color: 'from-emerald-500 to-green-500' },
-  '省': { icon: '🎉', color: 'from-rose-500 to-red-500' },
-  '月供': { icon: '📋', color: 'from-blue-500 to-indigo-500' },
-  '利息': { icon: '💸', color: 'from-red-500 to-rose-500' },
-  '金额': { icon: '💰', color: 'from-emerald-500 to-teal-500' },
-  '分数': { icon: '📊', color: 'from-violet-500 to-purple-500' },
-  '得分': { icon: '📊', color: 'from-violet-500 to-purple-500' },
-  '年龄': { icon: '📅', color: 'from-cyan-500 to-blue-500' },
-  '身高': { icon: '📏', color: 'from-sky-500 to-cyan-500' },
-  '体重': { icon: '⚖️', color: 'from-stone-500 to-slate-500' },
-  '概率': { icon: '🎲', color: 'from-fuchsia-500 to-purple-500' },
-};
-
 function getKeyEmoji(key: string): string {
   return LABEL_ICONS[key] || '📌';
-}
-
-function detectIconAndGradient(key: string, value: string): { bgGradient: string; badgeColor: string } {
-  for (const [kw, info] of Object.entries(KEYWORD_ICONS)) {
-    if (key.includes(kw)) {
-      return { bgGradient: info.color, badgeColor: 'text-white' };
-    }
-  }
-  return { bgGradient: 'from-gray-500 to-gray-600', badgeColor: 'text-gray-200' };
 }
 
 function formatValue(value: unknown): { display: string; isNumeric: boolean; isCurrency: boolean; isPercent: boolean } {

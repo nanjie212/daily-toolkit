@@ -1,5 +1,15 @@
-import * as OpenCC from 'opencc-js';
 import type { ToolOutput } from '@/types';
+
+// opencc-js 体积约 1.1MB（含词典），改为按需动态加载。
+// 模块级缓存 Promise，保证多次调用只请求/解析一次。
+type OpenCCModule = typeof import('opencc-js');
+let openccLoader: Promise<OpenCCModule> | null = null;
+function loadOpenCC(): Promise<OpenCCModule> {
+  if (!openccLoader) {
+    openccLoader = import('opencc-js');
+  }
+  return openccLoader;
+}
 
 export async function textCounter(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
@@ -39,6 +49,7 @@ export async function traditionalSimplified(input: Record<string, unknown>): Pro
 
     if (!text) return { success: false, error: '请输入文本内容' };
 
+    const OpenCC = await loadOpenCC();
     let result: string;
     if (mode === 't2s') {
       const converter = OpenCC.Converter({ from: 'tw', to: 'cn' });

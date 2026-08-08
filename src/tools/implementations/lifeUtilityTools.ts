@@ -233,7 +233,6 @@ export async function discountCalc(input: Record<string, unknown>): Promise<Tool
       }
 
       case 'combo': {
-        const results: DiscountResult[] = [];
         const comboSteps: string[] = [];
         let currentPrice = price;
         
@@ -335,7 +334,7 @@ export async function weightedScoreCalc(input: Record<string, unknown>): Promise
   } catch (e) { return { success: false, error: `计算失败: ${(e as Error).message}` }; }
 }
 
-export async function clothingSizeConverter(input: Record<string, unknown>): Promise<ToolOutput> {
+export async function clothingSizeConverter(_input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     return {
       success: true,

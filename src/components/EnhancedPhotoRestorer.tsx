@@ -14,7 +14,6 @@ export default function EnhancedPhotoRestorer() {
   const [loading, setLoading] = useState(false);
   const [processingStep, setProcessingStep] = useState('');
   const [showComparison, setShowComparison] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,15 +176,6 @@ export default function EnhancedPhotoRestorer() {
       const data = imageData.data;
 
       setProcessingStep('上色处理...');
-
-      // 分析图片亮度分布
-      let darkPixels = 0, midPixels = 0, lightPixels = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (lum < 85) darkPixels++;
-        else if (lum < 170) midPixels++;
-        else lightPixels++;
-      }
 
       // 根据风格上色
       const styleParams = {

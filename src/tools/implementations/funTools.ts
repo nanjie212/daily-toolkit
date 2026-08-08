@@ -255,7 +255,6 @@ export async function fancyTextGenerator(input: Record<string, unknown>): Promis
 export async function specialSymbols(input: Record<string, unknown>): Promise<ToolOutput> {
   try {
     const mode = (input.mode as string) || 'emoji';
-    const emojiData: Record<string, string> = {};
 
     if (mode === 'emoji') {
       return {
@@ -402,10 +401,6 @@ export async function kinshipCalculator(input: Record<string, unknown>): Promise
       const part = parts[i];
       const map = kinshipMap[current];
       if (!map || !map[part]) {
-        const suggestions = map
-          ? Object.keys(map).map((k) => `${k}→${map[k]}`).join('、')
-          : '暂无可用关系';
-
         const joker = randomKinshipJoke(current, part);
 
         return {

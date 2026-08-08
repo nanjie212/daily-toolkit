@@ -29,7 +29,6 @@ export default function MobileNav() {
   const isHome = location.pathname === '/';
   const searchParams = new URLSearchParams(location.search);
   const currentCategory = searchParams.get('category');
-  const isCommunity = location.pathname === '/community';
 
   const [msgCount, setMsgCount] = useState(0);
 
