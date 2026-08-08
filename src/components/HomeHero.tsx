@@ -15,8 +15,6 @@ export interface HomeHeroProps {
   onSearchChange: (value: string) => void;
   /** 搜索框获得焦点时的回调（首页用于关闭新手引导） */
   onSearchFocus?: () => void;
-  /** 新手引导展示时把搜索框抬到蒙层之上 */
-  elevated?: boolean;
   /** 外部持有的输入框 ref，用于 Ctrl/Cmd+K 聚焦 */
   searchInputRef: RefObject<HTMLInputElement>;
 }
@@ -36,7 +34,6 @@ export default function HomeHero({
   searchQuery,
   onSearchChange,
   onSearchFocus,
-  elevated = false,
   searchInputRef,
 }: HomeHeroProps) {
   const navigate = useNavigate();
@@ -55,9 +52,7 @@ export default function HomeHero({
       </h1>
 
       {/* 3. 中央搜索框 */}
-      <div
-        className={`relative w-full max-w-[680px] mt-6 md:mt-9 ${elevated ? 'z-[60]' : 'z-[45]'}`}
-      >
+      <div className="relative w-full max-w-[680px] mt-6 md:mt-9">
         <CommandSearch
           ref={searchInputRef}
           tools={tools}

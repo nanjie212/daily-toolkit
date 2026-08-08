@@ -518,7 +518,7 @@ export const lifeTools: ToolRecord[] = [
     id: 'period-tracker-calc',
     name: '经期推算',
     description: '推算下个经期、排卵期和当前所处阶段',
-    category: 'everyday',
+    category: 'health',
     icon: 'CalendarHeartIcon',
     version: '1.0.0',
     source: 'builtin' as const,

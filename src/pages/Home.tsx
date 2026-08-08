@@ -127,7 +127,6 @@ export default function Home() {
         searchQuery={searchQuery}
         onSearchChange={(value) => useStore.getState().setSearchQuery(value)}
         onSearchFocus={dismissOnboarding}
-        elevated={showOnboarding}
         searchInputRef={searchRef}
       />
 
